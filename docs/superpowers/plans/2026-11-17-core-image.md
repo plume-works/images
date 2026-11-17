@@ -17,9 +17,10 @@
 - Base: `ubuntu:26.04` (codename `resolute`), pinned as `ubuntu:26.04@sha256:<digest>`.
 - User: `dev`, uid 1000, gid 1000, home `/home/dev`, passwordless sudo, login shell `/usr/bin/fish`. The image's final `USER` is `dev`.
 - Node major version: 24.
-- Every version pin is an `ARG <NAME>_VERSION=` line with a `# renovate: datasource=<ds> depName=<name>` comment directly above it.
-- `uv` and Bun arrive by `COPY --from=<image>:<version>@sha256:<digest>`; Claude Code and OpenCode by `npm install -g <pkg>@<exact version>`. No per-file checksums.
-- Image name: `ghcr.io/plume-works/core`. Tags: `edge` and the full commit SHA. Platforms: `linux/amd64`, `linux/arm64`.
+- `uv` and Bun arrive by `COPY --from=<image>:<version>@sha256:<digest>`, written as literal references because `COPY --from` cannot expand an `ARG`. Renovate's Dockerfile manager tracks them as written.
+- Claude Code and OpenCode arrive by `npm install -g <pkg>@${<NAME>_VERSION}`. Each version is an `ARG <NAME>_VERSION=<exact version>` line with a `# renovate: datasource=npm depName=<pkg>` comment directly above it.
+- No per-file checksums.
+- Image name: `ghcr.io/plume-works/core`. Tags: `edge` and the full commit SHA, and no others. Platforms: `linux/amd64`, `linux/arm64`.
 - GitHub Actions are pinned by full commit SHA with a `# vX.Y.Z` trailing comment.
 - The repo is `https://github.com/plume-works/images.git`, cloned at `/workspaces/empty-devcontainer/.nested/images`. `main` holds one commit with an empty `README.md`. All work happens on the `core-image` branch, which already carries the design and this plan.
 - If a tool cannot be installed from the source the spec names (for example a package is no longer published to npm, or a vendor apt repository has no `resolute` suite), stop and report; do not substitute a different source.
@@ -97,7 +98,7 @@ Order, one concern per `RUN` so a version bump rebuilds from its own line down:
 3. Vendor apt repositories, each with its key in `/etc/apt/keyrings`: GitHub CLI (`gh`), NodeSource for Node 24 (`nodejs`), Docker (`docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin`).
 4. `COPY --from=ghcr.io/astral-sh/uv:<version>@sha256:<digest> /uv /uvx /usr/local/bin/`
 5. `COPY --from=oven/bun:<version>@sha256:<digest> /usr/local/bin/bun /usr/local/bin/bun`, plus a `bunx` symlink to it.
-6. `ARG CLAUDE_CODE_VERSION` / `ARG OPENCODE_VERSION` with renovate comments (`datasource=npm`, `depName=@anthropic-ai/claude-code` and `depName=opencode-ai`), each followed by its own `npm install -g <pkg>@${...}` and `npm cache clean --force`.
+6. `ARG CLAUDE_CODE_VERSION` / `ARG OPENCODE_VERSION` with renovate comments (`depName=@anthropic-ai/claude-code` and `depName=opencode-ai`), each followed by its own `npm install -g <pkg>@${...}` and `npm cache clean --force`.
 7. User: the base image ships `ubuntu` at uid 1000. Rename it in place (`usermod -l dev -d /home/dev -m ubuntu`, `groupmod -n dev ubuntu`), set the shell to `/usr/bin/fish`, add `dev` to the `docker` group, write `/etc/sudoers.d/dev` with `dev ALL=(ALL) NOPASSWD:ALL` and mode `0440`.
 8. `USER dev`, `WORKDIR /home/dev`.
 
@@ -131,7 +132,7 @@ git commit -m "Add core image with dev tools"
 **Interfaces:**
 - Consumes: `check` helper and group argument from Task 1.
 - Produces: `/usr/local/bin/start-dockerd` in the image, mode `0755`, owned by root. Contract:
-  - Re-executes itself under `sudo` when not root.
+  - Re-executes itself under `sudo` when not root, passing `START_DOCKERD_TIMEOUT` through explicitly (`sudo` resets the environment).
   - If `docker info` already succeeds: exit 0, start nothing.
   - Otherwise starts `dockerd` in the background, output to `/var/log/dockerd.log`, and polls `docker info` once a second.
   - Timeout from `START_DOCKERD_TIMEOUT` seconds, default `30`. On timeout: print the last 20 lines of the log to stderr, exit 1.
@@ -142,12 +143,14 @@ git commit -m "Add core image with dev tools"
 These need their own `docker run` flags, so they do not use `check`'s plain form; add a variant that takes extra run flags.
 
 ```sh
-# privileged: daemon comes up, dev can use it, second call is a no-op
-check_run "dockerd starts"      --privileged -- sh -c 'start-dockerd && docker run --rm hello-world'
-check_run "dev without sudo"    --privileged -- sh -c 'start-dockerd && docker info >/dev/null'
-check_run "idempotent"          --privileged -- sh -c 'start-dockerd && start-dockerd && [ "$(pgrep -xc dockerd)" = 1 ]'
-# unprivileged: fails fast with the log, does not hang
-check_run "fails unprivileged"  -e START_DOCKERD_TIMEOUT=5 -- sh -c '! timeout 20 start-dockerd 2>/tmp/err && [ -s /tmp/err ]'
+# privileged: daemon comes up, dev can use it, second call is a no-op.
+# /var/lib/docker is a volume so nested storage is not on the container's overlay root.
+check_run "dockerd starts"      --privileged -v /var/lib/docker -- sh -c 'start-dockerd && docker run --rm hello-world'
+check_run "dev without sudo"    --privileged -v /var/lib/docker -- sh -c 'start-dockerd && docker info >/dev/null'
+check_run "idempotent"          --privileged -v /var/lib/docker -- sh -c 'start-dockerd && start-dockerd && [ "$(pgrep -xc dockerd)" = 1 ]'
+# unprivileged: the script's own timeout fires (exit 1, log tail on stderr); it does not hang.
+# Exit 1 exactly: 127 would mean the script is missing, 124 that the outer timeout fired.
+check_run "fails unprivileged"  -e START_DOCKERD_TIMEOUT=5 -- sh -c 'timeout 20 start-dockerd 2>/tmp/err; [ $? = 1 ] && [ -s /tmp/err ]'
 # not started by default
 check_run "inert by default"    -- sh -c '! pgrep -x dockerd'
 ```
@@ -179,7 +182,6 @@ git commit -m "Add opt-in start-dockerd to core image"
 
 **Files:**
 - Create: `.github/workflows/build.yml`
-- Modify: `docker-bake.hcl` (only if a variable is needed for per-arch tags)
 
 **Interfaces:**
 - Consumes: `docker buildx bake core` with `REGISTRY`/`TAG`; `core/test.sh <image>`.
@@ -189,8 +191,18 @@ git commit -m "Add opt-in start-dockerd to core image"
 
 - Triggers: `pull_request`, `push` to `main`, `workflow_dispatch`.
 - Top-level `permissions: contents: read`. Concurrency group per ref, cancelling in-progress runs on pull requests only.
-- Job `build`: matrix of `{arch: amd64, runner: ubuntu-24.04}` and `{arch: arm64, runner: ubuntu-24.04-arm}`. Steps: checkout, set up Buildx, `docker buildx bake core` with `TAG=<sha>-<arch>`, `core/test.sh <that image>`. On `main` only: log in to GHCR with `GITHUB_TOKEN` and `docker push` the per-arch tag. This job needs `packages: write`.
-- Job `manifest`: `main` only, needs `build`, `packages: write`. Runs `docker buildx imagetools create -t ghcr.io/plume-works/core:edge -t ghcr.io/plume-works/core:<sha> <sha>-amd64 <sha>-arm64`.
+- Job `build`: matrix of `{arch: amd64, runner: ubuntu-24.04}` and `{arch: arm64, runner: ubuntu-24.04-arm}`. Steps: checkout, set up Buildx, `docker buildx bake core`, `core/test.sh ghcr.io/plume-works/core:edge`. This job needs `packages: write`.
+- On `main` only, the `build` job then logs in to GHCR with `GITHUB_TOKEN` and pushes the tested build by digest, with no tag, so no per-architecture tag is ever published:
+
+  ```bash
+  docker buildx bake core \
+    --set core.tags=ghcr.io/plume-works/core \
+    --set 'core.output=type=image,push-by-digest=true,name-canonical=true,push=true' \
+    --metadata-file meta.json
+  ```
+
+  This second bake is served from the first one's build cache. The digest is `.core["containerimage.digest"]` in `meta.json`; upload it as an artifact named `digest-<arch>`.
+- Job `manifest`: `main` only, needs `build`, `packages: write`. Downloads both digest artifacts and runs `docker buildx imagetools create -t ghcr.io/plume-works/core:edge -t ghcr.io/plume-works/core:<sha> ghcr.io/plume-works/core@<amd64 digest> ghcr.io/plume-works/core@<arm64 digest>`.
 - `edge` therefore moves only after both architectures pass `core/test.sh`.
 - Pin every action by commit SHA with a version comment.
 
@@ -202,11 +214,24 @@ Expected: no output, exit 0.
 - [ ] **Step 3: Commit, push the branch, open a pull request, and confirm both `build` jobs pass**
 
 ```bash
-git add .github/workflows/build.yml docker-bake.hcl
+git add .github/workflows/build.yml
 git commit -m "Add build and publish workflow"
 ```
 
 Pushing and opening the pull request are outward-facing: confirm with the user first.
+
+- [ ] **Step 4: After the user merges the pull request, verify the publish path**
+
+The login, push and `manifest` job run only on `main`, so this is their first run.
+
+Run: `docker buildx imagetools inspect ghcr.io/plume-works/core:edge`
+Expected: platforms `linux/amd64` and `linux/arm64`.
+
+Run: `docker buildx imagetools inspect ghcr.io/plume-works/core:<merge commit sha>`
+Expected: the same digest as `edge`.
+
+Run: `core/test.sh ghcr.io/plume-works/core:edge`
+Expected: every line `ok`, exit 0.
 
 ---
 
