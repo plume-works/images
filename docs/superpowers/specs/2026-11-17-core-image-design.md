@@ -134,10 +134,6 @@ Renovate, as the old repo had. *(Claude's call for the rest:)*
 
 Layer ordering and the internals of `start-dockerd`.
 
-## Open questions
+## Decisions that outlive this image
 
-Raised in review on 2026-11-17 and not decided. The plan proceeds without them.
-
-- **Decisions that outlive this image.** The shared `dev` user and the
-  no-entrypoint rule bind every later image, but are recorded only in this
-  document.
+Each has a short file under `docs/adr/` (Anton's decision).
