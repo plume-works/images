@@ -12,7 +12,6 @@
 
 ## Global Constraints
 
-- Create no files other than those named in this plan.
 - No `ENTRYPOINT`, no supervisor, no `CMD` other than the base image's, in `core/Dockerfile`.
 - Base: `ubuntu:26.04` (codename `resolute`), pinned as `ubuntu:26.04@sha256:<digest>`.
 - User: `dev`, uid 1000, gid 1000, home `/home/dev`, passwordless sudo, login shell `/usr/bin/fish`. The image's final `USER` is `dev`.
@@ -22,8 +21,7 @@
 - No per-file checksums.
 - Image name: `ghcr.io/plume-works/core`. Tags: `edge` and the full commit SHA, and no others. Platforms: `linux/amd64`, `linux/arm64`.
 - GitHub Actions are pinned by full commit SHA with a `# vX.Y.Z` trailing comment.
-- The repo is `https://github.com/plume-works/images.git`, cloned at `/workspaces/empty-devcontainer/.nested/images`. `main` holds one commit with an empty `README.md`. All work happens on the `core-image` branch, which already carries the design and this plan.
-- If a tool cannot be installed from the source the spec names (for example a package is no longer published to npm, or a vendor apt repository has no `resolute` suite), stop and report; do not substitute a different source.
+- The repo is `https://github.com/plume-works/images.git`. `main` holds one commit with an empty `README.md`; work on the branch that carries the design and this plan.
 
 ## Review Focus
 
@@ -260,7 +258,7 @@ Expected: the log lists `ubuntu`, `ghcr.io/astral-sh/uv`, `oven/bun`, `@anthropi
 
 - [ ] **Step 3: Write `README.md`**
 
-Under 40 lines: what the repo is (one paragraph), the image table with pull names, how to build and test locally (`docker buildx bake core`, `core/test.sh <image>`), how a consumer starts Docker (`start-dockerd`, needs privileged or sysbox), and a link to `docs/superpowers/specs/2026-11-17-core-image-design.md`. Do not restate the design.
+Keep it short: what the repo is (one paragraph), the image table with pull names, how to build and test locally (`docker buildx bake core`, `core/test.sh <image>`), how a consumer starts Docker (`start-dockerd`, needs privileged or sysbox), and a link to `docs/superpowers/specs/2026-11-17-core-image-design.md`. Do not restate the design.
 
 - [ ] **Step 4: Commit**
 
@@ -276,8 +274,6 @@ Install the Renovate GitHub app on the repo; enable "Allow auto-merge"; require 
 ---
 
 ## Handoff notes (2026-11-17)
-
-**State:** nothing is implemented. `main` has an empty `README.md`; the `core-image` branch adds the design and this plan. Work on `core-image`.
 
 **Environment prerequisite:** every verification step needs a working Docker daemon, and Task 2 needs `--privileged`. The devcontainer this plan was written in has no Docker and is not privileged. Run the plan somewhere that has both.
 
