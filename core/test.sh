@@ -12,17 +12,32 @@ group=${2:-all}
 failed=0
 
 pass() { echo "ok $1"; }
-fail() { echo "FAIL $1"; failed=1; }
+
+# fail <description> [detail]: report a failure, with its cause indented below.
+fail() {
+  echo "FAIL $1"
+  [ -z "${2-}" ] || printf '%s\n' "$2" | tail -n 20 | sed 's/^/    /'
+  failed=1
+}
+
+# run_check <description> <docker run args...>: run, report, show output on failure.
+run_check() {
+  desc=$1
+  shift
+  if out=$(docker run --rm "$@" 2>&1); then
+    pass "$desc"
+  else
+    status=$?
+    fail "$desc" "${out:+$out
+}(exit $status)"
+  fi
+}
 
 # check <description> <command...>: run <command> in a fresh container.
 check() {
   desc=$1
   shift
-  if docker run --rm "$image" "$@" >/dev/null 2>&1; then
-    pass "$desc"
-  else
-    fail "$desc"
-  fi
+  run_check "$desc" "$image" "$@"
 }
 
 # check_run <description> <docker run flags...> -- <command...>
@@ -41,11 +56,7 @@ check_run() {
   shift
   set -- "$@" "$image"
   i=0; while [ "$i" -lt "$ncmd" ]; do set -- "$@" "$1"; shift; i=$((i + 1)); done
-  if docker run --rm "$@" >/dev/null 2>&1; then
-    pass "$desc"
-  else
-    fail "$desc"
-  fi
+  run_check "$desc" "$@"
 }
 
 tools() {
@@ -66,17 +77,18 @@ tools() {
   check "docker cli"     docker --version
   check "buildx"         docker buildx version
   check "compose"        docker compose version
-  check "user is dev"    sh -c '[ "$(id -un)" = dev ] && [ "$(id -u)" = 1000 ] && [ "$(id -g)" = 1000 ]'
+  check "user is dev"    sh -c 'id; [ "$(id -un)" = dev ] && [ "$(id -u)" = 1000 ] && [ "$(id -g)" = 1000 ]'
   check "sudo"           sudo -n true
-  check "login shell"    sh -c '[ "$(getent passwd dev | cut -d: -f7)" = /usr/bin/fish ]'
-  check "home owned"     sh -c '[ -z "$(find /home/dev ! -user dev -o ! -group dev)" ]'
+  check "login shell"    sh -c 's=$(getent passwd dev | cut -d: -f7); echo "login shell: $s"; [ "$s" = /usr/bin/fish ]'
+  check "home owned"     sh -c '[ -d /home/dev ] || { echo "no /home/dev"; exit 1; }; f=$(find /home/dev ! -user dev -o ! -group dev); [ -z "$f" ] || { echo "not dev:dev:"; echo "$f"; exit 1; }'
   # Host-side: the image must not set an entrypoint.
-  if [ "$(docker inspect --format '{{json .Config.Entrypoint}}' "$image" 2>/dev/null)" = null ]; then
+  entrypoint=$(docker inspect --format '{{json .Config.Entrypoint}}' "$image" 2>&1) || true
+  if [ "$entrypoint" = null ]; then
     pass "no entrypoint"
   else
-    fail "no entrypoint"
+    fail "no entrypoint" "entrypoint: $entrypoint"
   fi
-  check "fish login PATH" fish -l -c 'for t in git gh uv bun claude opencode docker; command -q $t; or exit 1; end'
+  check "fish login PATH" fish -l -c 'for t in git gh uv bun claude opencode docker; command -q $t; or begin; echo "not on PATH: $t"; exit 1; end; end'
   # Where `uv tool install` and `bun add -g` put a user's own tools.
   check "user bins on PATH" sh -c 'mkdir -p ~/.local/bin ~/.bun/bin &&
     printf "#!/bin/sh\n" > ~/.local/bin/uvtool && printf "#!/bin/sh\n" > ~/.bun/bin/buntool &&
@@ -89,13 +101,13 @@ docker_group() {
   # No -v here: the image's own VOLUME must be what keeps /var/lib/docker off the overlay root.
   check_run "dockerd starts"      --privileged -- sh -c 'start-dockerd && docker run --rm hello-world'
   check_run "dev without sudo"    --privileged -- sh -c 'start-dockerd && docker info >/dev/null'
-  check_run "idempotent"          --privileged -- sh -c 'start-dockerd && start-dockerd && [ "$(pgrep -xc dockerd)" = 1 ]'
-  check_run "data on a volume"    -- sh -c 'grep -q " /var/lib/docker " /proc/mounts'
+  check_run "idempotent"          --privileged -- sh -c 'start-dockerd && start-dockerd && n=$(pgrep -xc dockerd); echo "dockerd processes: $n"; [ "$n" = 1 ]'
+  check_run "data on a volume"    -- sh -c 'grep -q " /var/lib/docker " /proc/mounts || { echo "/var/lib/docker is not a mount"; exit 1; }'
   # unprivileged: the script's own timeout fires (exit 1, log tail on stderr); it does not hang.
   # Exit 1 exactly: 127 would mean the script is missing, 124 that the outer timeout fired.
-  check_run "fails unprivileged"  -e START_DOCKERD_TIMEOUT=5 -- sh -c 'timeout 20 start-dockerd 2>/tmp/err; [ $? = 1 ] && [ -s /tmp/err ]'
+  check_run "fails unprivileged"  -e START_DOCKERD_TIMEOUT=5 -- sh -c 'timeout 20 start-dockerd 2>/tmp/err; s=$?; [ $s = 1 ] && [ -s /tmp/err ] && exit 0; echo "start-dockerd exit $s (want 1, with the log tail on stderr); its stderr:"; cat /tmp/err; exit 1'
   # not started by default
-  check_run "inert by default"    -- sh -c '! pgrep -x dockerd'
+  check_run "inert by default"    -- sh -c '! pgrep -ax dockerd'
 }
 
 case $group in
