@@ -16,7 +16,6 @@
 - `core/Dockerfile` declares `VOLUME /var/lib/docker`.
 - Base: `ubuntu:26.04` (codename `resolute`), pinned as `ubuntu:26.04@sha256:<digest>`.
 - User: `dev`, uid 1000, gid 1000, home `/home/dev`, passwordless sudo, login shell `/usr/bin/fish`. The image's final `USER` is `dev`.
-- Node major version: 24.
 - `uv` and Bun arrive by `COPY --from=<image>:<version>@sha256:<digest>`, written as literal references because `COPY --from` cannot expand an `ARG`. Renovate's Dockerfile manager tracks them as written.
 - Claude Code and OpenCode arrive by `bun install -g <pkg>@${<NAME>_VERSION}`, not by npm. Each version is an `ARG <NAME>_VERSION=<exact version>` line with a `# renovate: datasource=npm depName=<pkg>` comment directly above it.
 - No per-file checksums.
@@ -57,8 +56,6 @@ check "git-lfs"        git lfs version
 check "gh"             gh --version
 check "uv"             uv --version
 check "uvx"            uvx --version
-check "node 24"        sh -c 'node --version | grep -q "^v24\."'
-check "npm"            npm --version
 check "bun"            bun --version
 check "claude"         claude --version
 check "opencode"       opencode --version
@@ -76,7 +73,7 @@ check "sudo"           sudo -n true
 check "login shell"    sh -c '[ "$(getent passwd dev | cut -d: -f7)" = /usr/bin/fish ]'
 check "home owned"     sh -c '[ -z "$(find /home/dev ! -user dev -o ! -group dev)" ]'
 check "no entrypoint"  true   # replaced below
-check "fish login PATH" fish -l -c 'for t in git gh uv node bun claude opencode docker; command -q $t; or exit 1; end'
+check "fish login PATH" fish -l -c 'for t in git gh uv bun claude opencode docker; command -q $t; or exit 1; end'
 ```
 
 Replace the `no entrypoint` placeholder with a host-side check, outside the `check` helper: `docker inspect --format '{{json .Config.Entrypoint}}' "$image"` must print `null`.
@@ -94,7 +91,7 @@ Order, one concern per `RUN` so a version bump rebuilds from its own line down:
 
 1. `FROM ubuntu:26.04@sha256:<digest>` (resolve the current digest with `docker buildx imagetools inspect ubuntu:26.04`).
 2. `ARG DEBIAN_FRONTEND=noninteractive`; Ubuntu apt packages: `ca-certificates curl gnupg sudo git git-lfs build-essential jq ripgrep less fish procps` (`procps` supplies `pgrep`, which the Task 2 tests rely on). Clean `/var/lib/apt/lists` in the same layer, here and in every apt layer.
-3. Vendor apt repositories, each with its key in `/etc/apt/keyrings`: GitHub CLI (`gh`), NodeSource for Node 24 (`nodejs`), Docker (`docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin`).
+3. Vendor apt repositories, each with its key in `/etc/apt/keyrings`: GitHub CLI (`gh`) and Docker (`docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin`).
 4. `COPY --from=ghcr.io/astral-sh/uv:<version>@sha256:<digest> /uv /uvx /usr/local/bin/`
 5. `COPY --from=oven/bun:<version>@sha256:<digest> /usr/local/bin/bun /usr/local/bin/bun`, plus a `bunx` symlink to it.
 6. `ARG CLAUDE_CODE_VERSION` / `ARG OPENCODE_VERSION` with renovate comments (`depName=@anthropic-ai/claude-code` and `depName=opencode-ai`), each followed by its own `bun install -g <pkg>@${...}`. Set these for the install `RUN` only, not as image `ENV`: `BUN_INSTALL_BIN=/usr/local/bin`, `BUN_INSTALL_GLOBAL_DIR=/usr/local/share/bun-global`, and `BUN_INSTALL_CACHE_DIR` pointing at a temporary directory removed in the same layer. Both packages place their binary from a postinstall script, which Bun runs for a global install.
@@ -292,8 +289,8 @@ Install the Renovate GitHub app on the repo; enable "Allow auto-merge"; require 
 | `@anthropic-ai/claude-code` | `2.1.326` |
 | `opencode-ai` | `1.19.6` |
 
-Confirmed with Bun 1.4.4 on `linux/arm64`: `bun install -g` of both packages at the versions above, with `BUN_INSTALL_BIN` and `BUN_INSTALL_GLOBAL_DIR` set, gives a working `claude --version` and `opencode --version`. Not tried on `linux/amd64`.
+Confirmed with Bun 1.4.4 on `linux/arm64`: `bun install -g` of both packages at the versions above, with `BUN_INSTALL_BIN` and `BUN_INSTALL_GLOBAL_DIR` set, gives a working `claude --version` and `opencode --version` on a machine with no Node installed. Not tried on `linux/amd64`.
 
 The repo is public (checked 2026-11-17), so the `ubuntu-24.04-arm` runner in Task 3 is free to use.
 
-Confirmed reachable: Docker's apt suite `resolute`, NodeSource `node_24.x` (`nodistro`), GitHub CLI apt repo (`stable`).
+Confirmed reachable: Docker's apt suite `resolute` and the GitHub CLI apt repo (`stable`).

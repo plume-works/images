@@ -71,18 +71,17 @@ Considered and not chosen:
 |---|---|---|
 | Ubuntu 26.04 base | | tag and digest |
 | Ubuntu apt | git, git-lfs, build-essential, curl, jq, ripgrep, less, fish | apt signatures |
-| Vendor apt repositories | Docker CE with Buildx and Compose, `gh`, Node 24 | apt signatures |
+| Vendor apt repositories | Docker CE with Buildx and Compose, `gh` | apt signatures |
 | Official images, by digest | `uv`, Bun | image digest |
 | npm registry, installed with Bun, exact versions | Claude Code, OpenCode | exact version only; no hash is stored in this repo |
 
 No per-file checksum pins: the old repo had them only for tools downloaded
 straight from GitHub releases, and none of those remain.
 
-Bun is the default for all Node and npm tools and libraries (Anton's decision).
-So Claude Code and OpenCode are installed with Bun, not npm. They stay at an
-exact version with no stored hash (Anton's decision). Not chosen: a lockfile
-installed with `npm ci`, which would store hashes at the cost of two more files
-and a non-global install.
+Bun is the default for all Node and npm tools and libraries, and Node itself is
+left out until something needs it (Anton's decisions). Claude Code and OpenCode
+both install and run with Bun alone; that was checked on a machine with no Node.
+They stay at an exact version with no stored hash (Anton's decision).
 
 Apt packages are not version-pinned *(Claude's call)*. They take whatever
 version is current when the image is rebuilt, and Renovate does not track them.
