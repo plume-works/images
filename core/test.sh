@@ -44,6 +44,7 @@ group_tools() {
 	check "uv"             uv --version
 	check "uvx"            uvx --version
 	check "bun"            bun --version
+	check "bunx"           bunx --version
 	check "claude"         claude --version
 	check "opencode"       opencode --version
 	check "gcc"            gcc --version
@@ -64,7 +65,12 @@ group_tools() {
 	else
 		fail "no entrypoint"
 	fi
-	check "fish login PATH" fish -l -c 'for t in git gh uv bun claude opencode docker; command -q $t; or exit 1; end'
+	if [ "$(docker inspect --format '{{ index .Config.Labels "org.opencontainers.image.source" }}' "$image")" = https://github.com/plume-works/images ]; then
+		pass "image source label"
+	else
+		fail "image source label"
+	fi
+	check "fish login PATH" fish -l -c 'for t in git git-lfs gh uv uvx bun bunx claude opencode gcc make curl jq rg less docker; command -q $t; or exit 1; end'
 }
 
 group_docker() {

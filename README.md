@@ -13,7 +13,7 @@ docker buildx bake core
 core/test.sh ghcr.io/plume-works/core:edge
 ```
 
-`core/test.sh <image> [tools|docker]` runs one group of checks; the `docker` group needs `--privileged`.
+`core/test.sh <image> [tools|docker]` runs one group of checks; the `docker` group starts privileged containers, so the host's Docker must allow them.
 
 ## Docker inside a container
 
