@@ -131,8 +131,6 @@ Layer ordering and the internals of `start-dockerd`.
 
 Raised in review on 2026-11-17 and not decided. The plan proceeds without them.
 
-- **Repo visibility.** The plan uses GitHub's `ubuntu-24.04-arm` runner, which
-  is free only for public repos.
 - **Nested Docker storage.** `core/test.sh` puts `/var/lib/docker` on a volume.
   Whether consumers must do the same is unverified.
 - **Decisions that outlive this image.** The shared `dev` user and the

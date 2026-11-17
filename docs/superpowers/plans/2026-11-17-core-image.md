@@ -292,4 +292,6 @@ Install the Renovate GitHub app on the repo; enable "Allow auto-merge"; require 
 
 Confirmed with Bun 1.4.4 on `linux/arm64`: `bun install -g` of both packages at the versions above, with `BUN_INSTALL_BIN` and `BUN_INSTALL_GLOBAL_DIR` set, gives a working `claude --version` and `opencode --version`. Not tried on `linux/amd64`.
 
+The repo is public (checked 2026-11-17), so the `ubuntu-24.04-arm` runner in Task 3 is free to use.
+
 Confirmed reachable: Docker's apt suite `resolute`, NodeSource `node_24.x` (`nodistro`), GitHub CLI apt repo (`stable`).
