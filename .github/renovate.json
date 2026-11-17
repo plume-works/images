@@ -1,0 +1,30 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": [
+    "config:recommended",
+    "docker:pinDigests",
+    "helpers:pinGitHubActionDigests",
+    "customManagers:dockerfileVersions"
+  ],
+  "minimumReleaseAge": "3 days",
+  "packageRules": [
+    {
+      "description": "Automerge every update once its checks pass.",
+      "matchPackageNames": ["*"],
+      "automerge": true,
+      "automergeType": "pr",
+      "platformAutomerge": true
+    },
+    {
+      "description": "x.y.0 releases wait 10 days.",
+      "matchNewValue": "/\\.0$/",
+      "minimumReleaseAge": "10 days"
+    },
+    {
+      "description": "Ubuntu release changes are a manual decision; only the 26.04 digest moves.",
+      "matchDepNames": ["ubuntu"],
+      "matchUpdateTypes": ["major", "minor"],
+      "enabled": false
+    }
+  ]
+}
