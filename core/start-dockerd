@@ -1,0 +1,36 @@
+#!/bin/sh
+# Start dockerd in the background if no daemon is reachable. Silent on success.
+# START_DOCKERD_TIMEOUT: seconds to wait for the daemon (default 30).
+set -eu
+
+if [ "$(id -u)" != 0 ]; then
+	exec sudo START_DOCKERD_TIMEOUT="${START_DOCKERD_TIMEOUT:-30}" "$0" "$@"
+fi
+
+if docker info >/dev/null 2>&1; then
+	exit 0
+fi
+
+log=/var/log/dockerd.log
+timeout=${START_DOCKERD_TIMEOUT:-30}
+
+dockerd >"$log" 2>&1 &
+pid=$!
+
+elapsed=0
+while [ "$elapsed" -lt "$timeout" ]; do
+	if docker info >/dev/null 2>&1; then
+		exit 0
+	fi
+	# dockerd died (e.g. no privilege): no point waiting out the timeout.
+	kill -0 "$pid" 2>/dev/null || break
+	sleep 1
+	elapsed=$((elapsed + 1))
+done
+
+if docker info >/dev/null 2>&1; then
+	exit 0
+fi
+echo "start-dockerd: dockerd not ready; last 20 lines of $log:" >&2
+tail -n 20 "$log" >&2
+exit 1
