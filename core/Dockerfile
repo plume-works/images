@@ -59,5 +59,10 @@ RUN usermod -l dev -d /home/dev -m ubuntu \
  && echo 'dev ALL=(ALL) NOPASSWD:ALL' > /etc/sudoers.d/dev \
  && chmod 0440 /etc/sudoers.d/dev
 
+COPY --chmod=0755 start-dockerd /usr/local/bin/start-dockerd
+
+# Keep a nested daemon's data off the container's overlay filesystem.
+VOLUME /var/lib/docker
+
 USER dev
 WORKDIR /home/dev

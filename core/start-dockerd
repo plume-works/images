@@ -1,0 +1,31 @@
+#!/bin/sh
+# Start the Docker daemon in the background and wait until it answers.
+# Opt-in: nothing in the image calls this. Needs a privileged container or sysbox.
+# Exits 0 at once if a daemon already answers. Prints nothing on success.
+# START_DOCKERD_TIMEOUT: seconds to wait for the daemon (default 30).
+set -eu
+
+timeout=${START_DOCKERD_TIMEOUT:-30}
+log=/var/log/dockerd.log
+
+if [ "$(id -u)" != 0 ]; then
+  # sudo resets the environment; pass the timeout through explicitly.
+  exec sudo -n START_DOCKERD_TIMEOUT="$timeout" "$0" "$@"
+fi
+
+if docker info >/dev/null 2>&1; then
+  exit 0
+fi
+
+dockerd >"$log" 2>&1 &
+
+elapsed=0
+until docker info >/dev/null 2>&1; do
+  if [ "$elapsed" -ge "$timeout" ]; then
+    echo "start-dockerd: daemon not ready after ${timeout}s; last lines of $log:" >&2
+    tail -n 20 "$log" >&2
+    exit 1
+  fi
+  sleep 1
+  elapsed=$((elapsed + 1))
+done
