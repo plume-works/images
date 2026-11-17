@@ -7,6 +7,16 @@
     "customManagers:dockerfileVersions"
   ],
   "minimumReleaseAge": "3 days",
+  "customManagers": [
+    {
+      "customType": "regex",
+      "description": "uv version from GitHub releases, which have publish dates; GHCR has none",
+      "managerFilePatterns": ["/(^|/)Dockerfile$/"],
+      "matchStrings": ["COPY --from=ghcr\\.io/astral-sh/uv:(?<currentValue>[^@\\s]+)@"],
+      "datasourceTemplate": "github-releases",
+      "depNameTemplate": "astral-sh/uv"
+    }
+  ],
   "packageRules": [
     {
       "matchPackageNames": ["*"],
@@ -22,6 +32,20 @@
       "matchDepNames": ["ubuntu"],
       "matchUpdateTypes": ["major", "minor"],
       "enabled": false
+    },
+    {
+      "description": "uv versions come from the GitHub releases manager above",
+      "matchDatasources": ["docker"],
+      "matchDepNames": ["ghcr.io/astral-sh/uv"],
+      "matchUpdateTypes": ["major", "minor", "patch"],
+      "enabled": false
+    },
+    {
+      "description": "After a uv version bump, repin the image digest to the new tag; the version already waited",
+      "matchDatasources": ["docker"],
+      "matchDepNames": ["ghcr.io/astral-sh/uv"],
+      "matchUpdateTypes": ["digest"],
+      "minimumReleaseAgeBehaviour": "timestamp-optional"
     }
   ]
 }

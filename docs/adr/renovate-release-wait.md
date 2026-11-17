@@ -10,3 +10,7 @@ Not chosen:
 - No wait.
 - A wait for the npm-registry tools only.
 - Skipping `x.y.0` releases entirely.
+
+GHCR gives no publish date, so Renovate would hold `uv` updates forever. Its
+version is read from GitHub releases instead, which do have dates; the image
+digest follows in a second update with no wait of its own.
