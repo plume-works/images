@@ -66,3 +66,6 @@ VOLUME /var/lib/docker
 
 USER dev
 WORKDIR /home/dev
+
+# Where `uv tool install` and `bun add -g` put a user's own tools.
+ENV PATH=/home/dev/.local/bin:/home/dev/.bun/bin:$PATH

@@ -77,6 +77,11 @@ tools() {
     fail "no entrypoint"
   fi
   check "fish login PATH" fish -l -c 'for t in git gh uv bun claude opencode docker; command -q $t; or exit 1; end'
+  # Where `uv tool install` and `bun add -g` put a user's own tools.
+  check "user bins on PATH" sh -c 'mkdir -p ~/.local/bin ~/.bun/bin &&
+    printf "#!/bin/sh\n" > ~/.local/bin/uvtool && printf "#!/bin/sh\n" > ~/.bun/bin/buntool &&
+    chmod +x ~/.local/bin/uvtool ~/.bun/bin/buntool &&
+    uvtool && buntool && fish -l -c "uvtool; and buntool"'
 }
 
 docker_group() {
