@@ -69,9 +69,9 @@ tools() {
 
 docker_tests() {
 	# privileged: daemon comes up, dev can use it, second call is a no-op
-	check_run "dockerd starts"      --privileged -v /var/lib/docker -- sh -c 'start-dockerd && docker run --rm hello-world'
-	check_run "dev without sudo"    --privileged -v /var/lib/docker -- sh -c 'start-dockerd && docker info >/dev/null'
-	check_run "idempotent"          --privileged -v /var/lib/docker -- sh -c 'start-dockerd && start-dockerd && [ "$(pgrep -xc dockerd)" = 1 ]'
+	check_run "dockerd starts"      --privileged -- sh -c 'start-dockerd && docker run --rm hello-world'
+	check_run "dev without sudo"    --privileged -- sh -c 'start-dockerd && docker info >/dev/null'
+	check_run "idempotent"          --privileged -- sh -c 'start-dockerd && start-dockerd && [ "$(pgrep -xc dockerd)" = 1 ]'
 	# unprivileged: fails fast with the log, does not hang
 	check_run "fails unprivileged"  -e START_DOCKERD_TIMEOUT=5 -- sh -c '! timeout 20 start-dockerd 2>/tmp/err && [ -s /tmp/err ]'
 	# not started by default

@@ -26,9 +26,10 @@ The Docker tests start a nested daemon, so they need a host that allows
 ## Using Docker inside a container
 
 Docker is installed but not started. A consumer calls `start-dockerd` from its
-own startup. The container must run privileged or under sysbox, and
-`/var/lib/docker` needs a volume, because a nested dockerd cannot use overlay
-on the container's overlay root filesystem.
+own startup. The container must run privileged or under sysbox. The image
+declares `/var/lib/docker` as a volume itself (a nested dockerd cannot use
+overlay on the container's root filesystem), so nothing needs mounting. Images
+persist across restarts only if a named volume is mounted on `/var/lib/docker`.
 `start-dockerd` is silent on success; it waits up to `START_DOCKERD_TIMEOUT`
 seconds (default 30) and logs to `/var/log/dockerd.log`, printing the tail on
 failure.

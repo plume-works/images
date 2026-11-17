@@ -62,5 +62,9 @@ RUN usermod -l dev -d /home/dev -m -s /usr/bin/fish ubuntu \
 
 COPY --chmod=0755 start-dockerd /usr/local/bin/start-dockerd
 
+# Nested dockerd cannot use overlay on the container's overlay rootfs, so its
+# data dir must be a volume (root-owned, as the daemon expects).
+VOLUME /var/lib/docker
+
 USER dev
 WORKDIR /home/dev
