@@ -1,16 +1,17 @@
-# Design
+# Core image design
 
 This repo builds a small family of container images for agent-driven development.
 It is a clean restart of `plume-works/agent-devcontainer`.
 
-This file records the decisions and their reasons. It is edited in place when a
-decision changes; it is not a log.
+This is the design for step 1, the core image, and for the shape of the image
+family. Each later image gets its own design and plan under `docs/superpowers/`.
 
 ## Rules
 
 - The repo holds images only: Dockerfiles, a bake file, a build workflow, Renovate
-  config, a README and this file. No knowledge bases, plan directories, plugin
-  catalogs or agent workflow scaffolding.
+  config, a README, and one design plus one plan per step under
+  `docs/superpowers/`. No knowledge bases, plugin catalogs or other agent
+  workflow scaffolding.
 - The core image has no entrypoint, no supervisor, and nothing that exists for
   one host. `docker run core` is inert.
 - Consumers build `FROM` the finished core. They never push requirements down

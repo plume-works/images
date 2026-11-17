@@ -8,7 +8,7 @@
 
 **Tech Stack:** Dockerfile, Docker Buildx Bake, POSIX `sh`, GitHub Actions, Renovate (hosted app).
 
-**Spec:** `DESIGN.md` at the repo root. Read it before any task.
+**Spec:** `docs/superpowers/specs/2026-11-17-core-image-design.md`. Read it before any task.
 
 ## Global Constraints
 
@@ -21,7 +21,7 @@
 - `uv` and Bun arrive by `COPY --from=<image>:<version>@sha256:<digest>`; Claude Code and OpenCode by `npm install -g <pkg>@<exact version>`. No per-file checksums.
 - Image name: `ghcr.io/plume-works/core`. Tags: `edge` and the full commit SHA. Platforms: `linux/amd64`, `linux/arm64`.
 - GitHub Actions are pinned by full commit SHA with a `# vX.Y.Z` trailing comment.
-- The repo is `https://github.com/plume-works/images.git`, cloned at `/workspaces/empty-devcontainer/.nested/images`. It starts empty: the first commit on `main` is `DESIGN.md` alone; all other work happens on a branch named `core-image` cut from it.
+- The repo is `https://github.com/plume-works/images.git`, cloned at `/workspaces/empty-devcontainer/.nested/images`. It starts empty: the first commit on `main` holds only the design and this plan; all other work happens on a branch named `core-image` cut from it.
 - If a tool cannot be installed from the source the spec names (for example a package is no longer published to npm, or a vendor apt repository has no `resolute` suite), stop and report; do not substitute a different source.
 
 ## Review Focus
@@ -235,7 +235,7 @@ Expected: the log lists `ubuntu`, `ghcr.io/astral-sh/uv`, `oven/bun`, `@anthropi
 
 - [ ] **Step 3: Write `README.md`**
 
-Under 40 lines: what the repo is (one paragraph), the image table with pull names, how to build and test locally (`docker buildx bake core`, `core/test.sh <image>`), how a consumer starts Docker (`start-dockerd`, needs privileged or sysbox), and a link to `DESIGN.md`. Do not restate the design.
+Under 40 lines: what the repo is (one paragraph), the image table with pull names, how to build and test locally (`docker buildx bake core`, `core/test.sh <image>`), how a consumer starts Docker (`start-dockerd`, needs privileged or sysbox), and a link to `docs/superpowers/specs/2026-11-17-core-image-design.md`. Do not restate the design.
 
 - [ ] **Step 4: Commit**
 
@@ -252,7 +252,7 @@ Install the Renovate GitHub app on the repo; enable "Allow auto-merge"; require 
 
 ## Handoff notes (2026-11-17)
 
-**State:** nothing is implemented. The repo has no commits; `DESIGN.md` and this file are the only files, both uncommitted. This file is excluded through `.git/info/exclude` and is deleted when the plan is done.
+**State:** nothing is implemented. The first commit on `main` holds the design and this plan and has not been pushed. Start by creating the `core-image` branch from it.
 
 **Environment prerequisite:** every verification step needs a working Docker daemon, and Task 2 needs `--privileged`. The devcontainer this plan was written in has no Docker and is not privileged. Run the plan somewhere that has both.
 
