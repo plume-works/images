@@ -22,6 +22,7 @@
     },
     {
       "description": "Ubuntu release changes are a manual decision; only the 26.04 digest moves.",
+      "matchDatasources": ["docker"],
       "matchDepNames": ["ubuntu"],
       "matchUpdateTypes": ["major", "minor"],
       "enabled": false
