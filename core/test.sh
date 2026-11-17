@@ -6,15 +6,29 @@ image=${1:?usage: test.sh <image> [tools|docker]}
 group=${2:-all}
 failed=0
 
-check() {
+# Usage: check_run <desc> [docker run flags...] -- <command...>
+check_run() {
 	desc=$1
 	shift
-	if docker run --rm "$image" "$@" >/dev/null 2>&1; then
+	flags=
+	while [ "$1" != -- ]; do
+		flags="$flags $1"
+		shift
+	done
+	shift
+	# shellcheck disable=SC2086
+	if docker run --rm $flags "$image" "$@" >/dev/null 2>&1; then
 		echo "ok   $desc"
 	else
 		echo "FAIL $desc"
 		failed=1
 	fi
+}
+
+check() {
+	desc=$1
+	shift
+	check_run "$desc" -- "$@"
 }
 
 tools() {
@@ -50,10 +64,21 @@ tools() {
 	fi
 }
 
+docker_tests() {
+	# privileged: daemon comes up, dev can use it, second call is a no-op
+	check_run "dockerd starts"      --privileged -v /var/lib/docker -- sh -c 'start-dockerd && docker run --rm hello-world'
+	check_run "dev without sudo"    --privileged -v /var/lib/docker -- sh -c 'start-dockerd && docker info >/dev/null'
+	check_run "idempotent"          --privileged -v /var/lib/docker -- sh -c 'start-dockerd && start-dockerd && [ "$(pgrep -xc dockerd)" = 1 ]'
+	# unprivileged: fails fast with the log, does not hang
+	check_run "fails unprivileged"  -e START_DOCKERD_TIMEOUT=5 -- sh -c '! timeout 20 start-dockerd 2>/tmp/err && [ -s /tmp/err ]'
+	# not started by default
+	check_run "inert by default"    -- sh -c '! pgrep -x dockerd'
+}
+
 case $group in
-all) tools ;;
+all) tools; docker_tests ;;
 tools) tools ;;
-docker) ;;
+docker) docker_tests ;;
 *) echo "unknown group: $group" >&2; exit 2 ;;
 esac
 

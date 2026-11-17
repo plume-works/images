@@ -1,0 +1,22 @@
+#!/bin/sh
+# Start dockerd in the background and wait until it answers.
+# START_DOCKERD_TIMEOUT: seconds to wait (default 30).
+set -eu
+
+if [ "$(id -u)" != 0 ]; then
+	exec sudo START_DOCKERD_TIMEOUT="${START_DOCKERD_TIMEOUT:-30}" "$0" "$@"
+fi
+
+docker info >/dev/null 2>&1 && exit 0
+
+dockerd >/var/log/dockerd.log 2>&1 &
+
+timeout=${START_DOCKERD_TIMEOUT:-30}
+while ! docker info >/dev/null 2>&1; do
+	if [ "$timeout" -le 0 ]; then
+		tail -n 20 /var/log/dockerd.log >&2
+		exit 1
+	fi
+	timeout=$((timeout - 1))
+	sleep 1
+done

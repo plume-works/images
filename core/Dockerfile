@@ -53,5 +53,7 @@ RUN usermod -l dev -d /home/dev -m -s /usr/bin/fish ubuntu \
     && echo "dev ALL=(ALL) NOPASSWD:ALL" > /etc/sudoers.d/dev \
     && chmod 0440 /etc/sudoers.d/dev
 
+COPY --chmod=0755 start-dockerd /usr/local/bin/start-dockerd
+
 USER dev
 WORKDIR /home/dev
