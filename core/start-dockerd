@@ -11,9 +11,11 @@ docker info >/dev/null 2>&1 && exit 0
 
 # Adopt a daemon that is already starting instead of launching a second one.
 pid=$(pgrep -x dockerd | head -n 1 || true)
+started=
 if [ -z "$pid" ]; then
 	dockerd >>/var/log/dockerd.log 2>&1 &
 	pid=$!
+	started=1
 fi
 
 timeout=${START_DOCKERD_TIMEOUT:-30}
@@ -23,7 +25,7 @@ while ! docker info >/dev/null 2>&1; do
 		exit 1
 	fi
 	if [ "$timeout" -le 0 ]; then
-		kill "$pid" 2>/dev/null || true
+		[ -n "$started" ] && kill "$pid" 2>/dev/null || true
 		tail -n 20 /var/log/dockerd.log >&2
 		exit 1
 	fi
