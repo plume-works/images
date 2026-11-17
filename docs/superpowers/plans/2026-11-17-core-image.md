@@ -245,6 +245,7 @@ Expected: every line `ok`, exit 0.
 - [ ] **Step 1: Write `.github/renovate.json`**
 
 - `extends`: `config:recommended`, `docker:pinDigests`, `helpers:pinGitHubActionDigests`, `customManagers:dockerfileVersions`.
+- Top-level `minimumReleaseAge: "3 days"`, applying to every update.
 - One package rule enabling `automerge` with `automergeType: "pr"` and `platformAutomerge: true` for all updates.
 - One package rule, placed after it, with `matchDepNames: ["ubuntu"]` and `matchUpdateTypes: ["major", "minor"]` set to `enabled: false`, so only the `26.04` digest moves.
 
@@ -255,6 +256,8 @@ Expected: `Config validated successfully`.
 
 Run: `docker run --rm -v "$PWD":/repo -w /repo -e LOG_LEVEL=debug renovate/renovate --platform=local --dry-run=lookup`
 Expected: the log lists `ubuntu`, `ghcr.io/astral-sh/uv`, `oven/bun`, `@anthropic-ai/claude-code`, `opencode-ai`, and each action in `build.yml` as detected dependencies. A pin missing from that list is a failure of this step.
+
+In the same log, find how the 3-day wait is applied to the `ubuntu`, `uv` and Bun digest updates, where Renovate may have no release timestamp. If such an update would skip the wait, or would never become mergeable, report that to the user; do not change the config to work around it.
 
 - [ ] **Step 3: Write `README.md`**
 

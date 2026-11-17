@@ -114,6 +114,9 @@ Renovate, as the old repo had. *(Claude's call for the rest:)*
 - Claude Code and OpenCode versions are `ARG` lines in `core/Dockerfile` with a
   `# renovate:` comment above each. Workflow actions are pinned by commit SHA.
 - Updates automerge when the build passes.
+- Every update waits until its release is 3 days old before it merges (Anton's
+  decision, for all updates and not only the npm tools). Renovate may have no
+  publish date for an image digest; the plan checks how it treats those.
 - The base digest update doubles as the regular clean rebuild, which is
   when apt packages move.
 - Ubuntu release changes are left as a manual decision.
@@ -126,8 +129,6 @@ Layer ordering and the internals of `start-dockerd`.
 
 Raised in review on 2026-11-17 and not decided. The plan proceeds without them.
 
-- **Release-age delay.** Updates automerge as soon as the build passes. Should
-  new releases wait a few days first?
 - **Hash-pinning the npm tools.** See Core contents.
 - **Repo visibility.** The plan uses GitHub's `ubuntu-24.04-arm` runner, which
   is free only for public repos.
