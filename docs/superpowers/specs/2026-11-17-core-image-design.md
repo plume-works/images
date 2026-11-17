@@ -1,39 +1,27 @@
 # Core image design
 
-This repo builds a small family of container images for agent-driven development.
-It is a clean restart of `plume-works/agent-devcontainer`.
+A clean restart of `plume-works/agent-devcontainer` as a small family of
+container images. This document covers the first one, `core`.
 
-This is the design for step 1, the core image, and for the shape of the image
-family. Each later image gets its own design and plan under `docs/superpowers/`.
+Lines marked *(Claude's call)* were proposed by Claude and not objected to. They
+are defaults, open to change.
 
-## Rules
+## Images wanted
 
-- The repo holds images only: Dockerfiles, a bake file, a build workflow, Renovate
-  config, a README, and one design plus one plan per step under
-  `docs/superpowers/`. No knowledge bases, plugin catalogs or other agent
-  workflow scaffolding.
-- The core image has no entrypoint, no supervisor, and nothing that exists for
-  one host. `docker run core` is inert.
-- Consumers build `FROM` the finished core. They never push requirements down
-  into it.
+1. A devcontainer that works in VS Code.
+2. A Coder workspace image, run directly, not nested.
+3. Far goal: an image deployed as a service that takes coding requests from
+   agents.
 
-## Images
+The devcontainer is not built first; starting there is how the old repo went
+wrong. The order of the three after `core` is not decided.
 
-| Image | Status | Purpose |
-|---|---|---|
-| `core` | step 1 | Tools only. Host-neutral. |
-| `coder` | next | Image a Coder workspace runs directly. |
-| `devcontainer` | later | VS Code Dev Container. |
-| factory | far goal | Service that takes coding requests from agents. |
+## Approach
 
-The devcontainer deliberately does not come first. In the old repo it did, and
-its assumptions became the foundation everything else had to work around.
+A shared `core` image holds the tools. Each image above is a layer on top of it.
 
-## Layout
-
-One directory per image, wired by a bake file, so each consumer can only see the
-finished core image. A new image or optional layer (for example `desktop`) is a
-new directory.
+One directory per image, wired by a bake file, so a consumer sees only the
+finished core image.
 
 ```
 core/Dockerfile
@@ -44,14 +32,13 @@ docker-bake.hcl
 .github/renovate.json
 ```
 
-Rejected:
+Considered and not chosen:
 
 - **One multi-stage Dockerfile.** Simplest, but nothing separates core from
-  consumers and the file grows with every image.
-- **Devcontainer Features.** Ties every image to a devcontainer builder, which is
-  the nesting this restart removes.
-- **Ansible.** Poor layer caching and a lot of surface for an images-only repo.
-  Revisit if the same definitions must provision non-container machines.
+  consumers.
+- **Devcontainer Features.** Would put a devcontainer builder under every image.
+- **Ansible.** Starting simple with plain Dockerfiles; can move to Ansible if
+  the need arises.
 
 ## Core contents
 
@@ -60,32 +47,34 @@ Rejected:
 | Ubuntu 26.04 base | | tag and digest |
 | Ubuntu apt | git, git-lfs, build-essential, curl, jq, ripgrep, less, fish | apt signatures |
 | Vendor apt repositories | Docker CE with Buildx and Compose, `gh`, Node 24 | apt signatures |
-| Official images, by digest | `uv`, Bun (standard build) | image digest |
+| Official images, by digest | `uv`, Bun | image digest |
 | npm, exact versions | Claude Code, OpenCode | npm registry integrity |
 
-No per-file checksum pins. The old repo needed them only for direct GitHub
-release downloads, and those are gone.
-
-**User:** one non-root user `dev` (uid 1000, passwordless sudo, fish as login
-shell), shared by every consumer.
+No per-file checksum pins: the old repo had them only for tools downloaded
+straight from GitHub releases, and none of those remain.
 
 **Docker daemon:** the engine is installed and `core/start-dockerd` starts it.
-Nothing calls the script by default. A consumer calls it from its own startup
-hook and must run privileged or under sysbox. Rejected: binaries only (each
-consumer rewrites daemon startup) and an entrypoint in the core (every consumer
-inherits it and must run privileged).
+Nothing calls the script by default; a consumer calls it from its own startup
+and must run privileged or under sysbox. Not chosen: binaries only (each
+consumer rewrites daemon startup), and an entrypoint in the core that starts the
+daemon (every consumer inherits it and must run privileged).
 
-## Build and publish
+It follows that `core` has no entrypoint or supervisor.
+
+**User** *(Claude's call)*: one non-root user `dev` (uid 1000, passwordless
+sudo, fish as login shell), shared by consumers.
+
+## Build and publish *(Claude's call)*
 
 - `ghcr.io/plume-works/core`, tagged `edge` and by commit SHA, on pushes to
   main, for `linux/amd64` and `linux/arm64`.
-- CI check: run each tool's version command in the built image, then start the
-  daemon in a privileged run and run `hello-world`.
+- `core/test.sh` runs each tool's version command in the built image, then
+  starts the daemon in a privileged run and runs `hello-world`. CI runs it on
+  both architectures before publishing.
 
 ## Upkeep
 
-The hosted Renovate app, with no workflow or script in the repo. It tracks the
-base image digest, tool versions (build arguments in `core/Dockerfile` with a
-`# renovate:` comment) and the workflow's actions (pinned by commit SHA). Bumps
-automerge when the build passes. Ubuntu release changes are excluded and stay a
-manual decision.
+Renovate, as the old repo had. *(Claude's call for the rest:)* the hosted
+Renovate app, with no workflow or script in the repo. It tracks the base image
+digest, the pinned tool versions and the workflow's actions, and automerges
+when the build passes. Ubuntu release changes are left as a manual decision.

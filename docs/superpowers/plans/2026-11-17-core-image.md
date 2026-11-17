@@ -12,7 +12,7 @@
 
 ## Global Constraints
 
-- The repo holds images only. Create no files other than those named in this plan.
+- Create no files other than those named in this plan.
 - No `ENTRYPOINT`, no supervisor, no `CMD` other than the base image's, in `core/Dockerfile`.
 - Base: `ubuntu:26.04` (codename `resolute`), pinned as `ubuntu:26.04@sha256:<digest>`.
 - User: `dev`, uid 1000, gid 1000, home `/home/dev`, passwordless sudo, login shell `/usr/bin/fish`. The image's final `USER` is `dev`.
