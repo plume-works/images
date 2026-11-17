@@ -246,6 +246,7 @@ Expected: every line `ok`, exit 0.
 - `extends`: `config:recommended`, `docker:pinDigests`, `helpers:pinGitHubActionDigests`, `customManagers:dockerfileVersions`.
 - Top-level `minimumReleaseAge: "3 days"`, applying to every update.
 - One package rule enabling `automerge` with `automergeType: "pr"` and `platformAutomerge: true` for all updates.
+- One package rule with `matchNewValue: "/\\.0$/"` setting `minimumReleaseAge: "10 days"`, so an `x.y.0` release waits 10 days.
 - One package rule, placed after it, with `matchDepNames: ["ubuntu"]` and `matchUpdateTypes: ["major", "minor"]` set to `enabled: false`, so only the `26.04` digest moves.
 
 - [ ] **Step 2: Validate the config and confirm it sees every pin**
@@ -257,6 +258,8 @@ Run: `docker run --rm -v "$PWD":/repo -w /repo -e LOG_LEVEL=debug renovate/renov
 Expected: the log lists `ubuntu`, `ghcr.io/astral-sh/uv`, `oven/bun`, `@anthropic-ai/claude-code`, `opencode-ai`, and each action in `build.yml` as detected dependencies. A pin missing from that list is a failure of this step.
 
 In the same log, find how the 3-day wait is applied to the `ubuntu`, `uv` and Bun digest updates, where Renovate may have no release timestamp. If such an update would skip the wait, or would never become mergeable, report that to the user; do not change the config to work around it.
+
+The 10-day rule only shows in the log when a pending update is an `x.y.0`. If none is, say in the report that the rule passed validation but was not exercised.
 
 - [ ] **Step 3: Write `README.md`**
 

@@ -123,8 +123,9 @@ Renovate, as the old repo had. *(Claude's call for the rest:)*
 - Claude Code and OpenCode versions are `ARG` lines in `core/Dockerfile` with a
   `# renovate:` comment above each. Workflow actions are pinned by commit SHA.
 - Updates automerge when the build passes.
-- Every update waits until its release is 3 days old before it merges (Anton's
-  decision, for all updates and not only the npm tools). Renovate may have no
+- Every update waits until its release is 3 days old before it merges, and an
+  `x.y.0` release waits 10 days, since those usually have the most bugs (Anton's
+  decisions, for all updates and not only the npm tools). Renovate may have no
   publish date for an image digest; the plan checks how it treats those.
 - The base digest update doubles as the regular clean rebuild, which is
   when apt packages move.
