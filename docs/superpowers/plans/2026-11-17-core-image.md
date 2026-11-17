@@ -94,7 +94,7 @@ Order, one concern per `RUN` so a version bump rebuilds from its own line down:
 3. Vendor apt repositories, each with its key in `/etc/apt/keyrings`: GitHub CLI (`gh`) and Docker (`docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin`).
 4. `COPY --from=ghcr.io/astral-sh/uv:<version>@sha256:<digest> /uv /uvx /usr/local/bin/`
 5. `COPY --from=oven/bun:<version>@sha256:<digest> /usr/local/bin/bun /usr/local/bin/bun`, plus a `bunx` symlink to it.
-6. `ARG CLAUDE_CODE_VERSION` / `ARG OPENCODE_VERSION` with renovate comments (`depName=@anthropic-ai/claude-code` and `depName=opencode-ai`), each followed by its own `bun install -g <pkg>@${...}`. Set these for the install `RUN` only, not as image `ENV`: `BUN_INSTALL_BIN=/usr/local/bin`, `BUN_INSTALL_GLOBAL_DIR=/usr/local/share/bun-global`, and `BUN_INSTALL_CACHE_DIR` pointing at a temporary directory removed in the same layer. Both packages place their binary from a postinstall script, which Bun runs for a global install.
+6. `ARG CLAUDE_CODE_VERSION` / `ARG OPENCODE_VERSION` with renovate comments (`depName=@anthropic-ai/claude-code` and `depName=opencode-ai`), each followed by its own `bun install -g <pkg>@${...}`. Set these for the install `RUN` only, not as image `ENV`: `BUN_INSTALL_BIN=/usr/local/bin`, `BUN_INSTALL_GLOBAL_DIR=/usr/local/share/bun-global`, and `BUN_INSTALL_CACHE_DIR` pointing at a temporary directory removed in the same layer. No extra flag is needed for either package's postinstall script; see the check recorded in Handoff notes.
 7. User: the base image ships `ubuntu` at uid 1000. Rename it in place (`usermod -l dev -d /home/dev -m ubuntu`, `groupmod -n dev ubuntu`), set the shell to `/usr/bin/fish`, add `dev` to the `docker` group, write `/etc/sudoers.d/dev` with `dev ALL=(ALL) NOPASSWD:ALL` and mode `0440`.
 8. `USER dev`, `WORKDIR /home/dev`.
 
@@ -280,7 +280,7 @@ Install the Renovate GitHub app on the repo; enable "Allow auto-merge"; require 
 
 ## Handoff notes (2026-11-17)
 
-**Environment prerequisite:** every verification step needs a working Docker daemon, and Task 2 needs `--privileged`. The devcontainer this plan was written in has no Docker and is not privileged. Run the plan somewhere that has both.
+**Environment prerequisite:** every verification step needs a working Docker daemon, and Task 2 needs `--privileged`. The repo's `.devcontainer.json` is privileged and adds Docker-in-Docker for this purpose; run the plan inside it.
 
 **Pins resolved on 2026-11-17** (use these, or re-resolve if stale):
 
