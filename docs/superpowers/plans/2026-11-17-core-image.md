@@ -17,7 +17,7 @@
 - User: `dev`, uid 1000, gid 1000, home `/home/dev`, passwordless sudo, login shell `/usr/bin/fish`. The image's final `USER` is `dev`.
 - Node major version: 24.
 - `uv` and Bun arrive by `COPY --from=<image>:<version>@sha256:<digest>`, written as literal references because `COPY --from` cannot expand an `ARG`. Renovate's Dockerfile manager tracks them as written.
-- Claude Code and OpenCode arrive by `npm install -g <pkg>@${<NAME>_VERSION}`. Each version is an `ARG <NAME>_VERSION=<exact version>` line with a `# renovate: datasource=npm depName=<pkg>` comment directly above it.
+- Claude Code and OpenCode arrive by `bun install -g <pkg>@${<NAME>_VERSION}`, not by npm. Each version is an `ARG <NAME>_VERSION=<exact version>` line with a `# renovate: datasource=npm depName=<pkg>` comment directly above it.
 - No per-file checksums.
 - Image name: `ghcr.io/plume-works/core`. Tags: `edge` and the full commit SHA, and no others. Platforms: `linux/amd64`, `linux/arm64`.
 - GitHub Actions are pinned by full commit SHA with a `# vX.Y.Z` trailing comment.
@@ -96,7 +96,7 @@ Order, one concern per `RUN` so a version bump rebuilds from its own line down:
 3. Vendor apt repositories, each with its key in `/etc/apt/keyrings`: GitHub CLI (`gh`), NodeSource for Node 24 (`nodejs`), Docker (`docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin`).
 4. `COPY --from=ghcr.io/astral-sh/uv:<version>@sha256:<digest> /uv /uvx /usr/local/bin/`
 5. `COPY --from=oven/bun:<version>@sha256:<digest> /usr/local/bin/bun /usr/local/bin/bun`, plus a `bunx` symlink to it.
-6. `ARG CLAUDE_CODE_VERSION` / `ARG OPENCODE_VERSION` with renovate comments (`depName=@anthropic-ai/claude-code` and `depName=opencode-ai`), each followed by its own `npm install -g <pkg>@${...}` and `npm cache clean --force`.
+6. `ARG CLAUDE_CODE_VERSION` / `ARG OPENCODE_VERSION` with renovate comments (`depName=@anthropic-ai/claude-code` and `depName=opencode-ai`), each followed by its own `bun install -g <pkg>@${...}`. Set these for the install `RUN` only, not as image `ENV`: `BUN_INSTALL_BIN=/usr/local/bin`, `BUN_INSTALL_GLOBAL_DIR=/usr/local/share/bun-global`, and `BUN_INSTALL_CACHE_DIR` pointing at a temporary directory removed in the same layer. Both packages place their binary from a postinstall script, which Bun runs for a global install.
 7. User: the base image ships `ubuntu` at uid 1000. Rename it in place (`usermod -l dev -d /home/dev -m ubuntu`, `groupmod -n dev ubuntu`), set the shell to `/usr/bin/fish`, add `dev` to the `docker` group, write `/etc/sudoers.d/dev` with `dev ALL=(ALL) NOPASSWD:ALL` and mode `0440`.
 8. `USER dev`, `WORKDIR /home/dev`.
 
@@ -289,5 +289,7 @@ Install the Renovate GitHub app on the repo; enable "Allow auto-merge"; require 
 | `oven/bun:1.4.4` | `sha256:1d22548f177f4ff38e0c15baa3c2c46c6c2060ba2d1bc573bb4720b407548f1d` |
 | `@anthropic-ai/claude-code` | `2.1.326` |
 | `opencode-ai` | `1.19.6` |
+
+Confirmed with Bun 1.4.4 on `linux/arm64`: `bun install -g` of both packages at the versions above, with `BUN_INSTALL_BIN` and `BUN_INSTALL_GLOBAL_DIR` set, gives a working `claude --version` and `opencode --version`. Not tried on `linux/amd64`.
 
 Confirmed reachable: Docker's apt suite `resolute`, NodeSource `node_24.x` (`nodistro`), GitHub CLI apt repo (`stable`).

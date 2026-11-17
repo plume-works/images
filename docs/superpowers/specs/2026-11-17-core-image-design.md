@@ -73,13 +73,15 @@ Considered and not chosen:
 | Ubuntu apt | git, git-lfs, build-essential, curl, jq, ripgrep, less, fish | apt signatures |
 | Vendor apt repositories | Docker CE with Buildx and Compose, `gh`, Node 24 | apt signatures |
 | Official images, by digest | `uv`, Bun | image digest |
-| npm, exact versions | Claude Code, OpenCode | exact version only; no hash is stored in this repo |
+| npm registry, installed with Bun, exact versions | Claude Code, OpenCode | exact version only; no hash is stored in this repo |
 
 No per-file checksum pins: the old repo had them only for tools downloaded
 straight from GitHub releases, and none of those remain.
 
-Leaving Claude Code and OpenCode without a stored hash is *(Claude's call)*:
-Claude asked whether to hash-pin them and got no answer.
+Claude Code and OpenCode stay at an exact version with no stored hash, and are
+installed with Bun, not npm (Anton's decisions). Not chosen: a lockfile
+installed with `npm ci`, which would store hashes at the cost of two more files
+and a non-global install.
 
 Apt packages are not version-pinned *(Claude's call)*. They take whatever
 version is current when the image is rebuilt, and Renovate does not track them.
@@ -129,7 +131,6 @@ Layer ordering and the internals of `start-dockerd`.
 
 Raised in review on 2026-11-17 and not decided. The plan proceeds without them.
 
-- **Hash-pinning the npm tools.** See Core contents.
 - **Repo visibility.** The plan uses GitHub's `ubuntu-24.04-arm` runner, which
   is free only for public repos.
 - **Nested Docker storage.** `core/test.sh` puts `/var/lib/docker` on a volume.
