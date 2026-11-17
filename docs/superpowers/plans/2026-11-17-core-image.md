@@ -13,6 +13,7 @@
 ## Global Constraints
 
 - No `ENTRYPOINT`, no supervisor, no `CMD` other than the base image's, in `core/Dockerfile`.
+- `core/Dockerfile` declares `VOLUME /var/lib/docker`.
 - Base: `ubuntu:26.04` (codename `resolute`), pinned as `ubuntu:26.04@sha256:<digest>`.
 - User: `dev`, uid 1000, gid 1000, home `/home/dev`, passwordless sudo, login shell `/usr/bin/fish`. The image's final `USER` is `dev`.
 - Node major version: 24.
@@ -124,7 +125,7 @@ git commit -m "Add core image with dev tools"
 
 **Files:**
 - Create: `core/start-dockerd`
-- Modify: `core/Dockerfile` (one `COPY` line, before `USER dev`)
+- Modify: `core/Dockerfile` (one `COPY` line and `VOLUME /var/lib/docker`, both before `USER dev`)
 - Modify: `core/test.sh` (add the `docker` group)
 
 **Interfaces:**
@@ -142,10 +143,11 @@ These need their own `docker run` flags, so they do not use `check`'s plain form
 
 ```sh
 # privileged: daemon comes up, dev can use it, second call is a no-op.
-# /var/lib/docker is a volume so nested storage is not on the container's overlay root.
-check_run "dockerd starts"      --privileged -v /var/lib/docker -- sh -c 'start-dockerd && docker run --rm hello-world'
-check_run "dev without sudo"    --privileged -v /var/lib/docker -- sh -c 'start-dockerd && docker info >/dev/null'
-check_run "idempotent"          --privileged -v /var/lib/docker -- sh -c 'start-dockerd && start-dockerd && [ "$(pgrep -xc dockerd)" = 1 ]'
+# No -v here: the image's own VOLUME must be what keeps /var/lib/docker off the overlay root.
+check_run "dockerd starts"      --privileged -- sh -c 'start-dockerd && docker run --rm hello-world'
+check_run "dev without sudo"    --privileged -- sh -c 'start-dockerd && docker info >/dev/null'
+check_run "idempotent"          --privileged -- sh -c 'start-dockerd && start-dockerd && [ "$(pgrep -xc dockerd)" = 1 ]'
+check_run "data on a volume"    -- sh -c 'grep -q " /var/lib/docker " /proc/mounts'
 # unprivileged: the script's own timeout fires (exit 1, log tail on stderr); it does not hang.
 # Exit 1 exactly: 127 would mean the script is missing, 124 that the outer timeout fired.
 check_run "fails unprivileged"  -e START_DOCKERD_TIMEOUT=5 -- sh -c 'timeout 20 start-dockerd 2>/tmp/err; [ $? = 1 ] && [ -s /tmp/err ]'
@@ -156,9 +158,9 @@ check_run "inert by default"    -- sh -c '! pgrep -x dockerd'
 - [ ] **Step 2: Run to verify it fails**
 
 Run: `core/test.sh ghcr.io/plume-works/core:edge docker`
-Expected: FAIL on the first four lines (`start-dockerd: not found`); `inert by default` is `ok`.
+Expected: FAIL on every line except `inert by default`, which is `ok` (`start-dockerd: not found`, and no volume yet).
 
-- [ ] **Step 3: Write `core/start-dockerd` to the contract above and add the `COPY --chmod=0755` line to `core/Dockerfile`**
+- [ ] **Step 3: Write `core/start-dockerd` to the contract above and add the `COPY --chmod=0755` and `VOLUME /var/lib/docker` lines to `core/Dockerfile`**
 
 POSIX `sh`. No process supervision, no restart loop, no configuration file handling.
 
@@ -261,7 +263,7 @@ In the same log, find how the 3-day wait is applied to the `ubuntu`, `uv` and Bu
 
 - [ ] **Step 3: Write `README.md`**
 
-Keep it short: what the repo is (one paragraph), the image table with pull names, how to build and test locally (`docker buildx bake core`, `core/test.sh <image>`), how a consumer starts Docker (`start-dockerd`, needs privileged or sysbox), and a link to `docs/superpowers/specs/2026-11-17-core-image-design.md`. Do not restate the design.
+Keep it short: what the repo is (one paragraph), the image table with pull names, how to build and test locally (`docker buildx bake core`, `core/test.sh <image>`), how a consumer starts Docker (`start-dockerd`, needs privileged or sysbox; every container gets an anonymous volume at `/var/lib/docker`), and a link to `docs/superpowers/specs/2026-11-17-core-image-design.md`. Do not restate the design.
 
 - [ ] **Step 4: Commit**
 

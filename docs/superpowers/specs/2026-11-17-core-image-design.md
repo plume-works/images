@@ -95,6 +95,13 @@ and must run privileged or under sysbox. Not chosen: binaries only (each
 consumer rewrites daemon startup), and an entrypoint in the core that starts the
 daemon (every consumer inherits it and must run privileged).
 
+`core` declares `/var/lib/docker` as a volume, as the official Docker-in-Docker
+image does, so the nested daemon's data is never on the container's overlay
+filesystem (Anton's decision). The cost: every container made from `core` or a
+consumer gets an anonymous volume there, whether or not it starts Docker. Not
+chosen: measuring first whether the volume is needed, and only documenting that
+consumers should mount one.
+
 **User** *(Claude's call)*: one non-root user `dev` (uid and gid 1000, home
 `/home/dev`, passwordless sudo, fish as login shell), shared by consumers.
 
@@ -131,8 +138,6 @@ Layer ordering and the internals of `start-dockerd`.
 
 Raised in review on 2026-11-17 and not decided. The plan proceeds without them.
 
-- **Nested Docker storage.** `core/test.sh` puts `/var/lib/docker` on a volume.
-  Whether consumers must do the same is unverified.
 - **Decisions that outlive this image.** The shared `dev` user and the
   no-entrypoint rule bind every later image, but are recorded only in this
   document.
