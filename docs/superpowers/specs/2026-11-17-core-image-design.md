@@ -102,7 +102,7 @@ consumer gets an anonymous volume there, whether or not it starts Docker. Not
 chosen: measuring first whether the volume is needed, and only documenting that
 consumers should mount one.
 
-**User** *(Claude's call)*: one non-root user `dev` (uid and gid 1000, home
+**User** (proposed by Claude, confirmed by Anton): one non-root user `dev` (uid and gid 1000, home
 `/home/dev`, passwordless sudo, fish as login shell), shared by consumers.
 
 ## Build and publish *(Claude's call)*
