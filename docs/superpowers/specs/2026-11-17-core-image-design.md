@@ -72,11 +72,14 @@ Considered and not chosen:
 | Ubuntu 26.04 base | | tag and digest |
 | Ubuntu apt | git, git-lfs, build-essential, curl, jq, ripgrep, less, fish | apt signatures |
 | Vendor apt repositories | Docker CE with Buildx and Compose, `gh` | apt signatures |
-| Official images, by digest | `uv`, Bun | image digest |
+| Official image, by digest | Bun | image digest |
+| GitHub release, exact version | `uv` | immutable release, checked against the release's own `.sha256`; no hash is stored in this repo |
 | npm registry, installed with Bun, exact versions | Claude Code, OpenCode | exact version only; no hash is stored in this repo |
 
-No per-file checksum pins: the old repo had them only for tools downloaded
-straight from GitHub releases, and none of those remain.
+No per-file checksum pins stored in this repo. `uv` comes from its GitHub
+release so Renovate gets release dates for the 3-day wait, which `ghcr.io`
+does not give (Anton's decision). The old repo pinned checksums for tools downloaded
+straight from GitHub releases; uv relies on GitHub's immutable releases instead.
 
 Bun is the default for all Node and npm tools and libraries, and Node itself is
 left out until something needs it (Anton's decisions). Claude Code and OpenCode
@@ -118,7 +121,7 @@ consumers should mount one.
 Renovate, as the old repo had. *(Claude's call for the rest:)*
 
 - The hosted Renovate app, with no workflow or script in the repo.
-- It tracks the base image digest, the `uv` and Bun image versions and digests,
+- It tracks the base image digest, the `uv` release version, the Bun image version and digest,
   the Claude Code and OpenCode versions, and the workflow's actions.
 - Claude Code and OpenCode versions are `ARG` lines in `core/Dockerfile` with a
   `# renovate:` comment above each. Workflow actions are pinned by commit SHA.

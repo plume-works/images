@@ -31,7 +31,16 @@ RUN install -m 0755 -d /etc/apt/keyrings \
       docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin \
  && rm -rf /var/lib/apt/lists/*
 
-COPY --from=ghcr.io/astral-sh/uv:0.13.8@sha256:5cc1805e2426484abca4ad46ea783bab281fdb225fd82d8ce6d66a81254bac85 /uv /uvx /usr/local/bin/
+# uv from its GitHub release (immutable releases), checked against the release's .sha256.
+# renovate: datasource=github-releases depName=astral-sh/uv
+ARG UV_VERSION=0.13.8
+RUN target="$(uname -m)-unknown-linux-gnu" \
+ && url="https://github.com/astral-sh/uv/releases/download/${UV_VERSION}/uv-${target}.tar.gz" \
+ && tmp="$(mktemp -d)" \
+ && curl -fsSL "$url" -o "$tmp/uv.tar.gz" \
+ && echo "$(curl -fsSL "$url.sha256" | cut -d' ' -f1)  $tmp/uv.tar.gz" | sha256sum -c - \
+ && tar -xzf "$tmp/uv.tar.gz" -C /usr/local/bin --strip-components=1 "uv-${target}/uv" "uv-${target}/uvx" \
+ && rm -rf "$tmp"
 
 COPY --from=oven/bun:1.4.4@sha256:1d22548f177f4ff38e0c15baa3c2c46c6c2060ba2d1bc573bb4720b407548f1d /usr/local/bin/bun /usr/local/bin/bun
 RUN ln -s /usr/local/bin/bun /usr/local/bin/bunx
