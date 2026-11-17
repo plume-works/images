@@ -16,13 +16,16 @@ check_run() {
 		shift
 	done
 	shift
+	out=$(mktemp)
 	# shellcheck disable=SC2086
-	if docker run --rm $flags "$image" "$@" >/dev/null 2>&1; then
+	if docker run --rm $flags "$image" "$@" >"$out" 2>&1; then
 		echo "ok   $desc"
 	else
 		echo "FAIL $desc"
+		sed 's/^/     /' "$out"
 		failed=1
 	fi
+	rm -f "$out"
 }
 
 check() {

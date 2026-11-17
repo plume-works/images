@@ -1,5 +1,10 @@
 FROM ubuntu:26.04@sha256:d66b366dac61b575bee2aef07e9c26e8070096fbe84a3d4d3eb0da069b5d76db
 
+LABEL org.opencontainers.image.source="https://github.com/plume-works/images" \
+      org.opencontainers.image.title="core" \
+      org.opencontainers.image.description="Host-neutral dev container base: git, gh, Node, uv, Bun, Docker, Claude Code, OpenCode" \
+      org.opencontainers.image.version=""
+
 ARG DEBIAN_FRONTEND=noninteractive
 
 RUN apt-get update \
@@ -40,6 +45,8 @@ RUN ln -s /usr/local/bin/bun /usr/local/bin/bunx
 ARG CLAUDE_CODE_VERSION=2.1.326
 RUN npm install -g @anthropic-ai/claude-code@${CLAUDE_CODE_VERSION} \
     && npm cache clean --force
+# Installed as root, so the auto-updater cannot write the prefix; Renovate owns the version.
+ENV DISABLE_AUTOUPDATER=1
 
 # renovate: datasource=npm depName=opencode-ai
 ARG OPENCODE_VERSION=1.19.6

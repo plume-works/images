@@ -9,7 +9,8 @@ current by Renovate.
 |---|---|---|
 | core | `ghcr.io/plume-works/core:edge` | Ubuntu 26.04, git, gh, Node 24, uv, Bun, Docker, Claude Code, OpenCode |
 
-Tags are `edge` (latest `main`) and the full commit SHA. Platforms are
+Tags are `edge` (latest `main`) and the full commit SHA. CI also publishes
+per-arch `<sha>-amd64` and `<sha>-arm64` tags. Platforms are
 `linux/amd64` and `linux/arm64`.
 
 ## Build and test locally
@@ -28,6 +29,9 @@ Docker is installed but not started. A consumer calls `start-dockerd` from its
 own startup. The container must run privileged or under sysbox, and
 `/var/lib/docker` needs a volume, because a nested dockerd cannot use overlay
 on the container's overlay root filesystem.
+`start-dockerd` is silent on success; it waits up to `START_DOCKERD_TIMEOUT`
+seconds (default 30) and logs to `/var/log/dockerd.log`, printing the tail on
+failure.
 
 ## Design
 
