@@ -78,8 +78,9 @@ Considered and not chosen:
 No per-file checksum pins: the old repo had them only for tools downloaded
 straight from GitHub releases, and none of those remain.
 
-Claude Code and OpenCode stay at an exact version with no stored hash, and are
-installed with Bun, not npm (Anton's decisions). Not chosen: a lockfile
+Bun is the default for all Node and npm tools and libraries (Anton's decision).
+So Claude Code and OpenCode are installed with Bun, not npm. They stay at an
+exact version with no stored hash (Anton's decision). Not chosen: a lockfile
 installed with `npm ci`, which would store hashes at the cost of two more files
 and a non-global install.
 
