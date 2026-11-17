@@ -21,7 +21,7 @@
 - `uv` and Bun arrive by `COPY --from=<image>:<version>@sha256:<digest>`; Claude Code and OpenCode by `npm install -g <pkg>@<exact version>`. No per-file checksums.
 - Image name: `ghcr.io/plume-works/core`. Tags: `edge` and the full commit SHA. Platforms: `linux/amd64`, `linux/arm64`.
 - GitHub Actions are pinned by full commit SHA with a `# vX.Y.Z` trailing comment.
-- The repo is `https://github.com/plume-works/images.git`, cloned at `/workspaces/empty-devcontainer/.nested/images`. It starts empty: the first commit on `main` holds only the design and this plan; all other work happens on a branch named `core-image` cut from it.
+- The repo is `https://github.com/plume-works/images.git`, cloned at `/workspaces/empty-devcontainer/.nested/images`. `main` holds one commit with an empty `README.md`. All work happens on the `core-image` branch, which already carries the design and this plan.
 - If a tool cannot be installed from the source the spec names (for example a package is no longer published to npm, or a vendor apt repository has no `resolute` suite), stop and report; do not substitute a different source.
 
 ## Review Focus
@@ -214,7 +214,7 @@ Pushing and opening the pull request are outward-facing: confirm with the user f
 
 **Files:**
 - Create: `.github/renovate.json`
-- Create: `README.md`
+- Modify: `README.md` (exists, empty)
 
 **Interfaces:**
 - Consumes: the `# renovate:` comments and digest pins from Task 1; SHA-pinned actions from Task 3.
@@ -252,7 +252,7 @@ Install the Renovate GitHub app on the repo; enable "Allow auto-merge"; require 
 
 ## Handoff notes (2026-11-17)
 
-**State:** nothing is implemented. The first commit on `main` holds the design and this plan and has not been pushed. Start by creating the `core-image` branch from it.
+**State:** nothing is implemented. `main` has an empty `README.md`; the `core-image` branch adds the design and this plan. Work on `core-image`.
 
 **Environment prerequisite:** every verification step needs a working Docker daemon, and Task 2 needs `--privileged`. The devcontainer this plan was written in has no Docker and is not privileged. Run the plan somewhere that has both.
 
