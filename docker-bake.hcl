@@ -29,7 +29,7 @@ function "out" {
 }
 
 group "default" {
-  targets = ["core"]
+  targets = ["core", "core-systemd"]
 }
 
 target "_common" {
@@ -42,4 +42,12 @@ target "core" {
   inherits = ["_common"]
   context  = "images/core"
   tags     = [img("core")]
+}
+
+target "core-systemd" {
+  inherits = ["_common"]
+  context  = "images/core-systemd"
+  args     = { BASE_IMAGE = "parent" }
+  contexts = { parent = "target:core" }
+  tags     = [img("core-systemd")]
 }
