@@ -46,6 +46,12 @@ for tool in git gh git-lfs uv uvx python python3 bun bunx cmake ninja fish claud
 done
 pass "every tool answers as root and as dev, from system-wide locations"
 
+# OpenCode is version 2, the line whose `opencode serve` runs the web UI a workspace app proxies to.
+case "$(opencode --version)" in
+  "opencode v2."*) pass "opencode is version 2 ($(opencode --version))" ;;
+  *) fail "opencode is $(opencode --version), not version 2" ;;
+esac
+
 # A virtual environment dev makes gets the Python uv manages system-wide, not a per-user download
 # and not the distribution's.
 venv_python=$(su dev -c 'cd "$(mktemp -d)" && uv venv -q v && readlink -f v/bin/python') \
@@ -80,22 +86,29 @@ done
 pass "git obtains a credential from GH_TOKEN or GITHUB_TOKEN through gh, as root and as dev"
 
 # The agents are bare: no MCP servers, plugins or credentials, as root and as dev.
+# OpenCode 2's commands talk to a server: --standalone runs a private one for the command, rather than leaving a
+# per-user background service behind (whose fixed port root's and dev's would contend for).
 for user in root dev; do
   says '^No MCP servers configured' as "$user" 'claude mcp list' || fail "claude has MCP servers as $user"
   says '^No plugins installed' as "$user" 'claude plugin list' || fail "claude has plugins as $user"
   says '"loggedIn": false' as "$user" 'claude auth status' || fail "claude is signed in as $user"
-  says 'No MCP servers configured' as "$user" 'timeout 60 opencode mcp list' || fail "opencode has MCP servers as $user"
-  says ' 0 credentials' as "$user" 'timeout 60 opencode auth list' || fail "opencode has credentials as $user"
+  for args in 'mcp list:^No MCP servers configured' 'plugin list:^No plugins found' 'auth list:^No authenticated integrations'; do
+    says "${args#*:}" as "$user" "timeout 60 opencode --standalone ${args%%:*}" || fail "opencode ${args%%:*} is not empty as $user"
+  done
 done
 pass "claude and opencode are bare: no MCP servers, plugins or credentials"
 
 # Self-updating is off system-wide for both agents, however a shell is entered: as the image runs (a CI job),
 # as dev through su, and in a fresh login of dev, which drops the image's environment. Claude Code also
-# refuses with no environment at all.
+# refuses with no environment at all. OpenCode checks for updates when its terminal UI starts, so the UI is run
+# for a few seconds in a pseudo-terminal, with its log on stderr, to see it skip the check. Its input is /dev/null:
+# script would otherwise read the rest of these checks from this shell's standard input.
+opencode_ui='cd /tmp && timeout 8 script -qec "opencode --standalone --print-logs 2>&1" /dev/null'
 for how in "as root" "as dev" "su -l dev -c"; do
   # $how is a command and its leading arguments, so it is left unquoted to split.
   says 'Updates are disabled' $how 'timeout 60 claude update' || fail "claude update is not refused ($how)"
-  [ "$($how 'printenv OPENCODE_DISABLE_AUTOUPDATE')" = 1 ] || fail "OpenCode's update check is on ($how)"
+  says 'message="update check skipped" reason=disabled' $how "$opencode_ui" </dev/null \
+    || fail "OpenCode's update check is on ($how)"
 done
 says 'Updates are disabled' env -i PATH=/usr/local/bin:/usr/bin:/bin HOME=/root claude update \
   || fail "claude update is not refused with an empty environment"
