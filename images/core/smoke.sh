@@ -101,12 +101,13 @@ pass "claude and opencode are bare: no MCP servers, plugins or credentials"
 # Self-updating is off system-wide for both agents, however a shell is entered: as the image runs (a CI job),
 # as dev through su, and in a fresh login of dev, which drops the image's environment. Claude Code also
 # refuses with no environment at all. OpenCode checks for updates when its terminal UI starts, so the UI is run
-# for a few seconds in a pseudo-terminal, with its log on stderr, to see it skip the check.
+# for a few seconds in a pseudo-terminal, with its log on stderr, to see it skip the check. Its input is /dev/null:
+# script would otherwise read the rest of these checks from this shell's standard input.
 opencode_ui='cd /tmp && timeout 8 script -qec "opencode --standalone --print-logs 2>&1" /dev/null'
 for how in "as root" "as dev" "su -l dev -c"; do
   # $how is a command and its leading arguments, so it is left unquoted to split.
   says 'Updates are disabled' $how 'timeout 60 claude update' || fail "claude update is not refused ($how)"
-  says 'message="update check skipped" reason=disabled' $how "$opencode_ui" \
+  says 'message="update check skipped" reason=disabled' $how "$opencode_ui" </dev/null \
     || fail "OpenCode's update check is on ($how)"
 done
 says 'Updates are disabled' env -i PATH=/usr/local/bin:/usr/bin:/bin HOME=/root claude update \
