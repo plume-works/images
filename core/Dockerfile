@@ -64,6 +64,7 @@ RUN export BUN_INSTALL_BIN=/usr/local/bin \
 # The base image ships user `ubuntu` at uid/gid 1000; rename it to `dev`.
 RUN usermod -l dev -d /home/dev -m ubuntu \
  && groupmod -n dev ubuntu \
+ && sed -i 's/^ubuntu:/dev:/' /etc/subuid /etc/subgid \
  && usermod -s /usr/bin/fish -aG docker dev \
  && echo 'dev ALL=(ALL) NOPASSWD:ALL' > /etc/sudoers.d/dev \
  && chmod 0440 /etc/sudoers.d/dev
@@ -78,3 +79,7 @@ WORKDIR /home/dev
 
 # Where `uv tool install` and `bun add -g` put a user's own tools.
 ENV PATH=/home/dev/.local/bin:/home/dev/.bun/bin:$PATH
+
+# Renovate moves the pinned versions; the tools must not update themselves.
+ENV DISABLE_AUTOUPDATER=1 \
+    OPENCODE_DISABLE_AUTOUPDATE=1

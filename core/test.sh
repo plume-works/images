@@ -94,6 +94,10 @@ tools() {
     printf "#!/bin/sh\n" > ~/.local/bin/uvtool && printf "#!/bin/sh\n" > ~/.bun/bin/buntool &&
     chmod +x ~/.local/bin/uvtool ~/.bun/bin/buntool &&
     uvtool && buntool && fish -l -c "uvtool; and buntool"'
+  # Rootless container tools as dev need subordinate ID ranges under dev's name.
+  check "subids"         sh -c 'cat /etc/subuid /etc/subgid; grep -q "^dev:" /etc/subuid && grep -q "^dev:" /etc/subgid && ! grep -q "^ubuntu:" /etc/subuid /etc/subgid'
+  # Versions are pinned and moved by Renovate; the tools must not update themselves.
+  check "no self-update" sh -c 'echo "DISABLE_AUTOUPDATER=${DISABLE_AUTOUPDATER-} OPENCODE_DISABLE_AUTOUPDATE=${OPENCODE_DISABLE_AUTOUPDATE-}"; [ "${DISABLE_AUTOUPDATER-}" = 1 ] && [ "${OPENCODE_DISABLE_AUTOUPDATE-}" = 1 ]'
 }
 
 docker_group() {
@@ -103,9 +107,19 @@ docker_group() {
   check_run "dev without sudo"    --privileged -- sh -c 'start-dockerd && docker info >/dev/null'
   check_run "idempotent"          --privileged -- sh -c 'start-dockerd && start-dockerd && n=$(pgrep -xc dockerd); echo "dockerd processes: $n"; [ "$n" = 1 ]'
   check_run "data on a volume"    -- sh -c 'grep -q " /var/lib/docker " /proc/mounts || { echo "/var/lib/docker is not a mount"; exit 1; }'
-  # unprivileged: the script's own timeout fires (exit 1, log tail on stderr); it does not hang.
+  # unprivileged: the daemon dies at once, and start-dockerd reports it (exit 1, log tail on
+  # stderr) without waiting out its 60s timeout.
   # Exit 1 exactly: 127 would mean the script is missing, 124 that the outer timeout fired.
-  check_run "fails unprivileged"  -e START_DOCKERD_TIMEOUT=5 -- sh -c 'timeout 20 start-dockerd 2>/tmp/err; s=$?; [ $s = 1 ] && [ -s /tmp/err ] && exit 0; echo "start-dockerd exit $s (want 1, with the log tail on stderr); its stderr:"; cat /tmp/err; exit 1'
+  check_run "fails unprivileged"  -e START_DOCKERD_TIMEOUT=60 -- sh -c 'timeout 20 start-dockerd 2>/tmp/err; s=$?; [ $s = 1 ] && [ -s /tmp/err ] && exit 0; echo "start-dockerd exit $s (want 1, with the log tail on stderr); its stderr:"; cat /tmp/err; exit 1'
+  # A daemon that stays up but never answers: the timeout fires, and the daemon is stopped.
+  check_run "timeout stops daemon" --user root -e START_DOCKERD_TIMEOUT=3 -- sh -c 'mkdir -p /tmp/fake && printf "#!/bin/sh\nexec sleep 300\n" > /tmp/fake/dockerd && chmod +x /tmp/fake/dockerd &&
+    PATH=/tmp/fake:$PATH timeout 20 start-dockerd 2>/tmp/err; s=$?; left=$(pgrep -a sleep)
+    [ $s = 1 ] && [ -s /tmp/err ] && [ -z "$left" ] && exit 0
+    echo "start-dockerd exit $s (want 1); still running: ${left:-nothing}; its stderr:"; cat /tmp/err; exit 1'
+  # A retry keeps the earlier daemon log.
+  check_run "log kept"            --user root -e START_DOCKERD_TIMEOUT=3 -- sh -c 'mkdir -p /tmp/fake && printf "#!/bin/sh\nexit 1\n" > /tmp/fake/dockerd && chmod +x /tmp/fake/dockerd &&
+    echo earlier-run > /var/log/dockerd.log && PATH=/tmp/fake:$PATH start-dockerd 2>/dev/null
+    grep -q earlier-run /var/log/dockerd.log || { echo "earlier log lines lost"; exit 1; }'
   # not started by default
   check_run "inert by default"    -- sh -c '! pgrep -ax dockerd'
 }

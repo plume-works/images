@@ -50,8 +50,8 @@ core.
 core/Dockerfile
 core/start-dockerd
 core/test.sh
+core/.dockerignore
 docker-bake.hcl
-.dockerignore
 .github/workflows/build.yml
 .github/renovate.json
 README.md
