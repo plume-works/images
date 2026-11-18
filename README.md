@@ -3,10 +3,31 @@
 Container images published by plume-works for running and developing software with coding agents.
 See [GLOSSARY.md](GLOSSARY.md) for the vocabulary and [docs/adr/](docs/adr/) for the decisions behind them.
 
+This repository publishes four images and nothing else. Each is built on the one before it, from the same
+commit, so every tool is in the core image and CI, workspaces and dev containers always have the same toolchain.
+
+| Image | Who it is for | How to use it |
+|---|---|---|
+| [Core image](#core-image) `ghcr.io/plume-works/core` | CI authors | The `container:` of a CI job, pinned by digest |
+| [Core systemd image](#core-systemd-image) `ghcr.io/plume-works/core-systemd` | Builders of the two images below | `FROM` it; run it with its own entrypoint under sysbox or in privileged mode |
+| [Coder template image](#coder-template-image) `ghcr.io/plume-works/coder-template` | Coder workspace users and host administrators | Through the Coder template beside it. **The Coder host must have sysbox.** |
+| [Devcontainer base image](#devcontainer-base-image) `ghcr.io/plume-works/devcontainer-base` | Developers using a dev container from local VS Code | The `image` of a `devcontainer.json`, plus one of two snippets |
+
+All four are published for `linux/amd64` and `linux/arm64`. The only tags are `edge` (the latest tested `main`;
+it moves on all four images together, and only when every image passes on both architectures) and `pr-N` (a pull
+request, deleted when it closes). There are no version tags: pin by tag and digest, `<image>:edge@sha256:<digest>`,
+and let Renovate propose digest bumps.
+
+Nothing in any image updates itself. A version changes only through a pull request that passes the tests (see
+[How versions are updated](#how-versions-are-updated)).
+
+**Not a goal for now:** an image deployed as a service that takes coding requests from agents (an agent-request
+service image). It is a known future image, but nothing here is designed for it; the four images above should
+not grow features in anticipation of it.
+
 ## Core image
 
-`ghcr.io/plume-works/core`, for `linux/amd64` and `linux/arm64`. CI jobs use it directly and every other image
-here is built on it. The default user is root; a non-root user `dev` (UID 1000, passwordless sudo) exists for
+`ghcr.io/plume-works/core`, for CI authors. CI jobs use it directly and every other image here is built on it. The default user is root; a non-root user `dev` (UID 1000, passwordless sudo) exists for
 interactive use.
 
 ### Toolchains and agents
@@ -24,8 +45,6 @@ authenticates wherever `GH_TOKEN` or `GITHUB_TOKEN` is set.
 Interactive conveniences are added at the maintainer's discretion. Anything else belongs in the repository
 that needs it.
 
-Pin it by digest. The only tags are `edge` (latest tested `main`) and `pr-N` (a pull request, deleted on close).
-
 ### Docker engine in a CI job
 
 The core image has the Docker engine, CLI, Buildx and Compose; `dev` is in the `docker` group. A job container
@@ -39,7 +58,7 @@ jobs:
   build:
     runs-on: ubuntu-latest
     container:
-      image: ghcr.io/plume-works/core@sha256:<digest>
+      image: ghcr.io/plume-works/core:edge@sha256:<digest>
       options: --privileged --volume /var/lib/docker
     steps:
       - run: start-docker
@@ -55,12 +74,13 @@ starts `docker.service`.
 
 `ghcr.io/plume-works/core-systemd`: the core image with systemd as PID 1 and the Docker engine run as a
 service. It is the parent of the Coder template image and the devcontainer base image and holds everything about
-booting. Run it with its own entrypoint (`/sbin/init`) under sysbox or in privileged mode, with volumes for the
+booting, written once so the two cannot drift apart. It is for building those images; to work in it, use one of
+them instead. Run it with its own entrypoint (`/sbin/init`) under sysbox or in privileged mode, with volumes for the
 engine's storage at `/var/lib/docker` and `/var/lib/containerd`. Never share those volumes between two running
 containers.
 
 ```sh
-docker run -d --privileged -v /var/lib/docker -v /var/lib/containerd ghcr.io/plume-works/core-systemd@sha256:<digest>
+docker run -d --privileged -v /var/lib/docker -v /var/lib/containerd ghcr.io/plume-works/core-systemd:edge@sha256:<digest>
 ```
 
 - The default user is root, because systemd must run as root. `dev`'s systemd user manager runs from boot,
@@ -75,10 +95,14 @@ docker run -d --privileged -v /var/lib/docker -v /var/lib/containerd ghcr.io/plu
 
 ## Coder template image
 
-`ghcr.io/plume-works/coder-template`: the core systemd image plus the Coder agent unit and the agent services.
-The Coder template in `images/coder-template/` runs it directly as the one workspace container, under sysbox;
-there is no dev container nested inside. It needs nothing else installed in it: the agent itself is fetched
-from the Coder server at each start, and the browser editor comes from the template.
+`ghcr.io/plume-works/coder-template`, for Coder workspace users and the administrators of Coder hosts: the core
+systemd image plus the Coder agent and the agent services, run directly as the one workspace container by the
+**Coder template** kept beside it in `images/coder-template/`. There is no dev container nested inside. Nothing
+else is installed in it: the agent itself is fetched from the Coder server at each start, and the browser editor
+comes from the template.
+
+**The Coder host must have [sysbox](https://github.com/nestybox/sysbox) installed.** The workspace container runs
+under the sysbox runtime, and there is no privileged fallback: install sysbox before creating the first workspace.
 
 How a workspace starts (ADR 0002):
 
@@ -118,7 +142,7 @@ container opened from local VS Code. The label sets the remote user to `dev`, in
 extension, and sets `overrideCommand: false` so that systemd stays PID 1. It has no lifecycle commands and no
 mounts. Inside you get systemd, a Docker engine run as a service, and every tool and agent of the core image.
 
-Name it in the `image` field of your `devcontainer.json`, pinned by digest, and add one of the two snippets below.
+Name it in the `image` field of your `devcontainer.json`, pinned by tag and digest, and add one of the two snippets below.
 The image does not choose how it runs; you do (ADR 0001):
 
 - **sysbox** (Linux hosts with [sysbox](https://github.com/nestybox/sysbox) installed): no privileged container.
@@ -134,7 +158,7 @@ With sysbox:
 
 ```jsonc
 {
-  "image": "ghcr.io/plume-works/devcontainer-base@sha256:<digest>",
+  "image": "ghcr.io/plume-works/devcontainer-base:edge@sha256:<digest>",
   "runArgs": ["--runtime=sysbox-runc"],
   "mounts": [
     "source=dc-${devcontainerId}-docker,target=/var/lib/docker,type=volume",
@@ -149,7 +173,7 @@ In privileged mode (this one is what the smoke test brings up):
 <!-- smoke-test: privileged -->
 ```jsonc
 {
-  "image": "ghcr.io/plume-works/devcontainer-base@sha256:<digest>",
+  "image": "ghcr.io/plume-works/devcontainer-base:edge@sha256:<digest>",
   "privileged": true,
   "mounts": [
     "source=dc-${devcontainerId}-docker,target=/var/lib/docker,type=volume",
@@ -180,14 +204,25 @@ Add your project's own tooling with Features or your own Dockerfile on top. Thin
 docker buildx bake --load
 images/core/smoke.sh ghcr.io/plume-works/core:ci
 images/core-systemd/smoke.sh ghcr.io/plume-works/core-systemd:ci
+images/coder-template/smoke.sh ghcr.io/plume-works/coder-template:ci
 images/devcontainer-base/smoke.sh ghcr.io/plume-works/devcontainer-base:ci
 ```
 
 The devcontainer base image's smoke test runs the devcontainer CLI (pinned in the script) through `npx`, or
-`bunx` where there is no Node, and needs a Docker daemon that sees the local `/tmp`.
+`bunx` where there is no Node, and needs `jq` and a Docker daemon that sees the local `/tmp`.
 
 Each image lives in `images/<name>/` with its `Dockerfile` and `smoke.sh`; `docker-bake.hcl` lists them, and
 `.github/workflows/images.yml` builds, tests and publishes them all.
+
+## Developing this repository
+
+This repository is developed inside its own devcontainer base image, so the image gets continuous real use. Its
+`.devcontainer.json` names `ghcr.io/plume-works/devcontainer-base:edge@sha256:<digest>` with the privileged-mode
+snippet above, and no docker-in-docker Feature; Renovate proposes the digest bumps. Inside it, the commands under
+[Building and testing locally](#building-and-testing-locally) work as they are: the image's own Docker engine
+builds the images and runs their smoke tests. The devcontainer base image's smoke test also needs `jq`, which
+the images do not have: `sudo apt-get install -y jq` first. (Until the devcontainer base image is first published,
+`.devcontainer.json` still uses a stock Ubuntu dev container.)
 
 ## How versions are updated
 
