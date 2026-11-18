@@ -1,7 +1,7 @@
 ---
 name: domain-modeling
 description: Build and sharpen a project's domain model. Use when discussing codebase terminology, writing or editing a GLOSSARY.md, or recording or editing an ADR.
-license: MIT. LICENSE.txt has complete terms
+license: MIT. ../LICENSE-mattpocock.txt has complete terms
 metadata:
   author: Matt Pocock
   origin: https://github.com/mattpocock/skills/tree/5863806dd4e15c63174bee4e7515a4256792ecfa/skills/engineering/domain-modeling
