@@ -51,6 +51,20 @@ for tool in node nodejs npm npx; do
   if command -v "$tool" >/dev/null; then fail "$tool is installed"; fi
 done
 pass "Node.js is not installed"
+
+# git gets a GitHub credential from the token in the environment, through the GitHub CLI, as root and as dev.
+# No network is needed: gh hands back the token it finds. Without a token git must fail, not hang on a prompt.
+fill='printf "protocol=https\nhost=github.com\n\n" | GIT_TERMINAL_PROMPT=0 timeout 20 git credential fill'
+for user in root dev; do
+  for var in GH_TOKEN GITHUB_TOKEN; do
+    as "$user" "export $var=smoke-token-$var; $fill" 2>/dev/null | grep -qx "password=smoke-token-$var" \
+      || fail "git obtains no credential from $var as $user"
+  done
+  if as "$user" "unset GH_TOKEN GITHUB_TOKEN; $fill" >/dev/null 2>&1; then
+    fail "git obtained a credential with no token as $user"
+  fi
+done
+pass "git obtains a credential from GH_TOKEN or GITHUB_TOKEN through gh, as root and as dev"
 CHECKS
 
 echo "core smoke test passed: $image"

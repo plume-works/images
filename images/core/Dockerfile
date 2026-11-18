@@ -32,6 +32,13 @@ RUN a=$(dpkg --print-architecture); f="gh_${GH_VERSION}_linux_$a.tar.gz"; d=$(mk
  && cp "$d/gh_${GH_VERSION}_linux_$a/share/man/man1/"* /usr/local/share/man/man1/ \
  && rm -rf "$d"
 
+# git's system-wide credential helper for GitHub is the GitHub CLI, so git authenticates wherever GH_TOKEN or
+# GITHUB_TOKEN is set. The empty entry first clears any helper inherited from elsewhere for these hosts.
+RUN for host in github.com gist.github.com; do \
+      git config --system "credential.https://$host.helper" '' \
+   && git config --system --add "credential.https://$host.helper" '!/usr/local/bin/gh auth git-credential'; \
+    done
+
 # --- Toolchains -------------------------------------------------------------------------------------------
 # Everything lands in /usr/local or /opt, never under a home directory: a home volume is filled from the image
 # only once, so anything installed there would freeze at that day's version and shadow newer images.
