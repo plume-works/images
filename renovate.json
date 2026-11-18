@@ -16,6 +16,16 @@
       ],
       "versioningTemplate": "{{#if versioning}}{{{versioning}}}{{else}}semver-coerced{{/if}}",
       "extractVersionTemplate": "{{#if extractVersion}}{{{extractVersion}}}{{else}}^v?(?<version>.+)${{/if}}"
+    },
+    {
+      "customType": "regex",
+      "description": "Versions pinned in the Coder template by a quoted attribute value (e.g. install_version = \"4.145.2\") directly below a `# renovate: datasource=… depName=… [extractVersion=…]` comment",
+      "managerFilePatterns": ["/(^|/)[^/]+\\.tf$/"],
+      "matchStrings": [
+        "# renovate: datasource=(?<datasource>[a-z-]+?) depName=(?<depName>[^\\s]+?)(?: extractVersion=(?<extractVersion>[^\\s]+?))?\\s+[a-z_]+\\s*=\\s*\"(?<currentValue>[^\"]+)\""
+      ],
+      "versioningTemplate": "semver-coerced",
+      "extractVersionTemplate": "{{#if extractVersion}}{{{extractVersion}}}{{else}}^v?(?<version>.+)${{/if}}"
     }
   ],
   "packageRules": [

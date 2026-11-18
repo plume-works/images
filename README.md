@@ -135,6 +135,87 @@ rotated secret takes effect on workspace restart. Logs: `journalctl -u coder-age
 To try it without Coder: `images/coder-template/smoke.sh <image>` boots it in privileged mode with a stand-in
 for the agent and checks the hand-off.
 
+### Coder template
+
+The Coder template is `images/coder-template/template/`: `main.tf`, its `.terraform.lock.hcl`, and a `README.md`
+that Coder shows on the template's page and whose front matter sets its name and description.
+
+**Requirements on the Coder deployment:**
+
+- **[sysbox](https://github.com/nestybox/sysbox) on the Docker host.** The container runs with
+  `runtime = "sysbox-runc"` and the entrypoint exactly `/sbin/init`. There is no privileged fallback: without
+  sysbox, every workspace fails to start. The template's description in Coder says so too.
+- A Docker host reachable by the provisioner (`docker_socket` template variable, empty for the default) on Linux.
+- A **wildcard access URL** (`CODER_WILDCARD_ACCESS_URL`) for the OpenCode button. OpenCode's web UI cannot run
+  under a path prefix, so it is a subdomain app; without wildcards the button does not open.
+
+What a workspace gets:
+
+- One parameter, the repository URL. The startup script clones it into `/home/dev/<repository>` if there is no
+  checkout there yet, exports `REPO_DIR`, then imports its whole environment into `dev`'s systemd user manager
+  and starts `agent-services.target` (ADR 0002).
+- VS Code Desktop (the agent's built-in button) and VS Code in the browser (Coder's `code-server` registry
+  module, with both the module and code-server pinned). Both open `REPO_DIR`.
+- An OpenCode button for the owner only, health-checked on `http://localhost:4096/`.
+- Git identity (`GIT_AUTHOR_*`, `GIT_COMMITTER_*`) from the Coder account's name and email. `git push` and `gh`
+  use a `GITHUB_TOKEN` Coder secret through the image's credential helper.
+- Three volumes per workspace, kept across rebuilds and deleted with the workspace: `/home/dev`,
+  `/var/lib/docker` and `/var/lib/containerd`. Nothing else persists: the container is recreated at every start.
+
+**OpenCode's password.** OpenCode always asks for a password (user `opencode`) on top of Coder's own sign-in.
+Each user defines it once as a Coder secret `OPENCODE_PASSWORD`, which reaches the server like any other secret.
+The template deliberately does not generate one: a secret the user picks is one they know and can type, it is the
+same in all their workspaces, it stays out of the Terraform state, and nothing in the template competes with the
+user's own secret. Without the secret, OpenCode makes up a new password at every start and logs it
+(`journalctl --user -u opencode | grep password`).
+
+**First-time setup for a user:** define `GITHUB_TOKEN` (for private repositories and `git push`) and
+`OPENCODE_PASSWORD` as Coder secrets, create the workspace, then run `claude` in the repository, accept the trust
+prompt and `/login` with a claude.ai subscription. Remote control comes up on its next retry, within 15 seconds.
+There is no way to grant the trust prompt ahead of time; `claude auth login` alone is not enough.
+
+**Pushing the template by hand.** Nothing pushes it automatically. From a clean checkout (dot-directories such as
+`.terraform/` are not uploaded):
+
+```sh
+coder login https://coder.example.com
+coder templates push plume-works -d images/coder-template/template -m "<commit or change>" -y
+```
+
+The first push creates the template; later pushes add a version and make it active. The name, display name and
+description come from the template README's front matter on every push.
+
+**The image digest.** `main.tf` pins `ghcr.io/plume-works/coder-template:edge@sha256:<digest>`, and Renovate's
+weekly "plume-works images" pull request moves it. **Until the image is first published, the digest is a
+placeholder of zeros**: before the first push, replace it with the digest of `edge`
+(`docker buildx imagetools inspect ghcr.io/plume-works/coder-template:edge`) or merge Renovate's pull request.
+A template and the image it names change together: a change to either gets the check below before merge.
+
+**Validating locally** (what CI's lint workflow runs):
+
+```sh
+T="docker run --rm -u $(id -u):$(id -g) -e HOME=/tmp -v $PWD:/w -w /w hashicorp/terraform:1.17.2 -chdir=images/coder-template/template"
+$T fmt -check -diff && $T init -backend=false -input=false && $T validate
+```
+
+**Manual check on a real Coder deployment** (CI has neither Coder nor sysbox). Push the template under a scratch
+name, create a workspace from a repository you can push to, and check:
+
+1. The build log shows the container created with runtime `sysbox-runc`; the agent connects, and the startup
+   script finishes. `systemctl --user status agent-services.target opencode claude-remote-control` shows the
+   target active.
+2. A secret reaches a service: define a Coder secret (say `PROBE_SECRET`), restart the workspace, and
+   `systemctl --user show-environment | grep PROBE_SECRET` and
+   `tr '\0' '\n' < /proc/$(systemctl --user show -p MainPID --value opencode)/environ | grep PROBE_SECRET` both
+   find it.
+3. `git commit` shows your Coder name and email; `git push` works with only the `GITHUB_TOKEN` secret.
+4. A killed service restarts: `systemctl --user kill -s KILL opencode`, then within seconds it is active again
+   with a new PID, and the OpenCode button works (after `OPENCODE_PASSWORD`).
+5. VS Code Desktop and code-server open the repository.
+6. Home survives a rebuild: write a file in `~`, stop and start the workspace (or update it to a new template
+   version), and the file and a `docker pull`ed image are still there.
+7. Stopping the workspace finishes within the 60-second grace period, without Docker killing the container.
+
 ## Devcontainer base image
 
 `ghcr.io/plume-works/devcontainer-base`: the core systemd image plus a devcontainer metadata label, for a dev
@@ -240,8 +321,10 @@ GitHub app, configured in [`renovate.json`](renovate.json)) opens those pull req
   order. The value carries no `v` prefix;
 - tools a smoke script runs, pinned the same way by a `<NAME>_VERSION=` line (no `ARG`) in `smoke.sh`;
 - GitHub Actions and the linter images in `.github/workflows/`;
-- Terraform providers and modules, and image digests (ours included, grouped into one weekly pull request) in
-  `.devcontainer.json` and the Coder template.
+- Terraform providers (and the template's `.terraform.lock.hcl`) and modules, and image digests (ours included,
+  grouped into one weekly pull request) in `.devcontainer.json` and the Coder template;
+- other versions in the Coder template, pinned as a quoted attribute value directly below a `# renovate:`
+  comment (`datasource`, `depName`, optional `extractVersion`), like code-server's `install_version`.
 
 Apt packages, Git included, are not pinned: they float within the Ubuntu release and update whenever an image
 is rebuilt.
@@ -249,7 +332,9 @@ is rebuilt.
 ## Linting
 
 `.github/workflows/lint.yml` runs hadolint (ignores in `.hadolint.yaml`), shellcheck and actionlint (config in
-`.github/actionlint.yaml`) on every pull request; any finding fails it. Locally, from the repository root:
+`.github/actionlint.yaml`), and Terraform's `fmt -check` and `validate` on the Coder template (see
+[Coder template](#coder-template) for that command), on every pull request; any finding fails it. Locally, from
+the repository root:
 
 ```sh
 docker run --rm -i -v "$PWD/.hadolint.yaml:/.config/hadolint.yaml" hadolint/hadolint:v2.15.1 < images/core/Dockerfile
