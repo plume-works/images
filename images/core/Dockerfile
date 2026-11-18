@@ -137,9 +137,11 @@ RUN case "$(uname -m)" in x86_64) p=linux-x64 ;; aarch64) p=linux-arm64 ;; esac;
  && install -m0755 "$d/claude" /usr/local/bin/claude \
  && rm -rf "$d"
 
-# OpenCode: the release binary (its releases are immutable but publish no checksum file).
+# OpenCode 2: the release binary (its releases are immutable but publish no checksum file).
+# The 1.x line still gets releases, and GitHub marks them "latest"; Renovate offers the highest version, so it
+# stays on 2.x, and the anchored extractVersion skips the repository's process-daemon-v* releases.
 # renovate: datasource=github-releases depName=anomalyco/opencode extractVersion=^v(?<version>.+)$
-ARG OPENCODE_VERSION=1.19.6
+ARG OPENCODE_VERSION=2.3.2
 RUN case "$(uname -m)" in x86_64) p=linux-x64 ;; aarch64) p=linux-arm64 ;; esac; d=$(mktemp -d) \
  && curl -fsSL "https://github.com/anomalyco/opencode/releases/download/v${OPENCODE_VERSION}/opencode-$p.tar.gz" -o "$d/opencode.tgz" \
  && tar -xzf "$d/opencode.tgz" -C "$d" \
@@ -149,9 +151,10 @@ RUN case "$(uname -m)" in x86_64) p=linux-x64 ;; aarch64) p=linux-arm64 ;; esac;
 # No self-updating, system-wide, for both agents; a version changes only through a tested pull request.
 # - Claude Code: the managed settings file applies to every user, cannot be overridden by a user's own
 #   settings, and survives a scrubbed environment. DISABLE_UPDATES also blocks `claude update`.
-# - OpenCode reads only the environment and the user's own config for its update check (not /etc/opencode),
-#   so the variable is set for every way in: the image's ENV (CI jobs, docker run/exec), /etc/environment
-#   (PAM logins: su -l, ssh) and environment.d (services under a systemd user manager).
+# - OpenCode 2 reads only the environment and the user's own config for its update check (its system config,
+#   /etc/opencode, does not reach the updater), so the variable is set for every way in: the image's ENV
+#   (CI jobs, docker run/exec), /etc/environment (PAM logins: su -l, ssh) and environment.d (services under a
+#   systemd user manager).
 ENV DISABLE_AUTOUPDATER=1 DISABLE_UPDATES=1 OPENCODE_DISABLE_AUTOUPDATE=1
 RUN install -d /etc/claude-code /etc/environment.d \
  && printf '{\n  "env": {\n    "DISABLE_AUTOUPDATER": "1",\n    "DISABLE_UPDATES": "1"\n  }\n}\n' \
