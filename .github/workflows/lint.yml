@@ -1,0 +1,50 @@
+# Lint every Dockerfile, shell script and workflow of this repository; any finding fails the run.
+#
+# One job per linter, each finding its files itself, so adding an image or a script needs no change here.
+# Linter versions are pinned below and kept current by Renovate (renovate.json).
+# To add a linter (e.g. Terraform validation of the Coder template), add a job at the end.
+name: lint
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: lint-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  hadolint:
+    runs-on: ubuntu-26.04
+    steps:
+      - uses: actions/checkout@v7
+      # Every file named Dockerfile (images/*/Dockerfile), with the ignores in .hadolint.yaml.
+      - uses: hadolint/hadolint-action@v3.5.0
+        with:
+          dockerfile: Dockerfile
+          recursive: true
+          failure-threshold: info
+
+  shellcheck:
+    runs-on: ubuntu-26.04
+    steps:
+      - uses: actions/checkout@v7
+      - name: Shellcheck every shell script
+        uses: docker://koalaman/shellcheck-alpine:v0.11.0
+        with:
+          entrypoint: sh
+          args: .github/scripts/shellcheck-all.sh
+
+  actionlint:
+    runs-on: ubuntu-26.04
+    steps:
+      - uses: actions/checkout@v7
+      # Reads .github/actionlint.yaml; also shellchecks every `run:` block.
+      - uses: docker://rhysd/actionlint:1.7.12
+        with:
+          args: -color
