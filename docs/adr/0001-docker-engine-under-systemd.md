@@ -2,6 +2,8 @@
 
 Agents need a Docker engine they fully control, so every image here ships one. The Coder template image and the devcontainer base image run systemd as PID 1 with the Docker service enabled. The core image carries the same engine plus a small script that starts it on demand, because CI job containers do not own PID 1 and cannot run systemd.
 
+Everything about booting under systemd lives once, in the core systemd image, which both of those images are built on.
+
 supervisord, and any custom supervisor, is ruled out. In the predecessor repository (`plume-works/agent-devcontainer`) supervising the nested engine grew into a Python runtime package running as PID 1, and that package was a large share of what made that repository unmaintainable. systemd is maintained by someone else and already knows how to run Docker.
 
 systemd in a container needs either the sysbox runtime or privileged mode:
