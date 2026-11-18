@@ -28,9 +28,14 @@ fail() {
 pass() { echo "ok: $*"; }
 in_sut() { docker exec "$sut" "$@"; }
 
+# Boot a new container, or with `boot again`, the stopped one.
 boot() {
-  docker run -d --name "$sut" --privileged \
-    --volume "${volumes[0]}" --volume "${volumes[1]}" "$image" >/dev/null
+  if [ "${1:-}" = again ]; then
+    docker start "$sut" >/dev/null
+  else
+    docker run -d --name "$sut" --privileged \
+      --volume "${volumes[0]}" --volume "${volumes[1]}" "$image" >/dev/null
+  fi
   # PID 1 answers on the bus only after a moment; until then is-system-running prints nothing.
   for _ in $(seq 30); do
     [ -n "$(in_sut systemctl is-system-running 2>/dev/null)" ] && break
@@ -111,7 +116,21 @@ in_sut docker inspect stopped >/dev/null 2>&1 || fail "the cleanup removed a sto
 in_sut docker image inspect busybox >/dev/null 2>&1 || fail "the cleanup removed an image a container uses"
 in_sut docker volume inspect unused-volume >/dev/null 2>&1 || fail "the cleanup removed a volume"
 pass "the cleanup removes unused images and build cache, never containers, their images or volumes"
-in_sut rm -r /run/systemd/system/docker-prune.service.d
-in_sut systemctl daemon-reload
+
+# Stop: docker stop must shut systemd down, and with it the inner engine and its containers.
+# `running` (sleep as PID 1) ignores SIGTERM, so the inner engine waits its own 10s before killing
+# it; the generous timeout leaves room for that. Exit code 137 would mean the stop timed out and
+# the container was killed instead.
+docker stop -t 60 "$sut" >/dev/null
+code=$(docker inspect -f '{{.State.ExitCode}}' "$sut")
+[ "$code" != 137 ] || fail "docker stop killed the container instead of shutting systemd down"
+[ "$code" = 130 ] || fail "the container exited with $code, not 130 (systemd's halt in a container)"
+pass "docker stop shuts systemd down cleanly"
+
+boot again
+in_sut docker info >/dev/null 2>&1 || fail "the inner engine did not come back on the same storage"
+[ "$(in_sut docker inspect -f '{{.State.ExitCode}}' running)" = 137 ] || fail "the inner engine did not stop its containers"
+in_sut docker start running >/dev/null || fail "a container stopped by the shutdown does not start again"
+pass "the inner engine stopped its containers on shutdown and starts again on the same storage"
 
 echo "core-systemd smoke test passed: $image"
