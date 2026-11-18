@@ -9,46 +9,16 @@
 set -euo pipefail
 
 image="${1:?usage: $0 <image-ref>}"
-sut="coder-template-smoke-$$"
-volumes=("$sut-docker:/var/lib/docker" "$sut-containerd:/var/lib/containerd")
+# shellcheck source=images/smoke-lib.sh
+source "$(dirname "${BASH_SOURCE[0]}")/../smoke-lib.sh"
+smoke_init coder-template
 work=$(mktemp -d "${TMPDIR:-/tmp}/coder-template-smoke.XXXXXX")
 
-cleanup() {
-  docker rm -f "$sut" >/dev/null 2>&1 || true
-  for v in "${volumes[@]}"; do docker volume rm "${v%%:*}" >/dev/null 2>&1 || true; done
-  rm -rf "$work"
+cleanup_extra() { rm -rf "${work:-}"; }
+dump_extra() {
+  as_dev systemctl --user status --no-pager agent-services.target opencode.service claude-remote-control.service
 }
-trap cleanup EXIT
-
-fail() {
-  echo "FAIL: $*" >&2
-  if [ "$(docker inspect -f '{{.State.Running}}' "$sut" 2>/dev/null)" = true ]; then
-    docker exec "$sut" systemctl --failed --no-pager >&2 || true
-    as_dev systemctl --user status --no-pager agent-services.target opencode.service claude-remote-control.service >&2 || true
-    docker exec "$sut" journalctl -b --no-pager 2>/dev/null | tail -n 50 >&2 || true
-  fi
-  exit 1
-}
-pass() { echo "ok: $*"; }
-in_sut() { docker exec "$sut" "$@"; }
-as_dev() { docker exec -u dev -e XDG_RUNTIME_DIR=/run/user/1000 "$sut" "$@"; }
-
-# Boot a new container, or with `boot again`, the stopped one.
-boot() {
-  if [ "${1:-}" = again ]; then
-    docker start "$sut" >/dev/null
-  else
-    docker run -d --name "$sut" --privileged \
-      --volume "${volumes[0]}" --volume "${volumes[1]}" "$image" >/dev/null
-  fi
-  for _ in $(seq 30); do
-    [ -n "$(in_sut systemctl is-system-running 2>/dev/null)" ] && break
-    sleep 1
-  done
-  state=$(in_sut timeout 120 systemctl is-system-running --wait 2>/dev/null) || true
-  [ "$state" = running ] || fail "system state after boot is '$state', not running"
-  [ -z "$(in_sut systemctl --failed --no-legend)" ] || fail "units failed at boot"
-}
+as_dev() { docker exec -u dev -e XDG_RUNTIME_DIR=/run/user/1000 "$container" "$@"; }
 
 # Wait up to $1 seconds for a command to succeed.
 wait_for() {
@@ -64,8 +34,8 @@ boot
 pass "the image boots to a running state with no failed units, without the template's uploads"
 
 # The agent unit is enabled but skipped: without the init script there is nothing to run.
-[ "$(in_sut systemctl is-enabled coder-agent.service)" = enabled ] || fail "the Coder agent unit is not enabled"
-! in_sut systemctl is-active --quiet coder-agent.service || fail "the Coder agent runs without an init script"
+[ "$(in_container systemctl is-enabled coder-agent.service)" = enabled ] || fail "the Coder agent unit is not enabled"
+! in_container systemctl is-active --quiet coder-agent.service || fail "the Coder agent runs without an init script"
 for u in agent-services.target opencode.service claude-remote-control.service; do
   ! as_dev systemctl --user is-active --quiet "$u" || fail "$u is active although nothing started it"
 done
@@ -94,11 +64,11 @@ exec sleep infinity
 EOF
 printf '%s\n' "$token" >"$work/agent-token"
 
-docker stop -t 60 "$sut" >/dev/null
+docker stop -t 60 "$container" >/dev/null
 # Like the template's uploads: in place before the container starts, the token owned by dev and readable by
 # dev only. (Tar streams, so owner and mode are the template's, not this machine's.)
-tar -C "$work" -c --owner=0 --group=0 --mode=0755 agent-init.sh | docker cp -a - "$sut:/etc/coder"
-tar -C "$work" -c --owner=1000 --group=1000 --mode=0600 agent-token | docker cp -a - "$sut:/etc/coder"
+tar -C "$work" -c --owner=0 --group=0 --mode=0755 agent-init.sh | docker cp -a - "$container:/etc/coder"
+tar -C "$work" -c --owner=1000 --group=1000 --mode=0600 agent-token | docker cp -a - "$container:/etc/coder"
 boot again
 
 wait_for 60 as_dev grep -qx started /home/dev/agent-saw || fail "the Coder agent's startup did not complete"
@@ -124,7 +94,7 @@ pass "the OpenCode server answers on localhost, with the imported password guard
 # Every listening TCP socket in the container is on a loopback address (the image has no ss; /proc/net/tcp
 # holds addresses in hex: 127.x.x.x ends in 7F, ::1 is 0...01000000).
 # shellcheck disable=SC2016 # awk's own $fields
-nonlocal=$(in_sut awk 'FNR > 1 && $4 == "0A" { split($2, a, ":"); print a[1] }' /proc/net/tcp /proc/net/tcp6 |
+nonlocal=$(in_container awk 'FNR > 1 && $4 == "0A" { split($2, a, ":"); print a[1] }' /proc/net/tcp /proc/net/tcp6 |
   grep -vxE '[0-9A-F]{6}7F|0{24}01000000' || true)
 [ -z "$nonlocal" ] || fail "something listens on a non-loopback address: $nonlocal"
 pass "the agent services listen on localhost only"

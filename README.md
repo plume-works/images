@@ -295,7 +295,8 @@ The devcontainer base image's smoke test runs the devcontainer CLI (pinned in th
 `/tmp`.
 
 Each image lives in `images/<name>/` with its `Dockerfile` and `smoke.sh`; `docker-bake.hcl` lists them, and
-`.github/workflows/images.yml` builds, tests and publishes them all.
+`.github/workflows/images.yml` builds, tests and publishes them all. The smoke scripts of the images that boot
+systemd share their helpers in `images/smoke-lib.sh`.
 
 ## Developing this repository
 

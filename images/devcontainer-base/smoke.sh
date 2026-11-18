@@ -31,23 +31,23 @@ ws=$(mktemp -d "${TMPDIR:-/tmp}/devcontainer-base-smoke.XXXXXX")
 mkdir "$ws/.devcontainer"
 config="$ws/.devcontainer/devcontainer.json"
 
-sut() { docker ps -aq --filter "label=devcontainer.local_folder=$ws"; }
+devcontainer_ids() { docker ps -aq --filter "label=devcontainer.local_folder=$ws"; }
 # The snippet's named volumes, recorded while a container uses them: a failed rebuild removes the
 # container but leaves its volumes.
-volumes=""
+snippet_volumes=""
 record_volumes() {
   local ids
-  ids=$(sut)
+  ids=$(devcontainer_ids)
   # shellcheck disable=SC2086 # one ID per word
-  [ -z "$ids" ] || volumes+=" $(docker inspect -f '{{range .Mounts}}{{if eq .Type "volume"}}{{.Name}} {{end}}{{end}}' $ids)"
+  [ -z "$ids" ] || snippet_volumes+=" $(docker inspect -f '{{range .Mounts}}{{if eq .Type "volume"}}{{.Name}} {{end}}{{end}}' $ids)"
 }
 cleanup() {
   local ids
   record_volumes
-  ids=$(sut)
+  ids=$(devcontainer_ids)
   # shellcheck disable=SC2086
   [ -z "$ids" ] || docker rm -f $ids >/dev/null 2>&1 || true
-  tr ' ' '\n' <<<"$volumes" | grep . | sort -u | xargs -r docker volume rm >/dev/null 2>&1 || true
+  tr ' ' '\n' <<<"$snippet_volumes" | grep . | sort -u | xargs -r docker volume rm >/dev/null 2>&1 || true
   # The CLI's derived images are named after the workspace folder.
   docker images -q --filter "reference=vsc-$(basename "$ws" | tr '[:upper:]' '[:lower:]')-*" |
     xargs -r docker rmi -f >/dev/null 2>&1 || true
@@ -55,18 +55,11 @@ cleanup() {
 }
 trap cleanup EXIT
 
-fail() {
-  echo "FAIL: $*" >&2
-  local id
-  id=$(sut | head -n1)
-  if [ -n "$id" ] && [ "$(docker inspect -f '{{.State.Running}}' "$id")" = true ]; then
-    docker exec "$id" systemctl --failed --no-pager >&2 || true
-    docker exec "$id" journalctl -b --no-pager 2>/dev/null | tail -n 50 >&2 || true
-  fi
-  exit 1
-}
-pass() { echo "ok: $*"; }
-in_sut() { devcontainer exec --workspace-folder "$ws" "$@"; }
+# pass, fail, and $container: the current container, set by `up`, which fail dumps.
+# shellcheck source=images/smoke-lib.sh
+source "$here/../smoke-lib.sh"
+# Commands run the way an attached editor runs them: through the devcontainer CLI, as the remote user.
+in_devcontainer() { devcontainer exec --workspace-folder "$ws" "$@"; }
 
 # Write devcontainer.json: the README's privileged-mode snippet (the jsonc block after its
 # `smoke-test: privileged` marker), naming the image under test, plus any extra top-level fields.
@@ -85,21 +78,14 @@ write_config() {
 
 # Bring the container up, removing an existing one: `up` again is a rebuild.
 up() {
-  local out
-  out=$(devcontainer up --workspace-folder "$ws" --remove-existing-container 2>"$ws/up.log" | tail -n1) || {
-    tail -n 40 "$ws/up.log" >&2
-    fail "devcontainer up failed: $out"
-  }
+  local out status=0 state
+  out=$(devcontainer up --workspace-folder "$ws" --remove-existing-container 2>"$ws/up.log" | tail -n1) || status=$?
+  container=$(devcontainer_ids | head -n1)
+  [ "$status" = 0 ] || { tail -n 40 "$ws/up.log" >&2; fail "devcontainer up failed: $out"; }
   record_volumes
   [ "$(jq -r .outcome <<<"$out")" = success ] || { tail -n 40 "$ws/up.log" >&2; fail "devcontainer up: $out"; }
   [ "$(jq -r .remoteUser <<<"$out")" = dev ] || fail "the remote user is $(jq -r .remoteUser <<<"$out"), not dev"
-  # PID 1 answers on the bus only after a moment; the timeout runs inside the container.
-  local state=""
-  for _ in $(seq 30); do
-    state=$(in_sut timeout 120 systemctl is-system-running --wait 2>/dev/null) || true
-    [ -n "$state" ] && break
-    sleep 1
-  done
+  state=$(wait_system_running in_devcontainer)
   [ "$state" = running ] || fail "system state after up is '$state', not running"
 }
 
@@ -120,26 +106,26 @@ pass "the devcontainer CLI reads the Claude Code extension from the image"
 up
 pass "the devcontainer CLI brings the image up from the README's privileged-mode snippet"
 
-[ "$(in_sut ps -o comm= -p 1)" = systemd ] || fail "PID 1 is not systemd"
+[ "$(in_devcontainer ps -o comm= -p 1)" = systemd ] || fail "PID 1 is not systemd"
 pass "systemd is PID 1"
 
-[ "$(in_sut id -un)" = dev ] || fail "commands run as $(in_sut id -un), not dev"
+[ "$(in_devcontainer id -un)" = dev ] || fail "commands run as $(in_devcontainer id -un), not dev"
 pass "the remote user is dev"
 
-in_sut docker pull -q hello-world >/dev/null
-in_sut docker run --rm hello-world | grep -q 'Hello from Docker!' || fail "a container did not run"
+in_devcontainer docker pull -q hello-world >/dev/null
+in_devcontainer docker run --rm hello-world | grep -q 'Hello from Docker!' || fail "a container did not run"
 pass "Docker runs a container"
 
-in_sut bash -c 'echo survives > ~/marker'
+in_devcontainer bash -c 'echo survives > ~/marker'
 up
-[ "$(in_sut cat /home/dev/marker)" = survives ] || fail "a file written to home did not survive a rebuild"
+[ "$(in_devcontainer cat /home/dev/marker)" = survives ] || fail "a file written to home did not survive a rebuild"
 pass "a file written to home survives a rebuild"
 
 # A Feature without an entrypoint on top (Features that start daemons clash with systemd).
 write_config '"features": {"ghcr.io/devcontainers/features/github-cli:1": {}}'
 up
-[ "$(in_sut ps -o comm= -p 1)" = systemd ] || fail "PID 1 is not systemd with a Feature on top"
-docker inspect -f '{{index .Config.Labels "devcontainer.metadata"}}' "$(sut)" | grep -q 'github-cli' ||
+[ "$(in_devcontainer ps -o comm= -p 1)" = systemd ] || fail "PID 1 is not systemd with a Feature on top"
+docker inspect -f '{{index .Config.Labels "devcontainer.metadata"}}' "$container" | grep -q 'github-cli' ||
   fail "the Feature was not applied"
 pass "a devcontainer Feature can be added on top and the container still comes up"
 
