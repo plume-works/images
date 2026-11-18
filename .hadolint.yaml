@@ -1,0 +1,3 @@
+# hadolint configuration, used by .github/workflows/lint.yml (hadolint-action reads ./.hadolint.yaml).
+ignored:
+  - DL3008 # apt packages float within the Ubuntu release by design; everything else is pinned
