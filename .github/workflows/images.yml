@@ -1,0 +1,140 @@
+# Build, test and publish every image of this repository.
+#
+# Shape (each step is data-driven from docker-bake.hcl, so adding an image needs no change here):
+#   build-test (amd64), build-test (arm64)   one job per architecture, each on a native runner
+#     1. bake builds all images of this commit in one builder, children on this commit's parent, and loads them
+#     2. images/<name>/smoke.sh runs against each image, parent first
+#     3. if publishing: the same bake again, pushed by digest with no tag (a cache hit: the pushed bits
+#        are the tested bits), and the digests are uploaded as an artifact
+#   publish                                   runs only if every image passed on both architectures
+#     4. assembles one multi-architecture tag per image: pr-N for a pull request, edge for main
+#
+# So pr-N and edge move on all images or none. Pull requests from forks build and test only.
+# pr-N tags are deleted when the pull request closes (pr-cleanup.yml).
+name: images
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: images-${{ github.ref }}
+  # Cancel superseded pull request runs; never cancel a main run mid-publish.
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+env:
+  REGISTRY: ghcr.io/plume-works
+  # Publish for same-repository pull requests (Renovate's included) and for main. Forks build and test only;
+  # a manual run on another branch must not move edge.
+  PUBLISH: ${{ (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository) || (github.event_name != 'pull_request' && github.ref == 'refs/heads/main') }}
+
+jobs:
+  build:
+    name: build-test (${{ matrix.arch }})
+    strategy:
+      fail-fast: true
+      matrix:
+        include:
+          - arch: amd64
+            runner: ubuntu-26.04
+          - arch: arm64
+            runner: ubuntu-26.04-arm
+    runs-on: ${{ matrix.runner }}
+    permissions:
+      contents: read
+      packages: write
+    env:
+      PLATFORM: linux/${{ matrix.arch }}
+    steps:
+      - uses: actions/checkout@v7
+
+      # Default docker-container driver: push-by-digest is not available with the plain docker driver.
+      - uses: docker/setup-buildx-action@v4
+
+      - name: Build every image of this commit and load it
+        run: docker buildx bake --load
+
+      - name: Smoke-test every image, parent first
+        run: |
+          for name in $(docker buildx bake --print 2>/dev/null | jq -r '.group.default.targets[]'); do
+            echo "::group::smoke $name"
+            "images/$name/smoke.sh" "$REGISTRY/$name:ci"
+            echo "::endgroup::"
+          done
+
+      - name: Log in to GHCR
+        if: env.PUBLISH == 'true'
+        uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Push the tested images by digest, untagged
+        if: env.PUBLISH == 'true'
+        env:
+          PUSH: "true"
+        run: docker buildx bake --metadata-file "$RUNNER_TEMP/meta.json"
+
+      - name: Record digests
+        if: env.PUBLISH == 'true'
+        run: |
+          mkdir -p "$RUNNER_TEMP/digests"
+          jq 'with_entries(select(.value | type == "object" and has("containerimage.digest"))
+                | .value |= .["containerimage.digest"])' \
+            "$RUNNER_TEMP/meta.json" > "$RUNNER_TEMP/digests/${{ matrix.arch }}.json"
+          cat "$RUNNER_TEMP/digests/${{ matrix.arch }}.json"
+
+      - name: Upload digests
+        if: env.PUBLISH == 'true'
+        uses: actions/upload-artifact@v7
+        with:
+          name: digests-${{ matrix.arch }}
+          path: ${{ runner.temp }}/digests/${{ matrix.arch }}.json
+          retention-days: 1
+
+  publish:
+    # needs: a failed or cancelled build on either architecture skips this job, so no tag moves.
+    needs: build
+    if: (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository) || (github.event_name != 'pull_request' && github.ref == 'refs/heads/main')
+    runs-on: ubuntu-26.04
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/download-artifact@v8
+        with:
+          pattern: digests-*
+          path: ${{ runner.temp }}/digests
+          merge-multiple: true
+
+      - uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Tag every image for both architectures
+        working-directory: ${{ runner.temp }}/digests
+        env:
+          TAG: ${{ github.event_name == 'pull_request' && format('pr-{0}', github.event.pull_request.number) || 'edge' }}
+        run: |
+          images=$(jq -r 'keys[]' amd64.json)
+          [ "$(jq -r 'keys[]' arm64.json)" = "$images" ] || { echo "image sets differ between architectures" >&2; exit 1; }
+          # Check every source first, so a missing digest stops the job before any tag moves.
+          for img in $images; do
+            for arch in amd64 arm64; do
+              docker buildx imagetools inspect "$REGISTRY/$img@$(jq -r --arg i "$img" '.[$i]' "$arch.json")" >/dev/null
+            done
+          done
+          for img in $images; do
+            docker buildx imagetools create -t "$REGISTRY/$img:$TAG" \
+              "$REGISTRY/$img@$(jq -r --arg i "$img" '.[$i]' amd64.json)" \
+              "$REGISTRY/$img@$(jq -r --arg i "$img" '.[$i]' arm64.json)"
+            docker buildx imagetools inspect "$REGISTRY/$img:$TAG"
+          done
