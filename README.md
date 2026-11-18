@@ -153,7 +153,8 @@ What a workspace gets:
 
 - One parameter, the repository URL. The startup script clones it into `/home/dev/<repository>` if there is no
   checkout there yet, exports `REPO_DIR`, then imports its whole environment into `dev`'s systemd user manager
-  and starts `agent-services.target` (ADR 0002).
+  and starts `agent-services.target` (ADR 0002). If the clone fails, the script says so in its log, still hands
+  over, and then fails, so Coder flags it; the agent services keep retrying until you clone the repository by hand.
 - VS Code Desktop (the agent's built-in button) and VS Code in the browser (Coder's `code-server` registry
   module, with both the module and code-server pinned). Both open `REPO_DIR`.
 - An OpenCode button for the owner only, health-checked on `http://localhost:4096/`.

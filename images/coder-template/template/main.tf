@@ -79,12 +79,20 @@ resource "coder_agent" "main" {
   # Runs as dev in bash (compgen is a bash builtin). Coder secrets are in its environment, so the clone can use
   # GITHUB_TOKEN through the image's git credential helper. The whole environment is imported, not a named list,
   # so that a new Coder secret never needs a template change (ADR 0002).
+  # A failed clone does not stop the hand-off: the agent services start anyway, and the script then exits non-zero
+  # so Coder shows the startup script as failed, with the reason in its log.
   startup_script_behavior = "blocking"
   startup_script          = <<-EOT
     set -eu
-    if [ ! -d "$REPO_DIR/.git" ]; then git clone "$REPO_URL" "$REPO_DIR"; fi
+    cloned=true
+    if [ ! -d "$REPO_DIR/.git" ] && ! git clone "$REPO_URL" "$REPO_DIR"; then
+      cloned=false
+      echo "ERROR: could not clone $REPO_URL into $REPO_DIR (see git's message above)." >&2
+      echo "ERROR: starting the agent services anyway; clone the repository from a terminal." >&2
+    fi
     systemctl --user import-environment $(compgen -e)
     systemctl --user start agent-services.target
+    [ "$cloned" = true ]
   EOT
 
   # VS Code Desktop is the agent's built-in button.
