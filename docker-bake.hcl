@@ -1,7 +1,8 @@
 # Every image of this repository, built from one commit.
 #
 # Target name == folder under images/ == GHCR package name (ghcr.io/plume-works/<name>).
-# The "default" group lists the images parent first; CI smoke-tests them in that order.
+# The "default" group lists every image. CI works on them parent first, in the order .github/scripts/images.sh
+# derives from each target's `contexts` parent link (`bake --print` sorts the group by name, so its order is not it).
 #
 # To add an image: create images/<name>/ with a Dockerfile and smoke.sh, add a target below, and append it
 # to the group. A child image starts with `ARG BASE_IMAGE` / `FROM ${BASE_IMAGE}` and its target sets

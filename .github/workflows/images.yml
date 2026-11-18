@@ -1,15 +1,18 @@
 # Build, test and publish every image of this repository.
 #
-# Shape (each step is data-driven from docker-bake.hcl, so adding an image needs no change here):
+# Shape (each step is data-driven from docker-bake.hcl, so adding an image needs no change here; the list of
+# images, parent first, comes from .github/scripts/images.sh):
 #   build-test (amd64), build-test (arm64)   one job per architecture, each on a native runner
 #     1. bake builds all images of this commit in one builder, children on this commit's parent, and loads them
 #     2. images/<name>/smoke.sh runs against each image, parent first
 #     3. if publishing: the same bake again, pushed by digest with no tag (a cache hit: the pushed bits
 #        are the tested bits), and the digests are uploaded as an artifact
 #   publish                                   runs only if every image passed on both architectures
-#     4. assembles one multi-architecture tag per image: pr-N for a pull request, edge for main
+#     4. assembles one multi-architecture tag per image: pr-N for a pull request, edge for main, after checking
+#        and dry-running every image's tag first, and puts moved tags back if a later one fails
 #
-# So pr-N and edge move on all images or none. Pull requests from forks build and test only.
+# So pr-N and edge move on all images or none (the publish step's comments name the narrow exception).
+# Pull requests from forks build and test only.
 # pr-N tags are deleted when the pull request closes (pr-cleanup.yml).
 name: images
 
@@ -61,7 +64,8 @@ jobs:
 
       - name: Smoke-test every image, parent first
         run: |
-          for name in $(docker buildx bake --print 2>/dev/null | jq -r '.group.default.targets[]'); do
+          images=$(.github/scripts/images.sh)
+          for name in $images; do
             echo "::group::smoke $name"
             "images/$name/smoke.sh" "$REGISTRY/$name:ci"
             echo "::endgroup::"
@@ -107,6 +111,9 @@ jobs:
       contents: read
       packages: write
     steps:
+      # For the list of images: the bake file is its one source.
+      - uses: actions/checkout@v7
+
       - uses: actions/download-artifact@v8
         with:
           pattern: digests-*
@@ -120,21 +127,56 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Tag every image for both architectures
-        working-directory: ${{ runner.temp }}/digests
         env:
           TAG: ${{ github.event_name == 'pull_request' && format('pr-{0}', github.event.pull_request.number) || 'edge' }}
+          DIGESTS: ${{ runner.temp }}/digests
         run: |
-          images=$(jq -r 'keys[]' amd64.json)
-          [ "$(jq -r 'keys[]' arm64.json)" = "$images" ] || { echo "image sets differ between architectures" >&2; exit 1; }
-          # Check every source first, so a missing digest stops the job before any tag moves.
+          images=$(.github/scripts/images.sh)
+          digest() { jq -er --arg i "$1" '.[$i]' "$DIGESTS/$2.json"; }
+
+          # 1. Check everything before any tag moves: both architectures pushed exactly the bake file's images,
+          #    every source digest is in the registry, and every image's index can be assembled (--dry-run).
+          #    The sources are resolved once, here, and the tags below are built from exactly these.
+          for arch in amd64 arm64; do
+            [ "$(jq -r 'keys[]' "$DIGESTS/$arch.json" | sort)" = "$(sort <<<"$images")" ] ||
+              { echo "the $arch digests are not exactly the images of docker-bake.hcl" >&2; exit 1; }
+          done
+          declare -A sources before
           for img in $images; do
-            for arch in amd64 arm64; do
-              docker buildx imagetools inspect "$REGISTRY/$img@$(jq -r --arg i "$img" '.[$i]' "$arch.json")" >/dev/null
+            sources[$img]="$REGISTRY/$img@$(digest "$img" amd64) $REGISTRY/$img@$(digest "$img" arm64)"
+            for src in ${sources[$img]}; do docker buildx imagetools inspect "$src" >/dev/null; done
+            # shellcheck disable=SC2086 # two sources, one per word
+            docker buildx imagetools create --dry-run -t "$REGISTRY/$img:$TAG" ${sources[$img]} >/dev/null
+          done
+
+          # 2. Record where each tag points now (empty for a tag that does not exist yet), so a failure can put
+          #    the tags already moved back.
+          for img in $images; do
+            before[$img]=$(docker buildx imagetools inspect "$REGISTRY/$img:$TAG" --format '{{json .Manifest}}' \
+              2>/dev/null | jq -r .digest) || before[$img]=""
+          done
+
+          # 3. Move the tags; if one fails, put back the ones already moved.
+          # Residual risk: the registry has no multi-tag transaction, so this is all-or-nothing only as far as
+          # practical. A tag that did not exist before (a new pr-N) cannot be put back and stays on the new image
+          # until pr-cleanup.yml deletes it; and if the registry also fails during the put-back, some images keep
+          # the new tag. Both need the registry to fail between step 1 and here; re-running the job repairs them.
+          moved=()
+          rollback() {
+            echo "::error::moving $TAG failed on $1; putting back: ${moved[*]:-nothing}" >&2
+            for m in "${moved[@]}"; do
+              if [ -n "${before[$m]}" ]; then
+                docker buildx imagetools create -t "$REGISTRY/$m:$TAG" "$REGISTRY/$m@${before[$m]}" ||
+                  echo "::error::could not put $m:$TAG back to ${before[$m]}" >&2
+              else
+                echo "::warning::$m:$TAG did not exist before and stays on the new image" >&2
+              fi
             done
-          done
+            exit 1
+          }
           for img in $images; do
-            docker buildx imagetools create -t "$REGISTRY/$img:$TAG" \
-              "$REGISTRY/$img@$(jq -r --arg i "$img" '.[$i]' amd64.json)" \
-              "$REGISTRY/$img@$(jq -r --arg i "$img" '.[$i]' arm64.json)"
-            docker buildx imagetools inspect "$REGISTRY/$img:$TAG"
+            # shellcheck disable=SC2086 # two sources, one per word
+            docker buildx imagetools create -t "$REGISTRY/$img:$TAG" ${sources[$img]} || rollback "$img"
+            moved+=("$img")
           done
+          for img in $images; do docker buildx imagetools inspect "$REGISTRY/$img:$TAG"; done

@@ -1,5 +1,5 @@
 # Delete a pull request's pr-N tag from every image when the pull request closes (merged or not).
-# The image list comes from the bake file's default group, so adding an image needs no change here.
+# The image list comes from the bake file (.github/scripts/images.sh), so adding an image needs no change here.
 name: pr-cleanup
 
 on:
@@ -24,7 +24,9 @@ jobs:
 
       - name: List the images
         id: images
-        run: echo "packages=$(docker buildx bake --print 2>/dev/null | jq -r '.group.default.targets | join(",")')" >> "$GITHUB_OUTPUT"
+        run: |
+          images=$(.github/scripts/images.sh)
+          echo "packages=$(paste -sd, - <<<"$images")" >> "$GITHUB_OUTPUT"
 
       - uses: dataaxiom/ghcr-cleanup-action@v1
         with:
