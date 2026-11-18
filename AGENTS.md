@@ -19,6 +19,12 @@ Save decisions in `docs/adr/NNNN-<slug>`.
 
 ADRs are recorded in `docs/adr/`. Consult them before making decisions.
 
+## Glossary
+
+Use the terms in `GLOSSARY.md`; add new ones as they are resolved.
+
+@GLOSSARY-FORMAT.md
+
 ## Testing
 
 Use pytest for testing
