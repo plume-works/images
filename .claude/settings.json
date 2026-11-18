@@ -31,8 +31,8 @@
   "disableWorkflows": true,
   "disableArtifact": true,
   "enabledPlugins": {
-    "superpowers@claude-plugins-official": true,
-    "context7@claude-plugins-official": true
+    "superpowers@anthropic-plugin-directory": true,
+    "context7@anthropic-plugin-directory": true
   },
   "autoMemoryEnabled": false
 }
