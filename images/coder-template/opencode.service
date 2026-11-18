@@ -1,0 +1,15 @@
+# OpenCode's server (its API and web UI) on localhost:4096, under agent-services.target.
+# It always asks for a password (HTTP Basic, user `opencode`): OPENCODE_PASSWORD from the imported environment,
+# for example a Coder user secret. Without one, it makes up a password at each start and logs it.
+[Unit]
+Description=OpenCode server on localhost:4096
+PartOf=agent-services.target
+# Retry forever.
+StartLimitIntervalSec=0
+
+[Service]
+Environment=OPENCODE_DISABLE_AUTOUPDATE=1
+# In the repository the Coder template cloned (REPO_DIR, imported), else in home. `$$` reaches the shell as `$`.
+ExecStart=/bin/sh -c 'cd "$${REPO_DIR:-$$HOME}" && exec /usr/local/bin/opencode serve --hostname 127.0.0.1 --port 4096'
+Restart=always
+RestartSec=5

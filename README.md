@@ -73,6 +73,44 @@ docker run -d --privileged -v /var/lib/docker -v /var/lib/containerd ghcr.io/plu
   default 10 seconds (`docker stop -t 60`), because the inner engine waits 10 seconds for a container that
   ignores SIGTERM.
 
+## Coder template image
+
+`ghcr.io/plume-works/coder-template`: the core systemd image plus the Coder agent unit and the agent services.
+The Coder template in `images/coder-template/` runs it directly as the one workspace container, under sysbox;
+there is no dev container nested inside. It needs nothing else installed in it: the agent itself is fetched
+from the Coder server at each start, and the browser editor comes from the template.
+
+How a workspace starts (ADR 0002):
+
+1. The template uploads two files before the container starts: the agent's init script to
+   `/etc/coder/agent-init.sh` and its token to `/etc/coder/agent-token` (owned by `dev`, mode 0600).
+2. systemd boots, and `coder-agent.service` runs the init script as `dev`. The agent reads its token from the
+   file, and `XDG_RUNTIME_DIR=/run/user/1000` lets everything it launches reach `dev`'s systemd user manager.
+   Without the init script (a plain `docker run`) the unit is skipped.
+3. The template's startup script clones the repository, sets `REPO_DIR` to its path, and hands over:
+   ```sh
+   systemctl --user import-environment $(compgen -e)
+   systemctl --user start agent-services.target
+   ```
+4. `agent-services.target` pulls in two user units, which systemd restarts whenever they stop. Nothing
+   starts the target at boot.
+   - `opencode.service`: `opencode serve` on `127.0.0.1:4096` (API and web UI), in `REPO_DIR`. OpenCode
+     always asks for a password (user `opencode`); define a Coder secret `OPENCODE_PASSWORD`. Without one it
+     makes up a new password at each start and logs it (`journalctl --user -u opencode`).
+   - `claude-remote-control.service`: `claude remote-control --spawn worktree` in `REPO_DIR`, so each remote
+     session gets its own worktree. It opens no port. It needs a claude.ai subscription sign-in and a trusted
+     repository, and until then it exits and is retried every 15 seconds. **First-time setup:** run `claude`
+     in the repository, accept the trust prompt and `/login`; remote control starts on its next retry. The
+     service answers remote control's one-time "Enable Remote Control?" question itself.
+
+Every Coder secret reaches both services, with one exception: `ANTHROPIC_API_KEY`, `ANTHROPIC_AUTH_TOKEN` and
+`CLAUDE_CODE_OAUTH_TOKEN` are kept from remote control, which refuses to start while one is set. A new or
+rotated secret takes effect on workspace restart. Logs: `journalctl -u coder-agent` and
+`journalctl --user -u opencode -u claude-remote-control`.
+
+To try it without Coder: `images/coder-template/smoke.sh <image>` boots it in privileged mode with a stand-in
+for the agent and checks the hand-off.
+
 ## Devcontainer base image
 
 `ghcr.io/plume-works/devcontainer-base`: the core systemd image plus a devcontainer metadata label, for a dev

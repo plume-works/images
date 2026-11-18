@@ -1,0 +1,157 @@
+#!/usr/bin/env bash
+# Smoke test for the Coder template image. Usage: images/coder-template/smoke.sh <image-ref>
+#
+# Boots the image with its own entrypoint in privileged mode (hosted runners have no sysbox), first as a
+# plain container, then with the two files a Coder template uploads: a stand-in for the agent's init script
+# and a token file. The stand-in does what the real agent and the template's startup script do (ADR 0002):
+# hands its environment to dev's user manager and starts the agent-services target.
+# It does not repeat the core systemd image's checks. Stops at the first failed check.
+set -euo pipefail
+
+image="${1:?usage: $0 <image-ref>}"
+sut="coder-template-smoke-$$"
+volumes=("$sut-docker:/var/lib/docker" "$sut-containerd:/var/lib/containerd")
+work=$(mktemp -d "${TMPDIR:-/tmp}/coder-template-smoke.XXXXXX")
+
+cleanup() {
+  docker rm -f "$sut" >/dev/null 2>&1 || true
+  for v in "${volumes[@]}"; do docker volume rm "${v%%:*}" >/dev/null 2>&1 || true; done
+  rm -rf "$work"
+}
+trap cleanup EXIT
+
+fail() {
+  echo "FAIL: $*" >&2
+  if [ "$(docker inspect -f '{{.State.Running}}' "$sut" 2>/dev/null)" = true ]; then
+    docker exec "$sut" systemctl --failed --no-pager >&2 || true
+    as_dev systemctl --user status --no-pager agent-services.target opencode.service claude-remote-control.service >&2 || true
+    docker exec "$sut" journalctl -b --no-pager 2>/dev/null | tail -n 50 >&2 || true
+  fi
+  exit 1
+}
+pass() { echo "ok: $*"; }
+in_sut() { docker exec "$sut" "$@"; }
+as_dev() { docker exec -u dev -e XDG_RUNTIME_DIR=/run/user/1000 "$sut" "$@"; }
+
+# Boot a new container, or with `boot again`, the stopped one.
+boot() {
+  if [ "${1:-}" = again ]; then
+    docker start "$sut" >/dev/null
+  else
+    docker run -d --name "$sut" --privileged \
+      --volume "${volumes[0]}" --volume "${volumes[1]}" "$image" >/dev/null
+  fi
+  for _ in $(seq 30); do
+    [ -n "$(in_sut systemctl is-system-running 2>/dev/null)" ] && break
+    sleep 1
+  done
+  state=$(in_sut timeout 120 systemctl is-system-running --wait 2>/dev/null) || true
+  [ "$state" = running ] || fail "system state after boot is '$state', not running"
+  [ -z "$(in_sut systemctl --failed --no-legend)" ] || fail "units failed at boot"
+}
+
+# Wait up to $1 seconds for a command to succeed.
+wait_for() {
+  local t=$1
+  shift
+  for _ in $(seq "$t"); do "$@" >/dev/null 2>&1 && return 0; sleep 1; done
+  return 1
+}
+
+# --- First boot: a plain container, nothing uploaded --------------------------------------------------------
+
+boot
+pass "the image boots to a running state with no failed units, without the template's uploads"
+
+# The agent unit is enabled but skipped: without the init script there is nothing to run.
+[ "$(in_sut systemctl is-enabled coder-agent.service)" = enabled ] || fail "the Coder agent unit is not enabled"
+! in_sut systemctl is-active --quiet coder-agent.service || fail "the Coder agent runs without an init script"
+for u in agent-services.target opencode.service claude-remote-control.service; do
+  ! as_dev systemctl --user is-active --quiet "$u" || fail "$u is active although nothing started it"
+done
+pass "nothing starts the agent services at boot"
+
+# --- Second boot: with the two files a Coder template uploads -----------------------------------------------
+
+token="smoke-agent-token-$RANDOM$RANDOM"
+var="smoke-imported-$RANDOM$RANDOM"
+password="smoke-password-$RANDOM$RANDOM"
+
+# A stand-in for coder_agent.init_script (a POSIX sh script). It records what the agent would see, then runs
+# what the template's startup script runs: clone a repository (here: create one), then the hand-off.
+# The imported variables stand for Coder user secrets. CLAUDE_CODE_OAUTH_TOKEN is one a user may well
+# define for terminal use, and it would stop remote control.
+cat >"$work/agent-init.sh" <<EOF
+#!/usr/bin/env sh
+set -eu
+{ id -un; cat "\$CODER_AGENT_TOKEN_FILE"; } >/home/dev/agent-saw
+git init -q /home/dev/repo
+git -C /home/dev/repo -c user.name=smoke -c user.email=smoke@example.com commit -q --allow-empty -m init
+export REPO_DIR=/home/dev/repo SMOKE_VAR=$var OPENCODE_PASSWORD=$password CLAUDE_CODE_OAUTH_TOKEN=smoke-not-a-token
+bash -c 'systemctl --user import-environment \$(compgen -e) && systemctl --user start agent-services.target'
+echo started >>/home/dev/agent-saw
+exec sleep infinity
+EOF
+printf '%s\n' "$token" >"$work/agent-token"
+
+docker stop -t 60 "$sut" >/dev/null
+# Like the template's uploads: in place before the container starts, the token owned by dev and readable by
+# dev only. (Tar streams, so owner and mode are the template's, not this machine's.)
+tar -C "$work" -c --owner=0 --group=0 --mode=0755 agent-init.sh | docker cp -a - "$sut:/etc/coder"
+tar -C "$work" -c --owner=1000 --group=1000 --mode=0600 agent-token | docker cp -a - "$sut:/etc/coder"
+boot again
+
+wait_for 60 as_dev grep -qx started /home/dev/agent-saw || fail "the Coder agent's startup did not complete"
+[ "$(as_dev sed -n 1p /home/dev/agent-saw)" = dev ] || fail "the Coder agent does not run as dev"
+[ "$(as_dev sed -n 2p /home/dev/agent-saw)" = "$token" ] || fail "the Coder agent did not read the token file"
+pass "the Coder agent runs as dev, reads its token from the uploaded file and reaches dev's user manager"
+
+as_dev systemctl --user is-active --quiet agent-services.target || fail "agent-services.target is not active"
+pid=$(as_dev systemctl --user show -p MainPID --value opencode.service)
+[ "$pid" != 0 ] || fail "the OpenCode server is not running"
+as_dev cat "/proc/$pid/environ" | tr '\0' '\n' | grep -qx "SMOKE_VAR=$var" ||
+  fail "the imported variable did not reach the OpenCode server"
+pass "a variable imported the ADR 0002 way reaches a service under agent-services.target"
+
+opencode_info() { as_dev curl -fsS -u "opencode:$password" http://127.0.0.1:4096/api/info; }
+wait_for 60 opencode_info || fail "the OpenCode server does not answer on localhost with the imported password"
+[ "$(as_dev curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:4096/api/info)" = 401 ] ||
+  fail "the OpenCode API answers without the password"
+[ "$(as_dev curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:4096/)" = 200 ] ||
+  fail "the OpenCode web UI does not answer on / (the Coder health check)"
+pass "the OpenCode server answers on localhost, with the imported password guarding its API"
+
+# Every listening TCP socket in the container is on a loopback address (the image has no ss; /proc/net/tcp
+# holds addresses in hex: 127.x.x.x ends in 7F, ::1 is 0...01000000).
+# shellcheck disable=SC2016 # awk's own $fields
+nonlocal=$(in_sut awk 'FNR > 1 && $4 == "0A" { split($2, a, ":"); print a[1] }' /proc/net/tcp /proc/net/tcp6 |
+  grep -vxE '[0-9A-F]{6}7F|0{24}01000000' || true)
+[ -z "$nonlocal" ] || fail "something listens on a non-loopback address: $nonlocal"
+pass "the agent services listen on localhost only"
+
+as_dev kill -9 "$pid"
+restarted() {
+  local p
+  p=$(as_dev systemctl --user show -p MainPID --value opencode.service)
+  [ "$p" != 0 ] && [ "$p" != "$pid" ] && opencode_info
+}
+wait_for 60 restarted || fail "the OpenCode server was not restarted after being killed"
+pass "a killed OpenCode server is restarted, still with the imported environment"
+
+# Remote control has no sign-in here, so it exits at once and must keep being restarted, without ever
+# reaching a failed state. Its error shows the imported CLAUDE_CODE_OAUTH_TOKEN was kept from it: with the
+# variable it would say a full-scope login token is required.
+rc_restarts() { as_dev systemctl --user show -p NRestarts --value claude-remote-control.service; }
+rc_retried() { [ "$(rc_restarts)" -ge 2 ]; }
+wait_for 90 rc_retried || fail "remote control is not being restarted (restarts: $(rc_restarts))"
+! as_dev systemctl --user is-failed --quiet claude-remote-control.service || fail "remote control gave up"
+rc_log=$(as_dev journalctl --user -u claude-remote-control.service --no-pager -q -o cat)
+grep -q 'You must be logged in to use Remote Control' <<<"$rc_log" ||
+  fail "remote control did not stop for want of a sign-in: $(tail -n 5 <<<"$rc_log")"
+! grep -q 'full-scope login token' <<<"$rc_log" || fail "remote control saw CLAUDE_CODE_OAUTH_TOKEN"
+pass "remote control keeps retrying until a sign-in exists, without the API-token variables that stop it"
+
+as_dev systemctl --user is-active --quiet agent-services.target || fail "agent-services.target stopped"
+pass "the target stays up while its services restart"
+
+echo "coder-template smoke test passed: $image"

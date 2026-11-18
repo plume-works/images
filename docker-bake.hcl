@@ -29,7 +29,7 @@ function "out" {
 }
 
 group "default" {
-  targets = ["core", "core-systemd", "devcontainer-base"]
+  targets = ["core", "core-systemd", "coder-template", "devcontainer-base"]
 }
 
 target "_common" {
@@ -50,6 +50,14 @@ target "core-systemd" {
   args     = { BASE_IMAGE = "parent" }
   contexts = { parent = "target:core" }
   tags     = [img("core-systemd")]
+}
+
+target "coder-template" {
+  inherits = ["_common"]
+  context  = "images/coder-template"
+  args     = { BASE_IMAGE = "parent" }
+  contexts = { parent = "target:core-systemd" }
+  tags     = [img("coder-template")]
 }
 
 target "devcontainer-base" {
