@@ -9,21 +9,11 @@ YAGNI, KISS, DRY.
 YAGNI, KISS, DRY.
 YAGNI, KISS, DRY.
 
-## Save decisions
+## Domain docs
 
-Save decisions in `docs/adr/NNNN-<slug>`.
+Record decisions (`docs/adr/`) and glossary terms (`GLOSSARY.md`) with the `domain-modeling` skill.
 
-@docs/adr/0000-adr-format.md
-
-## Consult recorded ADRs
-
-ADRs are recorded in `docs/adr/`. Consult them before making decisions.
-
-## Glossary
-
-Use the terms in `GLOSSARY.md`; add new ones as they are resolved.
-
-@GLOSSARY-FORMAT.md
+@docs/agents/domain.md
 
 ## Testing
 

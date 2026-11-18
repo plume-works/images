@@ -1,8 +1,3 @@
----
-origin: https://github.com/mattpocock/skills/blob/5863806dd4e15c63174bee4e7515a4256792ecfa/skills/engineering/domain-modeling/ADR-FORMAT.md
-copyright: Copyright (c) 2026 Matt Pocock
-license: MIT, see LICENSES/mattpocock-skills.txt
----
 # ADR Format
 
 ADRs live in `docs/adr/` and use sequential numbering: `0001-slug.md`, `0002-slug.md`, etc.

@@ -25,4 +25,4 @@ See [the core image design](docs/superpowers/specs/2026-11-17-core-image-design.
 
 ## License
 
-MIT, see [LICENSE](LICENSE). Third-party files keep their own licenses under [`LICENSES/`](LICENSES/).
+MIT, see [LICENSE](LICENSE). Vendored skills in `.agents/skills/` carry their own licenses.
