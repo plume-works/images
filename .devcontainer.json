@@ -13,9 +13,10 @@
 		"ghcr.io/devcontainers/features/github-cli": {}
 	},
 
-	"mounts": [
-		"source=claude-code-config,target=/home/vscode/.claude,type=volume"
-	],
+	// This breaks claude auth
+	// "mounts": [
+	// 	"source=claude-code-config,target=/home/vscode/.claude,type=volume"
+	// ],
 
 	// Use 'forwardPorts' to make a list of ports inside the container available locally.
 	// "forwardPorts": [],
