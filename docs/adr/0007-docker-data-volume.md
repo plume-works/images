@@ -5,7 +5,7 @@ does, so the nested daemon's data is never on the container's overlay
 filesystem. Every container gets an anonymous volume there, whether or not it
 starts Docker.
 
-Not chosen:
+## Considered Options
 
 - Measuring first whether the volume is needed.
 - Only documenting that each image should mount one.

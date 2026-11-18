@@ -5,7 +5,7 @@ calls by default. An image that wants Docker calls it from its own startup, so
 the daemon logic exists once and images that don't need Docker don't have to
 run privileged.
 
-Not chosen:
+## Considered Options
 
 - Binaries only: each image would write its own daemon startup.
 - An entrypoint in core that starts the daemon: every image would inherit it
