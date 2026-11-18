@@ -23,15 +23,34 @@ pass "default user is root"
 pass "dev is UID 1000 with bash and passwordless sudo"
 
 # Each tool answers, as root and as dev, from a system-wide location (not under a home).
-for tool in git gh; do
-  path=$(command -v "$tool") || fail "$tool is not on PATH"
-  case "$(readlink -f "$path")" in
-    /root/* | /home/*) fail "$tool resolves under a home directory: $path" ;;
-  esac
-  "$tool" --version | head -n1
-  su dev -c "$tool --version" >/dev/null || fail "$tool does not run as dev"
+as() { if [ "$1" = root ]; then bash -c "$2"; else su "$1" -c "$2"; fi; }
+for tool in git gh git-lfs uv uvx python python3 bun bunx cmake ninja fish; do
+  for user in root dev; do
+    path=$(as "$user" "command -v $tool") || fail "$tool is not on $user's PATH"
+    case "$(readlink -f "$path")" in
+      /root/* | /home/*) fail "$tool resolves under a home directory for $user: $path" ;;
+    esac
+    version=$(as "$user" "$tool --version" 2>&1 | head -n1) || fail "$tool does not run as $user"
+    [ -n "$version" ] || fail "$tool reports no version as $user"
+  done
+  echo "$tool: $version"
 done
-pass "git and gh answer as root and as dev, from system-wide locations"
+pass "every tool answers as root and as dev, from system-wide locations"
+
+# A virtual environment dev makes gets the Python uv manages system-wide, not a per-user download
+# and not the distribution's.
+venv_python=$(su dev -c 'cd "$(mktemp -d)" && uv venv -q v && readlink -f v/bin/python') \
+  || fail "uv venv fails as dev"
+case "$venv_python" in
+  /root/* | /home/* | /usr/bin/*) fail "uv venv as dev uses $venv_python, not uv's system-wide Python" ;;
+esac
+pass "uv venv as dev uses the system-wide Python ($venv_python)"
+
+# No Node.js: Bun covers that need.
+for tool in node nodejs npm npx; do
+  if command -v "$tool" >/dev/null; then fail "$tool is installed"; fi
+done
+pass "Node.js is not installed"
 CHECKS
 
 echo "core smoke test passed: $image"
