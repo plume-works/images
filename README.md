@@ -22,3 +22,7 @@ The image does not start a Docker daemon on its own. A consumer runs `start-dock
 ## Design
 
 See [the core image design](docs/superpowers/specs/2026-11-17-core-image-design.md). Longer-lived decisions are in [`docs/adr/`](docs/adr/).
+
+## License
+
+MIT, see [LICENSE](LICENSE). Third-party files keep their own licenses under [`LICENSES/`](LICENSES/).
