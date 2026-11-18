@@ -1,6 +1,7 @@
 ---
-origin: https://github.com/mattpocock/skills/blob/main/skills/engineering/domain-modeling/ADR-FORMAT.md
-license: MIT, https://github.com/mattpocock/skills/blob/main/LICENSE
+origin: https://github.com/mattpocock/skills/blob/5863806dd4e15c63174bee4e7515a4256792ecfa/skills/engineering/domain-modeling/ADR-FORMAT.md
+copyright: Copyright (c) 2026 Matt Pocock
+license: MIT, see LICENSES/mattpocock-skills.txt
 ---
 # ADR Format
 
