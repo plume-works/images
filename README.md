@@ -51,11 +51,34 @@ pulls outlives the job. The engine logs to `/var/log/dockerd.log`; `START_DOCKER
 bounds the wait. `dev` can run `start-docker` too (it uses passwordless sudo). Where systemd is PID 1, it just
 starts `docker.service`.
 
+## Core systemd image
+
+`ghcr.io/plume-works/core-systemd`: the core image with systemd as PID 1 and the Docker engine run as a
+service. It is the parent of the Coder template image and the devcontainer base image and holds everything about
+booting. Run it with its own entrypoint (`/sbin/init`) under sysbox or in privileged mode, with volumes for the
+engine's storage at `/var/lib/docker` and `/var/lib/containerd`. Never share those volumes between two running
+containers.
+
+```sh
+docker run -d --privileged -v /var/lib/docker -v /var/lib/containerd ghcr.io/plume-works/core-systemd@sha256:<digest>
+```
+
+- The default user is root, because systemd must run as root. `dev`'s systemd user manager runs from boot,
+  without a login.
+- Logs for every unit are in the journal (`journalctl`). journald does not read the kernel log.
+- Nothing updates itself: the operating system's periodic update timers are masked.
+- Once a week, a timer removes Docker images that no container uses and that were pulled or built more than a
+  week ago, and build cache not used for a week. It never removes volumes or containers, stopped ones included.
+- `docker stop` shuts systemd down, and the inner engine stops its containers first. Allow it more than the
+  default 10 seconds (`docker stop -t 60`), because the inner engine waits 10 seconds for a container that
+  ignores SIGTERM.
+
 ## Building and testing locally
 
 ```sh
 docker buildx bake --load
 images/core/smoke.sh ghcr.io/plume-works/core:ci
+images/core-systemd/smoke.sh ghcr.io/plume-works/core-systemd:ci
 ```
 
 Each image lives in `images/<name>/` with its `Dockerfile` and `smoke.sh`; `docker-bake.hcl` lists them, and

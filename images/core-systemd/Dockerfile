@@ -1,7 +1,8 @@
 # Core systemd image: the core image with systemd as PID 1 and the Docker engine run as a service.
 # Everything about booting lives here, once (ADR 0001). The default user stays root (no USER line),
 # because systemd must run as root.
-ARG BASE_IMAGE=core
+# CI (docker-bake.hcl) always builds on this commit's core image; the default serves plain local builds.
+ARG BASE_IMAGE=ghcr.io/plume-works/core:edge
 FROM ${BASE_IMAGE}
 
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
