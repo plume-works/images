@@ -1,0 +1,15 @@
+# Run weekly by docker-prune.timer.
+# `image prune --all` removes only images no container (running or stopped) uses. Under the containerd
+# image store (Docker 29's default) its `until` filter is when the image was pulled or built here.
+# `builder prune` keeps build cache used within the window (no --all: that also clears helper images).
+# Never prune volumes or containers: they are the user's work.
+[Unit]
+Description=Remove Docker images and build cache unused for a week
+Requires=docker.service
+After=docker.service
+
+[Service]
+Type=oneshot
+Environment=UNUSED_FOR=168h
+ExecStart=/usr/bin/docker image prune --all --force --filter until=${UNUSED_FOR}
+ExecStart=/usr/bin/docker builder prune --force --filter until=${UNUSED_FOR}
