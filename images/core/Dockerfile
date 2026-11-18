@@ -31,3 +31,26 @@ RUN a=$(dpkg --print-architecture); f="gh_${GH_VERSION}_linux_$a.tar.gz"; d=$(mk
  && install -d /usr/local/share/man/man1 \
  && cp "$d/gh_${GH_VERSION}_linux_$a/share/man/man1/"* /usr/local/share/man/man1/ \
  && rm -rf "$d"
+
+# Docker engine, CLI, Buildx and Compose from Docker's apt repository, which keeps old versions, so they pin.
+# containerd.io floats. The packages also enable docker.service and containerd.service for systemd,
+# which the core systemd image relies on; here, without systemd, start-docker runs the engine on demand.
+# renovate: datasource=github-releases depName=moby/moby extractVersion=^docker-v(?<version>.+)$
+ARG DOCKER_VERSION=29.10.0
+# renovate: datasource=github-releases depName=docker/buildx extractVersion=^v(?<version>.+)$
+ARG BUILDX_VERSION=0.39.0
+# renovate: datasource=github-releases depName=docker/compose extractVersion=^v(?<version>.+)$
+ARG COMPOSE_VERSION=5.8.0
+# hadolint ignore=DL3008
+RUN install -m0755 -d /etc/apt/keyrings \
+ && curl -fsSL https://download.docker.com/linux/ubuntu/gpg -o /etc/apt/keyrings/docker.asc \
+ && . /etc/os-release \
+ && echo "deb [signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/ubuntu ${VERSION_CODENAME} stable" \
+      > /etc/apt/sources.list.d/docker.list \
+ && apt-get update \
+ && apt-get install -y --no-install-recommends \
+      "docker-ce=5:${DOCKER_VERSION}-*" "docker-ce-cli=5:${DOCKER_VERSION}-*" \
+      "docker-buildx-plugin=${BUILDX_VERSION}-*" "docker-compose-plugin=${COMPOSE_VERSION}-*" containerd.io \
+ && rm -rf /var/lib/apt/lists/* \
+ && usermod -aG docker dev
+COPY --chmod=0755 start-docker /usr/local/bin/start-docker
