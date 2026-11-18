@@ -73,13 +73,80 @@ docker run -d --privileged -v /var/lib/docker -v /var/lib/containerd ghcr.io/plu
   default 10 seconds (`docker stop -t 60`), because the inner engine waits 10 seconds for a container that
   ignores SIGTERM.
 
+## Devcontainer base image
+
+`ghcr.io/plume-works/devcontainer-base`: the core systemd image plus a devcontainer metadata label, for a dev
+container opened from local VS Code. The label sets the remote user to `dev`, installs the Claude Code VS Code
+extension, and sets `overrideCommand: false` so that systemd stays PID 1. It has no lifecycle commands and no
+mounts. Inside you get systemd, a Docker engine run as a service, and every tool and agent of the core image.
+
+Name it in the `image` field of your `devcontainer.json`, pinned by digest, and add one of the two snippets below.
+The image does not choose how it runs; you do (ADR 0001):
+
+- **sysbox** (Linux hosts with [sysbox](https://github.com/nestybox/sysbox) installed): no privileged container.
+- **Privileged mode** (macOS, or Linux without sysbox): Docker Desktop on macOS offers sysbox only in a paid tier.
+
+Both snippets add a volume for the Docker engine's storage (`/var/lib/docker` and `/var/lib/containerd`; the inner
+engine cannot run containers without them) and a volume for the whole home directory, so agent sign-ins and shell
+history survive a rebuild. The home volume covers all of `/home/dev`, because the agents keep sign-in state in
+more than one place under it. It is yours to keep, leave out, or replace with your own mount. A new home volume is
+filled from the image's `/home/dev`.
+
+With sysbox:
+
+```jsonc
+{
+  "image": "ghcr.io/plume-works/devcontainer-base@sha256:<digest>",
+  "runArgs": ["--runtime=sysbox-runc"],
+  "mounts": [
+    "source=dc-${devcontainerId}-docker,target=/var/lib/docker,type=volume",
+    "source=dc-${devcontainerId}-containerd,target=/var/lib/containerd,type=volume",
+    "source=dc-${devcontainerId}-home,target=/home/dev,type=volume"
+  ]
+}
+```
+
+In privileged mode (this one is what the smoke test brings up):
+
+<!-- smoke-test: privileged -->
+```jsonc
+{
+  "image": "ghcr.io/plume-works/devcontainer-base@sha256:<digest>",
+  "privileged": true,
+  "mounts": [
+    "source=dc-${devcontainerId}-docker,target=/var/lib/docker,type=volume",
+    "source=dc-${devcontainerId}-containerd,target=/var/lib/containerd,type=volume",
+    "source=dc-${devcontainerId}-home,target=/home/dev,type=volume"
+  ]
+}
+```
+
+`${devcontainerId}` is stable for a workspace folder, so the volumes survive "Rebuild Container". Never share the
+Docker volumes between two running containers.
+
+Add your project's own tooling with Features or your own Dockerfile on top. Things to know:
+
+- **Do not add the `docker-in-docker` Feature** (nor `docker-outside-of-docker`). The image already runs a Docker
+  engine under systemd; a second engine, or the host's socket, would fight it over `/var/run/docker.sock` and
+  its storage.
+- Avoid Features whose entrypoint starts a daemon (`sshd`, for example): it starts before systemd and clashes
+  with systemd's own units. Features that only install something work.
+- On a Linux host whose user is not UID 1000, the devcontainer CLI changes `dev`'s UID to match it. Files in a
+  home volume created before that change keep UID 1000.
+- **Not supported:** GitHub Codespaces, and running this dev container nested inside a Coder workspace (use the
+  Coder template image there instead). It is meant for local VS Code.
+
 ## Building and testing locally
 
 ```sh
 docker buildx bake --load
 images/core/smoke.sh ghcr.io/plume-works/core:ci
 images/core-systemd/smoke.sh ghcr.io/plume-works/core-systemd:ci
+images/devcontainer-base/smoke.sh ghcr.io/plume-works/devcontainer-base:ci
 ```
+
+The devcontainer base image's smoke test runs the devcontainer CLI (pinned in the script) through `npx`, or
+`bunx` where there is no Node, and needs a Docker daemon that sees the local `/tmp`.
 
 Each image lives in `images/<name>/` with its `Dockerfile` and `smoke.sh`; `docker-bake.hcl` lists them, and
 `.github/workflows/images.yml` builds, tests and publishes them all.
@@ -98,6 +165,7 @@ GitHub app, configured in [`renovate.json`](renovate.json)) opens those pull req
   ```
   `datasource` and `depName` are required; `packageName`, `versioning` and `extractVersion` are optional, in that
   order. The value carries no `v` prefix;
+- tools a smoke script runs, pinned the same way by a `<NAME>_VERSION=` line (no `ARG`) in `smoke.sh`;
 - GitHub Actions and the linter images in `.github/workflows/`;
 - Terraform providers and modules, and image digests (ours included, grouped into one weekly pull request) in
   `.devcontainer.json` and the Coder template.
