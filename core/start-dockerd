@@ -2,6 +2,8 @@
 # Start the Docker daemon in the background and wait until it answers.
 # Opt-in: nothing in the image calls this. Needs a privileged container or sysbox.
 # Exits 0 at once if a daemon already answers. Prints nothing on success.
+# On failure (the daemon exits, or does not answer within the timeout) it stops the
+# daemon, prints the log tail to stderr and exits 1.
 # START_DOCKERD_TIMEOUT: seconds to wait for the daemon (default 30).
 set -eu
 
@@ -17,14 +19,25 @@ if docker info >/dev/null 2>&1; then
   exit 0
 fi
 
-dockerd >"$log" 2>&1 &
+fail() {
+  echo "start-dockerd: $1; last lines of $log:" >&2
+  tail -n 20 "$log" >&2
+  exit 1
+}
+
+# Append, so an earlier attempt's log survives a retry.
+dockerd >>"$log" 2>&1 &
+pid=$!
 
 elapsed=0
 until docker info >/dev/null 2>&1; do
+  if ! kill -0 "$pid" 2>/dev/null; then
+    fail "dockerd exited"
+  fi
   if [ "$elapsed" -ge "$timeout" ]; then
-    echo "start-dockerd: daemon not ready after ${timeout}s; last lines of $log:" >&2
-    tail -n 20 "$log" >&2
-    exit 1
+    kill "$pid" 2>/dev/null || true
+    wait "$pid" 2>/dev/null || true
+    fail "daemon not ready after ${timeout}s"
   fi
   sleep 1
   elapsed=$((elapsed + 1))
