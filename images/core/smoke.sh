@@ -33,7 +33,7 @@ pass "dev is UID 1000 with bash and passwordless sudo"
 
 # Each tool answers, as root and as dev, from a system-wide location (not under a home).
 as() { if [ "$1" = root ]; then bash -c "$2"; else su "$1" -c "$2"; fi; }
-for tool in git gh git-lfs uv uvx python python3 bun bunx cmake ninja fish claude opencode; do
+for tool in git gh git-lfs uv uvx python python3 bun bunx cmake ninja fish jq claude opencode; do
   for user in root dev; do
     path=$(as "$user" "command -v $tool") || fail "$tool is not on $user's PATH"
     case "$(readlink -f "$path")" in

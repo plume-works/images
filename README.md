@@ -32,8 +32,8 @@ interactive use.
 
 ### Toolchains and agents
 
-Python through `uv`, Bun, CMake, Ninja, Git, Git LFS, GitHub CLI and fish, plus the Claude Code and OpenCode
-command-line tools. There is no Node.js; Bun covers that need. Every tool is pinned by version (Git floats
+Python through `uv`, Bun, CMake, Ninja, Git, Git LFS, GitHub CLI, fish and jq, plus the Claude Code and OpenCode
+command-line tools. There is no Node.js; Bun covers that need. Every tool is pinned by version (Git and jq float
 with the Ubuntu release, as all apt packages do) and installed system-wide, never under a home directory, so it
 works wherever a CI system points `HOME` and a persistent home volume never shadows a newer image's tools.
 
@@ -290,7 +290,8 @@ images/devcontainer-base/smoke.sh ghcr.io/plume-works/devcontainer-base:ci
 ```
 
 The devcontainer base image's smoke test runs the devcontainer CLI (pinned in the script) through `npx`, or
-`bunx` where there is no Node, and needs `jq` and a Docker daemon that sees the local `/tmp`.
+`bunx` where there is no Node, and needs `jq` (every image here has it) and a Docker daemon that sees the local
+`/tmp`.
 
 Each image lives in `images/<name>/` with its `Dockerfile` and `smoke.sh`; `docker-bake.hcl` lists them, and
 `.github/workflows/images.yml` builds, tests and publishes them all.
@@ -301,8 +302,7 @@ This repository is developed inside its own devcontainer base image, so the imag
 `.devcontainer.json` names `ghcr.io/plume-works/devcontainer-base:edge@sha256:<digest>` with the privileged-mode
 snippet above, and no docker-in-docker Feature; Renovate proposes the digest bumps. Inside it, the commands under
 [Building and testing locally](#building-and-testing-locally) work as they are: the image's own Docker engine
-builds the images and runs their smoke tests. The devcontainer base image's smoke test also needs `jq`, which
-the images do not have: `sudo apt-get install -y jq` first. (Until the devcontainer base image is first published,
+builds the images and runs their smoke tests. (Until the devcontainer base image is first published,
 `.devcontainer.json` still uses a stock Ubuntu dev container.)
 
 ## How versions are updated
