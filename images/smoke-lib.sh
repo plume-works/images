@@ -6,8 +6,10 @@
 # units and the end of its journal, plus whatever an optional `dump_extra` function in the caller prints.
 #
 # A script that starts the container itself (docker run, privileged: hosted runners have no sysbox) calls
-#   smoke_init <prefix>   to name the container and its volumes, and remove both on exit
+#   smoke_init <prefix>   to name the container, and remove it and its anonymous volumes on exit
 #   boot [again]          to start it (again: the stopped one) and wait for a running system with no failed units
+# The container gets no volume flags: the inner engine's storage is the image's declared (anonymous) volumes,
+# which a stopped container keeps when it starts again.
 # and runs commands in it with in_container. The cleanup on exit runs an optional `cleanup_extra` function too.
 
 container=""
@@ -42,14 +44,11 @@ wait_system_running() {
 
 smoke_init() {
   container="$1-smoke-$$"
-  # Storage for the inner engine. Named so a second boot reuses them; never shared with another running container.
-  volumes=("$container-docker:/var/lib/docker" "$container-containerd:/var/lib/containerd")
   trap smoke_cleanup EXIT
 }
 
 smoke_cleanup() {
-  docker rm -f "$container" >/dev/null 2>&1 || true
-  for v in "${volumes[@]}"; do docker volume rm "${v%%:*}" >/dev/null 2>&1 || true; done
+  docker rm -f --volumes "$container" >/dev/null 2>&1 || true
   if declare -F cleanup_extra >/dev/null; then cleanup_extra; fi
 }
 
@@ -58,8 +57,7 @@ boot() {
   if [ "${1:-}" = again ]; then
     docker start "$container" >/dev/null
   else
-    docker run -d --name "$container" --privileged \
-      --volume "${volumes[0]}" --volume "${volumes[1]}" "${image:?set by the caller}" >/dev/null
+    docker run -d --name "$container" --privileged "${image:?set by the caller}" >/dev/null
   fi
   local state
   state=$(wait_system_running in_container)

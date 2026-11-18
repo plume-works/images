@@ -49,9 +49,8 @@ that needs it.
 
 The core image has the Docker engine, CLI, Buildx and Compose; `dev` is in the `docker` group. A job container
 does not run systemd, so `start-docker` starts the engine on demand and returns once it is ready. It does nothing
-if an engine is already running, so calling it twice is safe. The container needs privileged mode, and a volume
-at `/var/lib/docker`: the engine cannot start containers when its storage sits on the container's own overlay
-filesystem, and `start-docker` refuses to start without it.
+if an engine is already running, so calling it twice is safe. The container needs privileged mode and nothing
+else: no volume flags (see below).
 
 ```yaml
 jobs:
@@ -59,7 +58,7 @@ jobs:
     runs-on: ubuntu-latest
     container:
       image: ghcr.io/plume-works/core:edge@sha256:<digest>
-      options: --privileged --volume /var/lib/docker
+      options: --privileged
     steps:
       - run: start-docker
       - run: docker run --rm hello-world
@@ -70,17 +69,32 @@ pulls outlives the job. The engine logs to `/var/log/dockerd.log`; `START_DOCKER
 bounds the wait. `dev` can run `start-docker` too (it uses passwordless sudo). Where systemd is PID 1, it just
 starts `docker.service`.
 
+### The engine's storage is a declared volume
+
+The engine cannot start containers when its storage sits on the container's own overlay filesystem. So the core
+image, and with it every image here, declares `/var/lib/docker` and `/var/lib/containerd` as volumes (ADR 0004).
+Docker gives each new container anonymous volumes there unless you mount named ones, which is what to do where
+the engine's images and build cache should outlive the container (the devcontainer and Coder template do).
+
+- A container run without `--rm` leaves its anonymous volumes behind when it is removed: remove it with
+  `docker rm -v`, or run `docker volume prune` now and then.
+- A Dockerfile built on these images cannot add files under `/var/lib/docker` or `/var/lib/containerd`: what a
+  build step writes to a declared volume is discarded.
+- A runtime that ignores an image's volumes (Kubernetes does) needs a volume mounted at `/var/lib/docker`, and at
+  `/var/lib/containerd` under systemd (an `emptyDir`, say). Without one, `start-docker` refuses to start and
+  says so.
+- Never share these volumes between two running containers.
+
 ## Core systemd image
 
 `ghcr.io/plume-works/core-systemd`: the core image with systemd as PID 1 and the Docker engine run as a
 service. It is the parent of the Coder template image and the devcontainer base image and holds everything about
 booting, written once so the two cannot drift apart. It is for building those images; to work in it, use one of
-them instead. Run it with its own entrypoint (`/sbin/init`) under sysbox or in privileged mode, with volumes for the
-engine's storage at `/var/lib/docker` and `/var/lib/containerd`. Never share those volumes between two running
-containers.
+them instead. Run it with its own entrypoint (`/sbin/init`) under sysbox or in privileged mode; the engine's
+storage is the image's declared volumes, so it needs no volume flags.
 
 ```sh
-docker run -d --privileged -v /var/lib/docker -v /var/lib/containerd ghcr.io/plume-works/core-systemd:edge@sha256:<digest>
+docker run -d --privileged ghcr.io/plume-works/core-systemd:edge@sha256:<digest>
 ```
 
 - The default user is root, because systemd must run as root. `dev`'s systemd user manager runs from boot,
@@ -230,9 +244,10 @@ The image does not choose how it runs; you do (ADR 0001):
 - **sysbox** (Linux hosts with [sysbox](https://github.com/nestybox/sysbox) installed): no privileged container.
 - **Privileged mode** (macOS, or Linux without sysbox): Docker Desktop on macOS offers sysbox only in a paid tier.
 
-Both snippets add a volume for the Docker engine's storage (`/var/lib/docker` and `/var/lib/containerd`; the inner
-engine cannot run containers without them) and a volume for the whole home directory, so agent sign-ins and shell
-history survive a rebuild. The home volume covers all of `/home/dev`, because the agents keep sign-in state in
+Both snippets add named volumes for the Docker engine's storage (`/var/lib/docker` and `/var/lib/containerd`), so
+its images and build cache survive a rebuild (without them the engine still works, on anonymous volumes that each
+rebuild leaves behind), and a volume for the whole home directory, so agent sign-ins and shell history survive a
+rebuild. The home volume covers all of `/home/dev`, because the agents keep sign-in state in
 more than one place under it. It is yours to keep, leave out, or replace with your own mount. A new home volume is
 filled from the image's `/home/dev`.
 
