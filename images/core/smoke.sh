@@ -126,7 +126,7 @@ pass() { echo "ok: $*"; }
 docker --version
 docker buildx version
 docker compose version
-id -nG dev | tr ' ' '\n' | grep -qx docker || fail "dev is not in the docker group"
+id -nG dev | tr ' ' '\n' | grep -x docker >/dev/null || fail "dev is not in the docker group"
 pass "Docker CLI, Buildx and Compose answer; dev is in the docker group"
 
 if docker info >/dev/null 2>&1; then fail "an engine is running before start-docker"; fi
@@ -141,8 +141,8 @@ su dev -c start-docker || fail "start-docker fails for dev when an engine is alr
 pass "start-docker does nothing when an engine is already running"
 
 docker pull -q hello-world >/dev/null
-docker run --rm hello-world | grep -q 'Hello from Docker!' || fail "a container did not run as root"
-su dev -c 'docker run --rm hello-world' | grep -q 'Hello from Docker!' || fail "a container did not run as dev"
+docker run --rm hello-world | grep 'Hello from Docker!' >/dev/null || fail "a container did not run as root"
+su dev -c 'docker run --rm hello-world' | grep 'Hello from Docker!' >/dev/null || fail "a container did not run as dev"
 docker run --rm --memory 64m hello-world >/dev/null || fail "a container with a memory limit did not run"
 pass "the engine runs a container to completion, as root and as dev"
 CHECKS

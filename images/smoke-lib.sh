@@ -5,6 +5,9 @@
 # $container is the container under test (a name or an ID), or empty while there is none. fail dumps its failed
 # units and the end of its journal, plus whatever an optional `dump_extra` function in the caller prints.
 #
+# Under `set -o pipefail`, never pipe into `grep -q`: it exits at the first match, the writer can die of SIGPIPE,
+# and the pipeline then fails although the line was there. Use `grep … >/dev/null`, which reads all its input.
+#
 # A script that starts the container itself (docker run, privileged: hosted runners have no sysbox) calls
 #   smoke_init <prefix>   to name the container, and remove it and its anonymous volumes on exit
 #   boot [again]          to start it (again: the stopped one) and wait for a running system with no failed units

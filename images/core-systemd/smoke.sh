@@ -20,7 +20,7 @@ pass "the system boots to a running state with no failed units"
 pass "systemd is PID 1 from the image's own entrypoint; the default user is root"
 
 [ -n "$(in_container journalctl -b --no-pager -n 5 -q)" ] || fail "the journal holds no entries"
-in_container journalctl -b --no-pager -u docker.service -q | grep -q . || fail "the journal holds no entries for docker.service"
+in_container journalctl -b --no-pager -u docker.service -q | grep . >/dev/null || fail "the journal holds no entries for docker.service"
 # In privileged mode /dev/kmsg is the host's kernel log (under sysbox it is not pollable at all):
 # kernel messages in the journal mean journald reads it.
 [ -z "$(in_container journalctl -b --no-pager -q _TRANSPORT=kernel)" ] || fail "journald reads the kernel log"
@@ -32,7 +32,7 @@ for d in /var/lib/docker /var/lib/containerd; do
 done
 in_container systemctl is-active --quiet docker.service || fail "docker.service is not active after boot"
 in_container docker pull -q hello-world >/dev/null
-in_container docker run --rm hello-world | grep -q 'Hello from Docker!' || fail "a container did not run"
+in_container docker run --rm hello-world | grep 'Hello from Docker!' >/dev/null || fail "a container did not run"
 pass "the Docker service starts at boot and runs a container, with no volume flags on the outer container"
 
 # Nobody has logged in: dev's user manager runs because of the image, not a session.

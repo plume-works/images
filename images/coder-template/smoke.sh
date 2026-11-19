@@ -79,7 +79,7 @@ pass "the Coder agent runs as dev, reads its token from the uploaded file and re
 as_dev systemctl --user is-active --quiet agent-services.target || fail "agent-services.target is not active"
 pid=$(as_dev systemctl --user show -p MainPID --value opencode.service)
 [ "$pid" != 0 ] || fail "the OpenCode server is not running"
-as_dev cat "/proc/$pid/environ" | tr '\0' '\n' | grep -qx "SMOKE_VAR=$var" ||
+as_dev cat "/proc/$pid/environ" | tr '\0' '\n' | grep -x "SMOKE_VAR=$var" >/dev/null ||
   fail "the imported variable did not reach the OpenCode server"
 pass "a variable imported the ADR 0002 way reaches a service under agent-services.target"
 

@@ -113,7 +113,7 @@ pass "systemd is PID 1"
 pass "the remote user is dev"
 
 in_devcontainer docker pull -q hello-world >/dev/null
-in_devcontainer docker run --rm hello-world | grep -q 'Hello from Docker!' || fail "a container did not run"
+in_devcontainer docker run --rm hello-world | grep 'Hello from Docker!' >/dev/null || fail "a container did not run"
 pass "Docker runs a container"
 
 in_devcontainer bash -c 'echo survives > ~/marker'
@@ -125,7 +125,7 @@ pass "a file written to home survives a rebuild"
 write_config '"features": {"ghcr.io/devcontainers/features/github-cli:1": {}}'
 up
 [ "$(in_devcontainer ps -o comm= -p 1)" = systemd ] || fail "PID 1 is not systemd with a Feature on top"
-docker inspect -f '{{index .Config.Labels "devcontainer.metadata"}}' "$container" | grep -q 'github-cli' ||
+docker inspect -f '{{index .Config.Labels "devcontainer.metadata"}}' "$container" | grep 'github-cli' >/dev/null ||
   fail "the Feature was not applied"
 pass "a devcontainer Feature can be added on top and the container still comes up"
 
@@ -133,7 +133,7 @@ pass "a devcontainer Feature can be added on top and the container still comes u
 # ones, which `up` records for the cleanup).
 printf '{"image": "%s", "privileged": true}\n' "$image" >"$config"
 up
-in_devcontainer docker run --rm hello-world | grep -q 'Hello from Docker!' || fail "a container did not run without mounts"
+in_devcontainer docker run --rm hello-world | grep 'Hello from Docker!' >/dev/null || fail "a container did not run without mounts"
 pass "Docker runs a container in a dev container with no mounts"
 
 echo "devcontainer-base smoke test passed: $image"
