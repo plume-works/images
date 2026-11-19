@@ -17,7 +17,7 @@ uv run pytest images/core
 
 ## Docker inside a container
 
-The image does not start a Docker daemon on its own. A consumer runs `start-dockerd` when it wants one, in a container that is privileged or runs under sysbox. Every container gets an anonymous volume at `/var/lib/docker`.
+The image does not start a Docker daemon on its own. A consumer runs `start-docker` when it wants one, in a container that is privileged or runs under sysbox. Every container gets an anonymous volume at `/var/lib/docker`.
 
 ## Design
 

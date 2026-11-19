@@ -73,7 +73,7 @@ RUN userdel --remove ubuntu \
  && echo 'dev ALL=(ALL) NOPASSWD:ALL' > /etc/sudoers.d/dev \
  && chmod 0440 /etc/sudoers.d/dev
 
-COPY --chmod=0755 start-docker /usr/local/bin/start-dockerd
+COPY --chmod=0755 start-docker /usr/local/bin/start-docker
 VOLUME /var/lib/docker
 
 # Nothing self-updates. The variables reach shells by three routes: the image's environment (a CI job container),

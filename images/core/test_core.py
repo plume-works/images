@@ -2,8 +2,11 @@ import json
 import re
 import shlex
 import subprocess
+import time
 
 import pytest
+
+from conftest import run_container
 
 USERS = ["root", "dev"]
 
@@ -76,7 +79,7 @@ def test_dev_home_is_owned_by_dev(plain):
 
 def test_engine_is_not_running_by_default(plain):
     result = plain.sh("docker info", user="dev")
-    assert result.returncode != 0, "docker info succeeded without start-dockerd"
+    assert result.returncode != 0, "docker info succeeded without start-docker"
     pgrep = plain.sh("pgrep -x dockerd")
     assert pgrep.returncode != 0, f"dockerd is running: pgrep printed {pgrep.stdout!r}"
 
@@ -233,3 +236,14 @@ def test_opencode_skips_its_update_check(plain, how):
 
 def test_claude_refuses_to_update_with_an_empty_environment(plain):
     says(plain, "env -i PATH=/usr/local/bin:/usr/bin:/bin HOME=/root claude update", "Updates are disabled")
+
+
+def test_start_docker_fails_within_its_timeout_when_unprivileged(image):
+    with run_container(image) as c:
+        started = time.monotonic()
+        result = c.sh("START_DOCKER_TIMEOUT=5 start-docker")
+        elapsed = time.monotonic() - started
+        assert result.returncode != 0, result.stdout + result.stderr
+        assert elapsed < 30, f"took {elapsed:.1f}s"
+        left = c.sh("pgrep -x dockerd")
+        assert left.stdout.strip() == "", f"dockerd left behind: {left.stdout!r}"

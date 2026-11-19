@@ -1,3 +1,5 @@
+import os
+import shlex
 import subprocess
 from contextlib import contextmanager
 from typing import Iterator
@@ -51,4 +53,23 @@ def inner_image(request) -> str:
 @pytest.fixture(scope="session")
 def plain(image) -> Iterator[Container]:
     with run_container(image) as container:
+        yield container
+
+
+@pytest.fixture(scope="session")
+def engine(image, inner_image) -> Iterator[Container]:
+    with run_container(image, "--privileged") as container:
+        started = container.sh("start-docker")
+        assert started.returncode == 0, f"start-docker failed:\n{started.stdout}{started.stderr}"
+        token = os.environ.get("GHCR_TOKEN")
+        if token:
+            # The token goes through stdin, never onto a command line.
+            login = subprocess.run(
+                ["docker", "exec", "-i", container.name,
+                 "docker", "login", "ghcr.io", "-u", "token", "--password-stdin"],
+                input=token, capture_output=True, text=True,
+            )
+            assert login.returncode == 0, f"docker login failed: {login.stderr}"
+        pulled = container.sh(f"docker pull {shlex.quote(inner_image)}")
+        assert pulled.returncode == 0, f"docker pull failed:\n{pulled.stdout}{pulled.stderr}"
         yield container
