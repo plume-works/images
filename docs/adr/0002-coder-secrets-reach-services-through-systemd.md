@@ -16,4 +16,3 @@ The whole environment is imported, not a named list. A named list would mean edi
 - A new or rotated secret takes effect on workspace restart; running services keep the environment they started with.
 - One exception: Claude remote control is kept from three Anthropic token variables (ADR 0003).
 - Anything that needs a Coder secret, including the repository clone, runs from the agent's startup script or from a unit under that target, never from a unit started at boot.
-- The image sets `ReadKMsg=no` for journald. Sysbox presents `/dev/kmsg` as `/dev/null`, which journald cannot poll; without the setting journald fails at boot and no unit has logs.
