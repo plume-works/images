@@ -36,11 +36,11 @@
       "enabled": false
     },
     {
-      "description": "Digests of our own images (.devcontainer.json, the Coder template): one grouped weekly pull request, because every merge to main publishes a new edge digest",
+      "description": "Digests of our own images (.devcontainer.json, the Coder template): one grouped pull request as soon as edge moves, merged by itself once its checks pass. Merging it does not publish again (images.yml ignores pushes that touch only these pins), so the bumps do not loop",
       "matchDatasources": ["docker"],
       "matchPackageNames": ["ghcr.io/plume-works/**"],
       "groupName": "plume-works images",
-      "schedule": ["* 0-5 * * 1"]
+      "automerge": true
     }
   ]
 }
