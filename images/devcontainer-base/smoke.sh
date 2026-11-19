@@ -2,7 +2,7 @@
 # Smoke test for the devcontainer base image. Usage: images/devcontainer-base/smoke.sh <image-ref>
 #
 # Brings the image up the way a consumer does: with the devcontainer CLI, from a devcontainer.json
-# holding the image and the README's privileged-mode snippet (hosted runners have no sysbox).
+# holding the image and the usage doc's privileged-mode snippet (hosted runners have no sysbox).
 # The image's metadata label is its interface, and a plain `docker run` would not read it.
 # It does not repeat the core systemd image's checks. Stops at the first failed check.
 #
@@ -12,7 +12,7 @@ set -euo pipefail
 
 image="${1:?usage: $0 <image-ref>}"
 here=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
-readme="$here/../../README.md"
+usage_doc="$here/../../docs/usage/devcontainer-base.md"
 
 # renovate: datasource=npm depName=@devcontainers/cli
 DEVCONTAINER_CLI_VERSION=0.90.0
@@ -66,15 +66,15 @@ source "$here/../smoke-lib.sh"
 # Commands run the way an attached editor runs them: through the devcontainer CLI, as the remote user.
 in_devcontainer() { devcontainer exec --workspace-folder "$ws" "$@"; }
 
-# Write devcontainer.json: the README's privileged-mode snippet (the jsonc block after its
+# Write devcontainer.json: the usage doc's privileged-mode snippet (the jsonc block after its
 # `smoke-test: privileged` marker), naming the image under test, plus any extra top-level fields.
 write_config() {
   local extra="${1:-}"
   awk '/<!-- smoke-test: privileged -->/ { m = 1; next }
        m && /^```/ { if (in_block) exit; in_block = 1; next }
-       in_block' "$readme" |
+       in_block' "$usage_doc" |
     sed -E "s|\"image\": *\"[^\"]*\"|\"image\": \"$image\"|" >"$config"
-  grep -q "\"image\": \"$image\"" "$config" || fail "no privileged-mode snippet with an image in the README"
+  grep -q "\"image\": \"$image\"" "$config" || fail "no privileged-mode snippet with an image in docs/usage/devcontainer-base.md"
   if [ -n "$extra" ]; then
     # A top-level field before the closing brace of the snippet.
     sed -i -E '$!b; s|^\}|,'"$extra"'\n}|' "$config"
@@ -109,7 +109,7 @@ jq -e '.mergedConfiguration.customizations.vscode[].extensions | index("anthropi
 pass "the devcontainer CLI reads the Claude Code extension from the image"
 
 up
-pass "the devcontainer CLI brings the image up from the README's privileged-mode snippet"
+pass "the devcontainer CLI brings the image up from the usage doc's privileged-mode snippet"
 
 [ "$(in_devcontainer ps -o comm= -p 1)" = systemd ] || fail "PID 1 is not systemd"
 pass "systemd is PID 1"

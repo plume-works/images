@@ -3,7 +3,7 @@
 # How a workspace starts (ADR 0002): systemd boots as PID 1, its coder-agent.service runs the init script uploaded
 # below, and the agent's startup script clones the repository, hands its whole environment to dev's systemd user
 # manager and starts agent-services.target (OpenCode server and Claude remote control). The image's side of this
-# contract is in images/coder-template/ (the units) and the README.
+# contract is in images/coder-template/ (the units) and docs/adr/0002.
 #
 # REQUIRES SYSBOX on the Docker host (runtime sysbox-runc). There is no privileged fallback.
 
@@ -113,7 +113,7 @@ module "code-server" {
 
 # OpenCode's server (API and web UI), run by opencode.service on localhost:4096. OpenCode cannot run under a path
 # prefix, so this needs a subdomain app, and so a wildcard access URL on the Coder deployment. OpenCode asks for
-# its own password on top of Coder's sign-in: the user's OPENCODE_PASSWORD Coder secret (see the README).
+# its own password on top of Coder's sign-in: the user's OPENCODE_PASSWORD Coder secret (see README.md beside this file).
 resource "coder_app" "opencode" {
   count        = data.coder_workspace.me.start_count
   agent_id     = coder_agent.main.id
