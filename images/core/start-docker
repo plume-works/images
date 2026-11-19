@@ -8,6 +8,7 @@
 # Run as root or as a user with passwordless sudo. START_DOCKER_TIMEOUT (seconds,
 # default 60) bounds the wait; the engine logs to /var/log/dockerd.log.
 set -eu
+started=
 timeout="${START_DOCKER_TIMEOUT:-60}"
 log=/var/log/dockerd.log
 
@@ -33,6 +34,10 @@ else
       echo "an overlay filesystem): mount a volume at /var/lib/docker (Kubernetes: an emptyDir)." >&2
       exit 1
     fi
+    if [ ! -w /sys/fs/cgroup ]; then
+      echo "start-docker: /sys/fs/cgroup is read-only, so this container is not privileged: run it with --privileged (or sysbox)." >&2
+      exit 1
+    fi
     # cgroup v2: move this namespace's processes out of its root cgroup so dockerd
     # can enable every controller for its containers (as moby's hack/dind does).
     if [ -f /sys/fs/cgroup/cgroup.controllers ]; then
@@ -42,15 +47,34 @@ else
         >/sys/fs/cgroup/cgroup.subtree_control 2>/dev/null || :
     fi
     nohup dockerd >>"$log" 2>&1 </dev/null 9>&- &
+    started=$!
   fi
 fi
 
+# alive PID: the process runs. An exited child stays a zombie until the shell reaps it, and kill -0 still
+# succeeds on a zombie, so read its state instead.
+alive() {
+  state=$(sed -n 's/^.*) \(.\).*/\1/p' "/proc/$1/stat" 2>/dev/null) || return 1
+  [ -n "$state" ] && [ "$state" != Z ] && [ "$state" != X ]
+}
+
 i=0
 until docker info >/dev/null 2>&1; do
+  # Fail fast if the dockerd this run launched has already exited: waiting out the timeout cannot help.
+  if [ -n "$started" ] && ! alive "$started"; then
+    echo "start-docker: dockerd exited before the engine was ready; tail of $log:" >&2
+    tail -n 30 "$log" >&2 || :
+    exit 1
+  fi
   i=$((i + 1))
   if [ "$i" -gt "$timeout" ]; then
     echo "start-docker: engine not ready after ${timeout}s; tail of $log:" >&2
     tail -n 30 "$log" >&2 || :
+    # Do not leave behind a daemon this run launched.
+    if [ -n "$started" ]; then
+      kill -TERM "$started" 2>/dev/null || :
+      wait "$started" 2>/dev/null || :
+    fi
     exit 1
   fi
   sleep 1
