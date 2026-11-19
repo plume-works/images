@@ -512,7 +512,14 @@ Keep: `config:recommended`, `docker:pinDigests`, `helpers:pinGitHubActionDigests
 - Steps: checkout; `oven-sh/setup-bun`; `astral-sh/setup-uv` at the Dockerfile's `UV_VERSION` (as in Task 6); `actions/create-github-app-token` with the two secrets and the same permission list as the reference; resolve the App's commit identity as the reference does; run `bunx --package "renovate@${RENOVATE_VERSION}" renovate`.
 - `RENOVATE_VERSION` is a workflow `env` value under a `# renovate: datasource=npm depName=renovate` comment, set to the newest release at least 3 days old.
 - Environment for the run: `RENOVATE_TOKEN`, `RENOVATE_PLATFORM: github`, `RENOVATE_REPOSITORIES: ${{ github.repository }}`, `RENOVATE_ONBOARDING: 'false'`, `RENOVATE_REQUIRE_CONFIG: required`, `RENOVATE_GIT_AUTHOR`, `LOG_LEVEL: info`, and `RENOVATE_ALLOWED_COMMANDS: '["^uv run scripts/bake_hashes\\.py$"]'`.
-- Pass the App token to the post-upgrade command as `GITHUB_TOKEN`, using Renovate's option for custom environment variables of child processes. The script works without it, but anonymous API calls from shared runner addresses hit the rate limit.
+- Pass the App token to the post-upgrade command as `GITHUB_TOKEN`. Renovate gives child commands only a short fixed list of variables, and anonymous API calls from shared runner addresses hit the rate limit. Route it through `secrets`, as Renovate's docs require for secret values, and do not use `exposeAllEnv`:
+
+  ```yaml
+  RENOVATE_SECRETS: '{"APP_TOKEN": "${{ steps.app-token.outputs.token }}"}'
+  RENOVATE_CUSTOM_ENV_VARIABLES: '{"GITHUB_TOKEN": "{{ secrets.APP_TOKEN }}"}'
+  ```
+
+  This pairing set through environment variables is unverified until a real Renovate run; list it in Task 9's report.
 
 - [ ] **Step 3: Validate**
 
