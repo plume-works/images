@@ -11,8 +11,6 @@ We keep systemd as the only supervisor (ADR 0001) and hand the environment over 
 
 The whole environment is imported, not a named list. A named list would mean editing and pushing the Coder template to add a secret; importing everything means a user creates a Coder secret, restarts the workspace, and the services have it. It exposes nothing new: every terminal session in the workspace already has the same environment, and the services run as the same user.
 
-Validated by a prototype on a sysbox host (branch `prototype/startup-sequence`).
-
 ## Consequences
 
 - A new or rotated secret takes effect on workspace restart; running services keep the environment they started with.
