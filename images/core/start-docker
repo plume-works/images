@@ -34,6 +34,10 @@ else
       echo "an overlay filesystem): mount a volume at /var/lib/docker (Kubernetes: an emptyDir)." >&2
       exit 1
     fi
+    if [ ! -w /sys/fs/cgroup ]; then
+      echo "start-docker: /sys/fs/cgroup is read-only, so this container is not privileged: run it with --privileged (or sysbox)." >&2
+      exit 1
+    fi
     # cgroup v2: move this namespace's processes out of its root cgroup so dockerd
     # can enable every controller for its containers (as moby's hack/dind does).
     if [ -f /sys/fs/cgroup/cgroup.controllers ]; then

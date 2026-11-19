@@ -245,6 +245,6 @@ def test_start_docker_fails_within_its_timeout_when_unprivileged(image):
         elapsed = time.monotonic() - started
         assert result.returncode != 0, result.stdout + result.stderr
         assert elapsed < 30, f"took {elapsed:.1f}s"
-        assert result.stderr.strip(), f"failure not reported: stdout={result.stdout!r} stderr empty"
+        assert "--privileged" in result.stderr, f"stdout={result.stdout!r} stderr={result.stderr!r}"
         left = c.sh("pgrep -x dockerd")
         assert left.stdout.strip() == "", f"dockerd left behind: {left.stdout!r}"
