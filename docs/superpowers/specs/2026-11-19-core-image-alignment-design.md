@@ -21,7 +21,9 @@ never shown to Anton.
 ## Goals
 
 - The core image matches issue 4, except where this document says otherwise.
-- Every downloaded binary is anchored by something committed in this repo.
+- Every downloaded archive is checked against a sha256 committed in this repo,
+  and every copied image is pinned by digest. apt repositories and npm are
+  deliberate exceptions (see "Where each tool comes from").
 - No version changes without a pull request that passes the tests.
 - The tests are a pytest suite and cover what PR 18's smoke test covered.
 - A pull request publishes a testable `pr-N` image; `main` publishes `edge`.
@@ -51,6 +53,15 @@ document overrides it in these places, each decided by Anton in this session:
 | Python through `uv`, installed system-wide | Ubuntu's `python3` only | "swapping system python is a cry for problems"; users run `uv run` |
 | Hosted Renovate app, no Renovate workflow, no custom pinning scripts | Self-hosted Renovate with one post-upgrade script | Baked hashes must be updated and verified in the same commit |
 | Docs are README, glossary and ADRs, no plans | `docs/superpowers/` specs and plans are kept | The superpowers workflow is used for building |
+
+Both references are public and readable without `gh`:
+
+- issue 4: `curl -s https://api.github.com/repos/plume-works/images/issues/4`
+- PR 18: `git fetch origin pull/18/head:pr-18`
+
+Issue 4 does not settle these, so they are *(Claude's calls)*: no bare
+`python` command, only `python3`; no `WORKDIR`; `unzip` and `xz-utils` are not
+installed, since nothing needs them.
 
 `GLOSSARY.md` does not exist on this branch yet. The one term in scope is
 **Core image**; use PR 18's wording (`git show pr-18:GLOSSARY.md`, or fetch
@@ -111,6 +122,17 @@ Dockerfile copies, so tests and caches never enter the build context.
   applies.
 - Use the newest versions that are at least three days old when building this.
   *(Claude's call.)*
+- **The exceptions to anchoring, decided by Anton.** The vendor apt repos keep
+  fetching their signing key at build time, as today; "apt rules apply". Claude
+  Code has no hash in the repo; the exact version and the three-day wait are
+  the protection. The new ADR says so.
+- **If Claude Code from Bun cannot pass the tests** (bare, self-update off),
+  stop and ask Anton. Do not add Node.js or switch to the native binary
+  unasked. A check during design showed the Bun install runs without Node.
+- **User tool directories are not put on `PATH`.** The handoff suggests adding
+  `/home/dev/.local/bin` and `/home/dev/.bun/bin`. Anton dropped this: all
+  tools are system-wide, and home directories first on `PATH` would let a home
+  volume shadow the image's tools.
 
 ### Rules for the image
 
@@ -189,8 +211,20 @@ stay clear of Docker Hub's anonymous rate limit.
 - The tests reference it by digest. Renovate ignores it.
 - In CI the inner engine logs in to `ghcr.io` with the runner's token. Without
   a token (fork pull requests, a laptop) it pulls anonymously.
-- *(Claude's call)* The image and the token are test options, so the suite can
-  run against plain `hello-world` before the mirror exists.
+- The digest is Docker Hub's index digest for `hello-world`, which the copy
+  below preserves for both architectures. On 2026-11-19 it is
+  `sha256:1e4c05b897a751332ce85c7e9449da2d93514ea2dea6dbb0e2753c9e949b2bfa`.
+
+  ```sh
+  docker buildx imagetools create \
+    -t ghcr.io/plume-works/hello-world:latest \
+    hello-world@sha256:1e4c05b897a751332ce85c7e9449da2d93514ea2dea6dbb0e2753c9e949b2bfa
+  ```
+
+- *(Claude's calls)* The mirror by digest is the tests' default and what CI
+  uses. The image and the token are test options, so the suite can run against
+  plain `hello-world` locally before the mirror exists. CI's engine tests fail
+  until Anton has made the copy; ask him to do it before the first push.
 
 ### `uv` on the host
 
@@ -230,6 +264,14 @@ by default.
   pre-commit coupling, the dashboard-edit triggers, the Ansible pin managers.
 - Secrets: `RENOVATE_APP_CLIENT_ID`, `RENOVATE_APP_PRIVATE_KEY`.
 - The Renovate version is pinned and kept current by Renovate itself.
+- *(Claude's call)* Renovate runs directly on the runner, as
+  `bunx renovate@<version>` the way agent-devcontainer does, with Bun and `uv`
+  installed on the runner by pinned setup actions. The post-upgrade command
+  then runs on the runner, where `uv run` exists. Do not use a containerised
+  Renovate action: the script would run inside its container, without `uv`.
+- The reference repo is public: clone
+  `https://github.com/plume-works/agent-devcontainer` and read
+  `.github/workflows/renovate.yml` and `.github/renovate.json`.
 - Config is a root `renovate.json`. The file on `main` is the hosted app's
   default and is replaced; `.github/renovate.json` is removed.
 - ADR-0009's policy stays: every update waits 3 days, an `x.y.0` release waits
@@ -249,6 +291,10 @@ release it:
 
 If it refuses, the branch fails and nothing merges. Both upstreams publish
 immutable releases today.
+
+GitHub's release API returns `immutable` on the release and `digest` on each
+asset. Both repos are public, so the script works without a token; it uses one
+when the environment provides it, to avoid the anonymous rate limit.
 
 *(Claude's calls)* It is Python, run with `uv run`, lives under `scripts/`,
 and has pytest unit tests that fake GitHub's responses.
@@ -305,6 +351,7 @@ From earlier reviews:
 | `packages: write` on pull request builds | needed now, to publish `pr-N` |
 | No check that a pushed digest is non-empty | covered by the config digest check |
 | CI pulls `hello-world` anonymously | fixed by the GHCR mirror |
+| User tool directories on `PATH` (handoff) | dropped by Anton; all tools are system-wide |
 | `docker info` calls are not time-bounded | stays dismissed |
 | A non-numeric timeout gives no hint | stays dismissed |
 
