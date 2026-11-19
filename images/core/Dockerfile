@@ -129,7 +129,7 @@ RUN case "$(uname -m)" in x86_64) p=linux-x64 ;; aarch64) p=linux-arm64 ;; esac;
  && curl -fsSL "$base/manifest.json.sig" -o "$d/manifest.json.sig" \
  && export GNUPGHOME="$d/gnupg" && mkdir -m700 "$GNUPGHOME" \
  && curl -fsSL https://downloads.claude.ai/keys/claude-code.asc | gpg -q --import \
- && gpg --with-colons --fingerprint | grep -q '^fpr:::::::::31DDDE24DDFAB679F42D7BD2BAA929FF1A7ECACE:' \
+ && gpg --with-colons --fingerprint | grep '^fpr:::::::::31DDDE24DDFAB679F42D7BD2BAA929FF1A7ECACE:' >/dev/null \
  && gpg -q --verify "$d/manifest.json.sig" "$d/manifest.json" \
  && sum=$(grep -A3 "\"$p\"" "$d/manifest.json" | sed -n 's/.*"checksum": *"\([0-9a-f]\{64\}\)".*/\1/p') \
  && curl -fsSL "$base/$p/claude" -o "$d/claude" \
