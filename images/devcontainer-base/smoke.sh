@@ -26,6 +26,11 @@ devcontainer() {
     BUILDX_BUILDER=default bunx "@devcontainers/cli@$DEVCONTAINER_CLI_VERSION" "$@"
   fi
 }
+# Checked up front: without either, every devcontainer call exits 127 and the test stops with no message.
+if ! command -v npx >/dev/null && ! command -v bunx >/dev/null; then
+  echo "FAIL: neither npx nor bunx is on PATH; install Node or Bun to run the devcontainer CLI" >&2
+  exit 1
+fi
 
 ws=$(mktemp -d "${TMPDIR:-/tmp}/devcontainer-base-smoke.XXXXXX")
 mkdir "$ws/.devcontainer"
