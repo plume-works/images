@@ -37,6 +37,8 @@ def fetch_release(repo: str, tag: str) -> dict:
     try:
         with urllib.request.urlopen(request, timeout=30) as response:
             return json.load(response)
+    except ValueError as error:
+        raise Refused(f"GitHub sent a non-JSON answer for {repo} {tag}") from error
     except urllib.error.HTTPError as error:
         raise Refused(f"GitHub answered {error.code} for {repo} {tag}") from error
     except urllib.error.URLError as error:

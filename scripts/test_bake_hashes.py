@@ -63,6 +63,7 @@ def test_asks_for_the_right_tags():
 
 def test_leaves_other_lines_alone():
     result = bake(DOCKERFILE, fake_fetch())
+    assert len(result.splitlines()) == len(DOCKERFILE.splitlines())
     for old, new in zip(DOCKERFILE.splitlines(), result.splitlines()):
         if "_SHA256_" not in old:
             assert old == new
@@ -113,7 +114,6 @@ def test_main_leaves_the_file_untouched_on_refusal(tmp_path, monkeypatch, capsys
     path.write_bytes(DOCKERFILE.encode())
     monkeypatch.chdir(tmp_path)
     fetch = fake_fetch(**{"anomalyco/opencode": {"immutable": False}})
-    monkeypatch.setattr(bake_hashes, "fetch_release", fetch)
     monkeypatch.setattr(bake_hashes, "bake", lambda text: bake(text, fetch))
     assert bake_hashes.main() == 1
     assert path.read_bytes() == DOCKERFILE.encode()
@@ -127,3 +127,39 @@ def test_http_error_is_refused(monkeypatch):
     monkeypatch.setattr(bake_hashes.urllib.request, "urlopen", urlopen)
     with pytest.raises(Refused, match="403"):
         bake(DOCKERFILE)
+
+
+class FakeResponse(io.BytesIO):
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *exc):
+        return False
+
+
+@pytest.mark.parametrize(
+    "env, expected",
+    [({"GITHUB_TOKEN": "t0k"}, "Bearer t0k"), ({"GH_TOKEN": "g1t"}, "Bearer g1t"), ({}, None)],
+)
+def test_fetch_release_authorization(monkeypatch, env, expected):
+    monkeypatch.delenv("GITHUB_TOKEN", raising=False)
+    monkeypatch.delenv("GH_TOKEN", raising=False)
+    for key, value in env.items():
+        monkeypatch.setenv(key, value)
+    seen = []
+
+    def urlopen(request, *args, **kwargs):
+        seen.append(request.get_header("Authorization"))
+        return FakeResponse(b"{}")
+
+    monkeypatch.setattr(bake_hashes.urllib.request, "urlopen", urlopen)
+    bake_hashes.fetch_release("astral-sh/uv", "0.13.9")
+    assert seen == [expected]
+
+
+def test_non_json_body_is_refused(monkeypatch):
+    monkeypatch.setattr(
+        bake_hashes.urllib.request, "urlopen", lambda *a, **k: FakeResponse(b"<html>")
+    )
+    with pytest.raises(Refused, match="non-JSON"):
+        bake_hashes.fetch_release("astral-sh/uv", "0.13.9")
