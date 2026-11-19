@@ -75,3 +75,16 @@ RUN userdel --remove ubuntu \
 
 COPY --chmod=0755 start-docker /usr/local/bin/start-dockerd
 VOLUME /var/lib/docker
+
+# Nothing self-updates. The variables reach shells by three routes: the image's environment (a CI job container),
+# /etc/environment (PAM logins), and Claude Code's managed settings (even an empty environment).
+ENV DISABLE_AUTOUPDATER=1 DISABLE_UPDATES=1 OPENCODE_DISABLE_AUTOUPDATE=1
+RUN printf '%s\n' DISABLE_AUTOUPDATER=1 DISABLE_UPDATES=1 OPENCODE_DISABLE_AUTOUPDATE=1 >> /etc/environment \
+ && install -d /etc/claude-code \
+ && echo '{"env": {"DISABLE_AUTOUPDATER": "1", "DISABLE_UPDATES": "1"}}' > /etc/claude-code/managed-settings.json
+
+# git gets GitHub credentials from GH_TOKEN or GITHUB_TOKEN, through gh. The empty value resets any inherited helper.
+RUN for host in github.com gist.github.com; do \
+      git config --system "credential.https://${host}.helper" '' \
+   && git config --system --add "credential.https://${host}.helper" '!/usr/bin/gh auth git-credential'; \
+    done
