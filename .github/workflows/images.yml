@@ -132,7 +132,9 @@ jobs:
         run: |
           # This job runs only if every image passed on both architectures (needs: build). If the registry fails
           # partway, some images carry the new tag; re-run the job.
-          for img in $(.github/scripts/images.sh); do
+          # Assign first: a failed command substitution in a for list does not stop bash -e.
+          images=$(.github/scripts/images.sh)
+          for img in $images; do
             docker buildx imagetools create -t "$REGISTRY/$img:$TAG" \
               "$REGISTRY/$img@$(jq -r --arg i "$img" '.[$i]' "$RUNNER_TEMP/digests/amd64.json")" \
               "$REGISTRY/$img@$(jq -r --arg i "$img" '.[$i]' "$RUNNER_TEMP/digests/arm64.json")"
