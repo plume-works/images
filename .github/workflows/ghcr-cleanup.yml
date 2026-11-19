@@ -1,0 +1,60 @@
+# Clean up the images' packages in GHCR, once a day: delete the pr-N tag of every pull request closed (merged or
+# not) at least PR_TAG_DAYS days ago, on every image, with the images under it.
+#
+# Only images a deleted pr-N tag held go. Every other untagged image stays for now, because an image edge has
+# moved off is untagged too, and this cleanup cannot tell it from what a superseded or failed run left behind.
+# On a schedule, not when a pull request closes: a run still publishing when its pull request closes puts pr-N
+# back after an on-close cleanup, and only a later sweep finds it.
+# The image list comes from the bake file (.github/scripts/images.sh), so adding an image needs no change here.
+# Run it by hand with dry-run to see what it would delete.
+name: ghcr-cleanup
+
+on:
+  schedule:
+    - cron: '23 4 * * *'
+  workflow_dispatch:
+    inputs:
+      dry-run:
+        description: Only log what would be deleted
+        type: boolean
+        default: true
+
+permissions:
+  contents: read
+
+env:
+  PR_TAG_DAYS: 14
+
+jobs:
+  cleanup:
+    runs-on: ubuntu-26.04
+    permissions:
+      contents: read
+      packages: write
+      pull-requests: read
+    concurrency:
+      group: ghcr-cleanup  # the cleanup action is not safe to run in parallel on one package
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: List the images and the stale pr-N tags
+        id: list
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          images=$(.github/scripts/images.sh)
+          # shellcheck disable=SC2086 # one image per word
+          tags=$(.github/scripts/stale-pr-tags.sh "$PR_TAG_DAYS" $images)
+          echo "stale pr-N tags: ${tags:-none}"
+          echo "packages=$(paste -sd, - <<<"$images")" >> "$GITHUB_OUTPUT"
+          echo "tags=$tags" >> "$GITHUB_OUTPUT"
+
+      - name: Delete the stale pr-N tags
+        if: steps.list.outputs.tags != ''
+        uses: dataaxiom/ghcr-cleanup-action@v1
+        with:
+          packages: ${{ steps.list.outputs.packages }}
+          delete-tags: ${{ steps.list.outputs.tags }}
+          # Safety net: a pr-N index can share per-architecture images with edge.
+          exclude-tags: edge
+          dry-run: ${{ inputs.dry-run || false }}

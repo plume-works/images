@@ -14,7 +14,7 @@
 # So pr-N and edge move on all images or none: a failed smoke test on either architecture skips publish. If the
 # registry fails partway through tagging, re-run the job.
 # Pull requests from forks build and test only.
-# pr-N tags are deleted when the pull request closes (pr-cleanup.yml).
+# pr-N tags are deleted two weeks after the pull request closes (ghcr-cleanup.yml).
 name: images
 
 on:

@@ -15,8 +15,8 @@ commit, so CI, workspaces and dev containers always have the same toolchain.
 
 All four are published for `linux/amd64` and `linux/arm64`. The only tags are `edge` (the latest tested `main`;
 it moves on all four images together, and only when every image passes on both architectures) and `pr-N` (a pull
-request, deleted when it closes). There are no version tags: pin by tag and digest, `<image>:edge@sha256:<digest>`,
-and let Renovate propose digest bumps.
+request, deleted two weeks after it closes). There are no version tags: pin by tag and digest,
+`<image>:edge@sha256:<digest>`, and let Renovate propose digest bumps.
 
 **Not a goal for now:** an image deployed as a service that takes coding requests from agents. It is a known
 future image, but the four images above should not grow features in anticipation of it.
