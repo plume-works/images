@@ -21,11 +21,6 @@ terraform {
 }
 
 locals {
-  # The Coder template image, by tag and digest; Renovate proposes digest bumps.
-  # FIXME before the first push: the digest below is a placeholder (no image was published when this was written).
-  # Replace it with the digest of ghcr.io/plume-works/coder-template:edge, or merge Renovate's digest pull request.
-  image = "ghcr.io/plume-works/coder-template:edge@sha256:0000000000000000000000000000000000000000000000000000000000000000"
-
   # Where the repository is cloned: /home/dev/<repository name>.
   repo_dir = "/home/dev/${trimsuffix(basename(data.coder_parameter.repo_url.value), ".git")}"
 
@@ -138,9 +133,14 @@ resource "coder_app" "opencode" {
   }
 }
 
-# Pulled once per digest. Kept on the host when a workspace is deleted, because other workspaces use it too.
+# The Coder template image, by tag and digest. Pulled once per digest. Kept on the host when a workspace is deleted,
+# because other workspaces use it too.
 resource "docker_image" "main" {
-  name         = local.image
+  # Renovate proposes digest bumps: its terraform manager reads a docker_image name only as a literal string, so
+  # keep the reference here, not in a local or variable.
+  # FIXME before the first push: the digest below is a placeholder (no image was published when this was written).
+  # Replace it with the digest of ghcr.io/plume-works/coder-template:edge, or merge Renovate's digest pull request.
+  name         = "ghcr.io/plume-works/coder-template:edge@sha256:0000000000000000000000000000000000000000000000000000000000000000"
   keep_locally = true
 }
 
