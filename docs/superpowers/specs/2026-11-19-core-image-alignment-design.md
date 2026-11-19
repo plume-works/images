@@ -242,14 +242,13 @@ by default.
 - Each architecture builds and tests on its own native runner
   (`ubuntu-26.04`, `ubuntu-26.04-arm`), with a build cache per architecture.
 - Publishing happens only when both pass:
-  - a pull request from this repo publishes `pr-N`
+  - a pull request from this repo publishes `pr-N`, made from the two tested images pushed as `pr-N-amd64` and `pr-N-arm64`
   - a push to `main` moves `edge`
   - a pull request from a fork publishes nothing
-- The job fails if the pushed image's manifest digest differs from the tested
-  image's.
-- `edge` and `pr-N` are the only tags. The commit-SHA tag is dropped.
+- The image each job pushes is the tested one, loaded and tagged, not a rebuild.
+- Besides `edge` and `pr-N`, only the per-architecture `<tag>-<arch>` tags are published. The commit-SHA tag is dropped.
 
-**`pr-cleanup.yml`**: deletes `pr-N` when the pull request closes.
+**`pr-cleanup.yml`**: deletes `pr-N`, `pr-N-amd64` and `pr-N-arm64` when the pull request closes.
 
 **`lint.yml`**: hadolint, shellcheck and actionlint on every pull request.
 
@@ -349,7 +348,7 @@ From earlier reviews:
 | `start-dockerd` leaves the daemon running on timeout | fixed here |
 | `start-dockerd` overwrites its log | fixed here |
 | `packages: write` on pull request builds | needed now, to publish `pr-N` |
-| No check that a pushed digest is non-empty | covered by the manifest digest check |
+| No check that a pushed digest is non-empty | the push step fails on an empty digest |
 | CI pulls `hello-world` anonymously | fixed by the GHCR mirror |
 | User tool directories on `PATH` (handoff) | dropped by Anton; all tools are system-wide |
 | `docker info` calls are not time-bounded | stays dismissed |

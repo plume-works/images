@@ -4,7 +4,7 @@
 
 **Goal:** Bring the core image on `core-images-try2` in line with issue 4, fix the handoff defects, replace the shell test with a pytest suite, and move version upkeep to self-hosted Renovate with hashes baked into the Dockerfile.
 
-**Architecture:** This branch's Dockerfile is patched, not replaced. `uv` and OpenCode become GitHub release archives checked against sha256 values held in `ARG`s; one Python script fills those `ARG`s from GitHub's release API and is both the build-time helper and Renovate's post-upgrade command. Tests drive containers from the host with pytest; CI builds and tests per architecture, then publishes `pr-N` or `edge` only if the pushed image's manifest digest equals the tested one.
+**Architecture:** This branch's Dockerfile is patched, not replaced. `uv` and OpenCode become GitHub release archives checked against sha256 values held in `ARG`s; one Python script fills those `ARG`s from GitHub's release API and is both the build-time helper and Renovate's post-upgrade command. Tests drive containers from the host with pytest; CI builds and tests per architecture, then pushes each tested image and publishes `pr-N` or `edge` from the two.
 
 **Tech Stack:** Docker Buildx bake, Ubuntu 26.04, pytest through `uv`, GitHub Actions, Renovate (run with `bunx` on the runner).
 
@@ -445,17 +445,16 @@ Keep its triggers, top-level permissions, concurrency block and matrix. Add a wo
 1. Checkout.
 2. `docker/setup-buildx-action`.
 3. Read `UV_VERSION` from `images/core/Dockerfile` into a step output; `astral-sh/setup-uv` with that `version`.
-4. Build and load with `docker/bake-action` (`source: .`, target `core`), with `cache-from` and `cache-to` of `type=gha` scoped per architecture (`scope=core-<arch>`, `mode=max`). Keep its `metadata` output.
+4. Build and load once with `docker/bake-action` (`source: .`, target `core`), with `cache-from` and `cache-to` of `type=gha` scoped per architecture (`scope=core-<arch>`, `mode=max`).
 5. `uv run pytest`, with `GHCR_TOKEN` set to `github.token` only when `PUBLISH` is true.
-6. If `PUBLISH`: log in to GHCR, then bake again with the same cache settings, `tags=ghcr.io/plume-works/core` and `output=type=image,push-by-digest=true,name-canonical=true,push=true`.
-7. If `PUBLISH`: fail unless `containerimage.digest` (manifest) is non-empty in both metadata outputs and equal. Print both values.
-8. If `PUBLISH`: upload the pushed `containerimage.digest` as artifact `digest-<arch>`.
+6. If `PUBLISH`: log in to GHCR, then `docker tag` the loaded image as `ghcr.io/plume-works/core:<tag>-<arch>` and `docker push` it (no rebuild); take the manifest digest from the push output and fail if it is empty.
+7. If `PUBLISH`: upload the pushed digest as artifact `digest-<arch>`.
 
 Replace the `manifest` job with `publish`: `needs: build`, same `PUBLISH` condition, `packages: write`. It downloads both digests and runs one `docker buildx imagetools create -t ghcr.io/plume-works/core:<tag>` with both, where `<tag>` is `pr-<number>` for a pull request and `edge` otherwise. No commit-SHA tag.
 
 - [ ] **Step 2: Write `pr-cleanup.yml`**
 
-From `git show pr-18:.github/workflows/pr-cleanup.yml`, cut to one package: on `pull_request: closed`, same-repo only, `dataaxiom/ghcr-cleanup-action` with `packages: core`, `delete-tags: pr-<number>`, `exclude-tags: edge`, concurrency group `ghcr-cleanup`.
+From `git show pr-18:.github/workflows/pr-cleanup.yml`, cut to one package: on `pull_request: closed`, same-repo only, `dataaxiom/ghcr-cleanup-action` with `packages: core`, `delete-tags: pr-<number>,pr-<number>-amd64,pr-<number>-arm64`, `exclude-tags: edge*`, concurrency group `ghcr-cleanup`.
 
 - [ ] **Step 3: Write `lint.yml` and `.hadolint.yaml`**
 
@@ -476,7 +475,7 @@ Expected: all three exit 0. A finding is fixed in the file, not ignored, unless 
 Run: `docker buildx bake core && uv run pytest -v` (lint fixes may have touched the Dockerfile or the script). Expected: PASS.
 
 ```sh
-git add -A && git commit -m "Publish pr-N and edge only when the pushed image is the tested one; add lint and cleanup"
+git add -A && git commit -m "Publish pr-N and edge from the tested images; add lint and cleanup"
 ```
 
 ---

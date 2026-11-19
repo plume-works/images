@@ -1,5 +1,6 @@
-# Each architecture builds and tests the Core image on a native runner. pr-N (same-repo pull request) or edge
-# (main) is published only if both pass and the pushed image has the tested image's manifest digest.
+# Each architecture builds and tests the Core image on a native runner, then pushes that very image as
+# <tag>-<arch> (pr-N for a same-repo pull request, edge for main). The publish job joins both architectures' digests
+# into <tag>, only if both passed.
 name: build
 
 on:
@@ -18,6 +19,8 @@ concurrency:
 env:
   # Same-repository pull requests and main publish; fork pull requests and manual runs on other branches do not.
   PUBLISH: ${{ (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository) || (github.event_name != 'pull_request' && github.ref == 'refs/heads/main') }}
+  # Tag of the published image; the build jobs push ${TAG}-<arch>, the publish job joins them into ${TAG}.
+  TAG: ${{ github.event_name == 'pull_request' && format('pr-{0}', github.event.pull_request.number) || 'edge' }}
 
 jobs:
   build:
@@ -46,7 +49,6 @@ jobs:
         with:
           version: ${{ steps.uv.outputs.version }}
       - name: Build and load
-        id: build
         uses: docker/bake-action@59cb1203cd42bcefd40a1b6d73b589e48c86040e # v7.5.0
         with:
           source: .
@@ -65,46 +67,20 @@ jobs:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
-      - name: Push by digest
-        id: push
-        if: env.PUBLISH == 'true'
-        uses: docker/bake-action@59cb1203cd42bcefd40a1b6d73b589e48c86040e # v7.5.0
-        with:
-          source: .
-          targets: core
-          set: |
-            core.cache-from=type=gha,scope=core-${{ matrix.arch }}
-            core.cache-to=type=gha,scope=core-${{ matrix.arch }},mode=max
-            core.tags=ghcr.io/plume-works/core
-            core.output=type=image,push-by-digest=true,name-canonical=true,push=true
-      - name: Check the pushed image is the tested one
-        if: env.PUBLISH == 'true'
-        env:
-          TESTED: ${{ steps.build.outputs.metadata }}
-          PUSHED: ${{ steps.push.outputs.metadata }}
-        run: |
-          tested=$(jq -r '.core["containerimage.digest"] // empty' <<<"$TESTED")
-          pushed=$(jq -r '.core["containerimage.digest"] // empty' <<<"$PUSHED")
-          media=$(jq -r '.core["containerimage.descriptor"].mediaType // empty' <<<"$PUSHED")
-          echo "tested manifest digest: $tested"
-          echo "pushed manifest digest: $pushed"
-          echo "pushed mediaType: $media"
-          if [ -z "$tested" ] || [ -z "$pushed" ] || [ "$tested" != "$pushed" ]; then
-            echo "::error::the pushed image is not the tested image"
-            exit 1
-          fi
-          case "$media" in
-            *manifest.v1+json) ;;
-            *) echo "::error::the pushed descriptor is not a single-image manifest"; exit 1 ;;
-          esac
-      - name: Save the pushed digest
+      - name: Push the tested image
         if: env.PUBLISH == 'true'
         env:
           ARCH: ${{ matrix.arch }}
-          PUSHED: ${{ steps.push.outputs.metadata }}
         run: |
+          docker tag ghcr.io/plume-works/core:edge "ghcr.io/plume-works/core:${TAG}-${ARCH}"
+          docker push "ghcr.io/plume-works/core:${TAG}-${ARCH}" | tee push.log
+          digest=$(sed -n 's/.*digest: \(sha256:[0-9a-f]\{64\}\).*/\1/p' push.log | tail -n 1)
+          if [ -z "$digest" ]; then
+            echo "::error::no digest in the push output"
+            exit 1
+          fi
           mkdir -p digests
-          jq -r '.core["containerimage.digest"]' <<<"$PUSHED" > "digests/${ARCH}"
+          echo "$digest" > "digests/${ARCH}"
       - name: Upload digest
         if: env.PUBLISH == 'true'
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
@@ -134,8 +110,6 @@ jobs:
           path: digests
           merge-multiple: true
       - name: Create manifest
-        env:
-          TAG: ${{ github.event_name == 'pull_request' && format('pr-{0}', github.event.pull_request.number) || 'edge' }}
         run: |
           docker buildx imagetools create \
             -t "ghcr.io/plume-works/core:${TAG}" \

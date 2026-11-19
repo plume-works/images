@@ -1,4 +1,4 @@
-# Delete a pull request's pr-N tag when the pull request closes (merged or not).
+# Delete a pull request's pr-N, pr-N-amd64 and pr-N-arm64 tags when the pull request closes (merged or not).
 name: pr-cleanup
 
 on:
@@ -22,6 +22,6 @@ jobs:
       - uses: dataaxiom/ghcr-cleanup-action@d52806a0dc70b430571a37da1fde39733ffd640f # v1.2.2
         with:
           packages: core
-          delete-tags: pr-${{ github.event.pull_request.number }}
-          # Safety net: a pr-N index can share per-architecture images with edge.
-          exclude-tags: edge
+          delete-tags: pr-${{ github.event.pull_request.number }},pr-${{ github.event.pull_request.number }}-amd64,pr-${{ github.event.pull_request.number }}-arm64
+          # Safety net: a pr-N image can share per-architecture images with edge.
+          exclude-tags: edge*

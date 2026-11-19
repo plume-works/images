@@ -6,7 +6,7 @@ Container images for Plume Works development environments. Each image lives in i
 |---|---|
 | `core` | `ghcr.io/plume-works/core:edge` |
 
-A pull request from this repo publishes `ghcr.io/plume-works/core:pr-N` (removed when the PR closes); `main` publishes `edge`. Nothing else is tagged.
+A pull request from this repo publishes `ghcr.io/plume-works/core:pr-N` (removed when the PR closes); `main` publishes `edge`. Each architecture pushes the image it tested as `<tag>-<arch>`, and `<tag>` is made from the two. Nothing else is tagged.
 
 ## Build and test locally
 
