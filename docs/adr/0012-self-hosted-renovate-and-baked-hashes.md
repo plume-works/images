@@ -19,8 +19,12 @@ Two exceptions are deliberate:
 - Vendor apt repos (gh, Docker) fetch their signing key at build time, as apt
   rules have it, and float.
 - Claude Code from npm has no hash here. Its exact version and the 3-day wait
-  of ADR-0009 are the protection, since npm stops allowing a version to be
-  removed after three days.
+  of ADR-0009 are the protection. npm never lets a `package@version` be
+  published twice, so an exact version cannot be swapped for other bytes, and
+  a version can be unpublished freely only in its first 72 hours, which the
+  3-day wait outlasts. After that, a package as widely used as Claude Code
+  cannot be unpublished
+  ([npm unpublish policy](https://docs.npmjs.com/policies/unpublish)).
 
 ## Considered Options
 

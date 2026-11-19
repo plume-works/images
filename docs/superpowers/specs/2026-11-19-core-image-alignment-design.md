@@ -117,9 +117,10 @@ Dockerfile copies, so tests and caches never enter the build context.
   names and layout, as long as the post-upgrade script can find them.)*
 - OpenCode moves from 1.19 to the 2.x line. Its npm package (`@opencode/cli`)
   does not install under Bun, which is why it is a release archive.
-- Claude Code keeps today's Bun install into `/usr/local`. npm stops allowing a
-  version to be removed after three days, which is the same wait Renovate
-  applies.
+- Claude Code keeps today's Bun install into `/usr/local`. npm never reuses a
+  version number, and allows a free unpublish only within 72 hours, which the
+  3-day Renovate wait outlasts
+  ([npm unpublish policy](https://docs.npmjs.com/policies/unpublish)).
 - Use the newest versions that are at least three days old when building this.
   *(Claude's call.)*
 - **The exceptions to anchoring, decided by Anton.** The vendor apt repos keep
