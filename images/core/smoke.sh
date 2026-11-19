@@ -149,17 +149,36 @@ docker run --rm --memory 64m hello-world >/dev/null || fail "a container with a 
 pass "the engine runs a container to completion, as root and as dev"
 CHECKS
 
+# refuses WHY PATTERN DOCKER-RUN-ARGS...: start-docker, run in a container made from these arguments, fails,
+# and its output matches PATTERN. WHY describes the setup, for the failure message.
+refuses() {
+  local why=$1 pattern=$2 out
+  shift 2
+  if out=$(docker run --rm "$@" 2>&1); then
+    echo "FAIL: start-docker succeeded $why" >&2
+    exit 1
+  fi
+  grep -E -- "$pattern" <<<"$out" >/dev/null || {
+    echo "FAIL: start-docker failed $why, but did not say why: $out" >&2
+    exit 1
+  }
+}
+
 # A runtime that ignores the image's declared volumes (Kubernetes does) leaves the engine's storage on the
 # container's overlay filesystem, where containers cannot start: start-docker must fail and say how to fix it.
 # Docker always honours a declared volume, so the check unmounts it, uncovering the image's own directory.
-if out=$(docker run --rm --privileged "$image" sh -c 'umount /var/lib/docker && exec start-docker' 2>&1); then
-  echo "FAIL: start-docker succeeded with /var/lib/docker on the container's overlay filesystem" >&2
-  exit 1
-fi
-grep -q -- 'mount a volume at /var/lib/docker' <<<"$out" || {
-  echo "FAIL: start-docker failed without naming the missing volume: $out" >&2
-  exit 1
-}
+refuses "with /var/lib/docker on the container's overlay filesystem" 'mount a volume at /var/lib/docker' \
+  --privileged "$image" sh -c 'umount /var/lib/docker && exec start-docker'
 echo "ok: start-docker refuses to run with its storage on the overlay filesystem, and says so"
+
+# Without --privileged (or sysbox) the engine cannot run: start-docker must say so, not wait out its timeout.
+refuses "in a container that is not privileged" 'run it with --privileged' "$image" start-docker
+echo "ok: start-docker refuses to run in a container that is not privileged, and says so"
+
+# A dockerd that exits at once (here: a broken daemon.json) fails start-docker at once, and it says so.
+# The outer timeout is well under START_DOCKER_TIMEOUT's 60 s, so waiting it out fails with no message.
+refuses "with a dockerd that exits at once" 'dockerd exited before the engine was ready' \
+  --privileged "$image" sh -c 'mkdir -p /etc/docker && echo "{" >/etc/docker/daemon.json && exec timeout 20 start-docker'
+echo "ok: start-docker fails at once when dockerd exits, and says so"
 
 echo "core smoke test passed: $image"
