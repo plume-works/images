@@ -11,9 +11,9 @@
 # A script that starts the container itself (docker run, privileged: hosted runners have no sysbox) calls
 #   smoke_init <prefix>   to name the container, and remove it and its anonymous volumes on exit
 #   boot [again]          to start it (again: the stopped one) and wait for a running system with no failed units
+# and runs commands in it with in_container. The cleanup on exit runs an optional `cleanup_extra` function too.
 # The container gets no volume flags: the inner engine's storage is the image's declared (anonymous) volumes,
 # which a stopped container keeps when it starts again.
-# and runs commands in it with in_container. The cleanup on exit runs an optional `cleanup_extra` function too.
 
 container=""
 
