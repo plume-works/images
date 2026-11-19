@@ -122,16 +122,20 @@ RUN d=$(mktemp -d) \
 
 # Claude Code: the native binary from Anthropic's release bucket, checked against the GPG-signed manifest.
 # (The official installer puts it under ~/.local, and the npm package needs Node.js.)
+# The keyfile may hold more keys than the pinned one, and gpg --verify accepts a good signature from any of
+# them, so the signer is checked: the last field of the VALIDSIG status line is the signing key's primary
+# fingerprint, whether the primary key or a subkey made the signature.
 # renovate: datasource=npm depName=@anthropic-ai/claude-code
 ARG CLAUDE_CODE_VERSION=2.1.327
 RUN case "$(uname -m)" in x86_64) p=linux-x64 ;; aarch64) p=linux-arm64 ;; esac; d=$(mktemp -d) \
+ && fpr=31DDDE24DDFAB679F42D7BD2BAA929FF1A7ECACE \
  && base="https://downloads.claude.ai/claude-code-releases/${CLAUDE_CODE_VERSION}" \
  && curl -fsSL "$base/manifest.json" -o "$d/manifest.json" \
  && curl -fsSL "$base/manifest.json.sig" -o "$d/manifest.json.sig" \
  && export GNUPGHOME="$d/gnupg" && mkdir -m700 "$GNUPGHOME" \
  && curl -fsSL https://downloads.claude.ai/keys/claude-code.asc | gpg -q --import \
- && gpg --with-colons --fingerprint | grep '^fpr:::::::::31DDDE24DDFAB679F42D7BD2BAA929FF1A7ECACE:' >/dev/null \
- && gpg -q --verify "$d/manifest.json.sig" "$d/manifest.json" \
+ && gpg -q --status-fd 1 --verify "$d/manifest.json.sig" "$d/manifest.json" > "$d/gpg-status" \
+ && awk -v k="$fpr" '$2 == "VALIDSIG" && $NF == k { ok = 1 } END { exit !ok }' "$d/gpg-status" \
  && sum=$(jq -r --arg p "$p" '.platforms[$p].checksum // empty' "$d/manifest.json") \
  && curl -fsSL "$base/$p/claude" -o "$d/claude" \
  && echo "${sum:?no checksum for $p}  $d/claude" | sha256sum -c - \
