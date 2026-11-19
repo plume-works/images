@@ -144,10 +144,19 @@ resource "docker_image" "main" {
   keep_locally = true
 }
 
-# The only state that persists: home, and the inner Docker engine's storage (containerd's included). Never
-# replaced or deleted by a template change; deleted with the workspace.
-resource "docker_volume" "home" {
-  name = "coder-${data.coder_workspace.me.id}-home"
+# The only state that persists: home, and the inner Docker engine's storage (containerd's included), each in a
+# volume mounted at the path below. Never replaced or deleted by a template change; deleted with the workspace.
+locals {
+  state_volumes = {
+    home       = "/home/dev"
+    docker     = "/var/lib/docker"
+    containerd = "/var/lib/containerd"
+  }
+}
+
+resource "docker_volume" "state" {
+  for_each = local.state_volumes
+  name     = "coder-${data.coder_workspace.me.id}-${each.key}"
   lifecycle {
     ignore_changes = all
   }
@@ -165,42 +174,19 @@ resource "docker_volume" "home" {
   }
 }
 
-resource "docker_volume" "docker" {
-  name = "coder-${data.coder_workspace.me.id}-docker"
-  lifecycle {
-    ignore_changes = all
-  }
-  labels {
-    label = "coder.owner"
-    value = data.coder_workspace_owner.me.name
-  }
-  labels {
-    label = "coder.owner_id"
-    value = data.coder_workspace_owner.me.id
-  }
-  labels {
-    label = "coder.workspace_id"
-    value = data.coder_workspace.me.id
-  }
+# The volumes had one resource each before: without these, Terraform would replace them, home included, in every
+# workspace made from an earlier version of this template.
+moved {
+  from = docker_volume.home
+  to   = docker_volume.state["home"]
 }
-
-resource "docker_volume" "containerd" {
-  name = "coder-${data.coder_workspace.me.id}-containerd"
-  lifecycle {
-    ignore_changes = all
-  }
-  labels {
-    label = "coder.owner"
-    value = data.coder_workspace_owner.me.name
-  }
-  labels {
-    label = "coder.owner_id"
-    value = data.coder_workspace_owner.me.id
-  }
-  labels {
-    label = "coder.workspace_id"
-    value = data.coder_workspace.me.id
-  }
+moved {
+  from = docker_volume.docker
+  to   = docker_volume.state["docker"]
+}
+moved {
+  from = docker_volume.containerd
+  to   = docker_volume.state["containerd"]
 }
 
 # Recreated at every start, so everything outside the three volumes comes fresh from the image.
@@ -239,20 +225,13 @@ resource "docker_container" "workspace" {
     ip   = "host-gateway"
   }
 
-  volumes {
-    container_path = "/home/dev"
-    volume_name    = docker_volume.home.name
-    read_only      = false
-  }
-  volumes {
-    container_path = "/var/lib/docker"
-    volume_name    = docker_volume.docker.name
-    read_only      = false
-  }
-  volumes {
-    container_path = "/var/lib/containerd"
-    volume_name    = docker_volume.containerd.name
-    read_only      = false
+  dynamic "volumes" {
+    for_each = local.state_volumes
+    content {
+      container_path = volumes.value
+      volume_name    = docker_volume.state[volumes.key].name
+      read_only      = false
+    }
   }
 
   labels {
