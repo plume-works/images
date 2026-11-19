@@ -5,7 +5,8 @@ FROM ubuntu:26.04@sha256:d66b366dac61b575bee2aef07e9c26e8070096fbe84a3d4d3eb0da0
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 
 # apt packages float within the Ubuntu release at build time (Git included);
-# everything else below is pinned by version. jq is an interactive convenience (see the admission rule below).
+# everything else below is pinned by version. jq is an interactive convenience (see the admission rule below),
+# and reads the Claude Code release manifest below.
 # hadolint ignore=DL3008
 RUN apt-get update \
  && apt-get install -y --no-install-recommends ca-certificates curl git gnupg jq sudo unzip xz-utils \
@@ -131,7 +132,7 @@ RUN case "$(uname -m)" in x86_64) p=linux-x64 ;; aarch64) p=linux-arm64 ;; esac;
  && curl -fsSL https://downloads.claude.ai/keys/claude-code.asc | gpg -q --import \
  && gpg --with-colons --fingerprint | grep '^fpr:::::::::31DDDE24DDFAB679F42D7BD2BAA929FF1A7ECACE:' >/dev/null \
  && gpg -q --verify "$d/manifest.json.sig" "$d/manifest.json" \
- && sum=$(grep -A3 "\"$p\"" "$d/manifest.json" | sed -n 's/.*"checksum": *"\([0-9a-f]\{64\}\)".*/\1/p') \
+ && sum=$(jq -r --arg p "$p" '.platforms[$p].checksum // empty' "$d/manifest.json") \
  && curl -fsSL "$base/$p/claude" -o "$d/claude" \
  && echo "${sum:?no checksum for $p}  $d/claude" | sha256sum -c - \
  && install -m0755 "$d/claude" /usr/local/bin/claude \
