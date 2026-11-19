@@ -1,6 +1,38 @@
 {
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
   "extends": [
-    "config:recommended"
+    "config:recommended",
+    "docker:pinDigests",
+    "helpers:pinGitHubActionDigests",
+    "customManagers:dockerfileVersions",
+    "customManagers:githubActionsVersions"
+  ],
+  "minimumReleaseAge": "3 days",
+  "packageRules": [
+    {
+      "matchPackageNames": ["*"],
+      "automerge": true,
+      "automergeType": "pr",
+      "platformAutomerge": true
+    },
+    {
+      "matchNewValue": "/\\.0$/",
+      "minimumReleaseAge": "10 days"
+    },
+    {
+      "matchDatasources": ["docker"],
+      "matchDepNames": ["ubuntu"],
+      "matchUpdateTypes": ["major", "minor"],
+      "enabled": false
+    },
+    {
+      "description": "A new uv or OpenCode release needs its baked archive hashes refilled in the same commit",
+      "matchDepNames": ["astral-sh/uv", "anomalyco/opencode"],
+      "postUpgradeTasks": {
+        "commands": ["uv run scripts/bake_hashes.py"],
+        "fileFilters": ["images/core/Dockerfile"],
+        "executionMode": "branch"
+      }
+    }
   ]
 }

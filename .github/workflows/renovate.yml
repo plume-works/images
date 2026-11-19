@@ -1,0 +1,79 @@
+name: Renovate
+
+on:
+  schedule:
+    - cron: '17 3 * * *'
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  # renovate: datasource=npm depName=renovate
+  RENOVATE_VERSION: 44.239.2
+
+jobs:
+  renovate:
+    name: Renovate
+    # Queue rather than cancel: a run cut short mid-branch leaves half-pushed updates.
+    concurrency:
+      group: ${{ github.workflow }}
+      cancel-in-progress: false
+    runs-on: ubuntu-26.04
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+      # The post-upgrade command runs on the runner, so it needs uv.
+      - name: Read the uv version
+        id: uv
+        run: echo "version=$(sed -n 's/^ARG UV_VERSION=//p' images/core/Dockerfile)" >> "$GITHUB_OUTPUT"
+      - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
+        with:
+          version: ${{ steps.uv.outputs.version }}
+
+      # A pull request opened with GITHUB_TOKEN starts no workflows, so Renovate
+      # authenticates as its GitHub App. The post-upgrade command runs with this token.
+      - name: Create GitHub App token
+        id: app-token
+        uses: actions/create-github-app-token@f418cff399f7aef4c2f0ad47e25ca7a6abbdd6fc # v3.4.0
+        with:
+          client-id: ${{ secrets.RENOVATE_APP_CLIENT_ID }}
+          private-key: ${{ secrets.RENOVATE_APP_PRIVATE_KEY }}
+          permission-contents: write
+          permission-pull-requests: write
+          permission-issues: write
+          permission-workflows: write
+          permission-checks: write
+          permission-statuses: write
+          permission-administration: read
+          permission-vulnerability-alerts: read
+
+      - name: Resolve the App's commit identity
+        id: author
+        env:
+          APP_SLUG: ${{ steps.app-token.outputs.app-slug }}
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+        run: |
+          id=$(gh api "/users/${APP_SLUG}%5Bbot%5D" --jq .id)
+          echo "git-author=${APP_SLUG}[bot] <${id}+${APP_SLUG}[bot]@users.noreply.github.com>" >> "$GITHUB_OUTPUT"
+
+      - name: Run Renovate
+        env:
+          RENOVATE_TOKEN: ${{ steps.app-token.outputs.token }}
+          RENOVATE_PLATFORM: github
+          RENOVATE_REPOSITORIES: ${{ github.repository }}
+          RENOVATE_ONBOARDING: 'false'
+          RENOVATE_REQUIRE_CONFIG: required
+          RENOVATE_GIT_AUTHOR: ${{ steps.author.outputs.git-author }}
+          LOG_LEVEL: info
+          RENOVATE_ALLOWED_COMMANDS: '["^uv run scripts/bake_hashes\\.py$"]'
+          # Renovate gives post-upgrade commands only a short fixed list of variables;
+          # the token lifts the anonymous GitHub API rate limit for bake_hashes.py.
+          RENOVATE_SECRETS: '{"APP_TOKEN": "${{ steps.app-token.outputs.token }}"}'
+          RENOVATE_CUSTOM_ENV_VARIABLES: '{"GITHUB_TOKEN": "{{ secrets.APP_TOKEN }}"}'
+        run: bunx --package "renovate@${RENOVATE_VERSION}" renovate
