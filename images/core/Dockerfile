@@ -88,5 +88,6 @@ RUN printf '%s\n' DISABLE_AUTOUPDATER=1 DISABLE_UPDATES=1 OPENCODE_DISABLE_AUTOU
 # git gets GitHub credentials from GH_TOKEN or GITHUB_TOKEN, through gh. The empty value resets any inherited helper.
 RUN for host in github.com gist.github.com; do \
       git config --system "credential.https://${host}.helper" '' \
-   && git config --system --add "credential.https://${host}.helper" '!/usr/bin/gh auth git-credential'; \
+   && git config --system --add "credential.https://${host}.helper" '!/usr/bin/gh auth git-credential' \
+   || exit 1; \
     done

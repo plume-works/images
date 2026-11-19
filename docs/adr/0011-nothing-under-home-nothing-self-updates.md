@@ -8,7 +8,7 @@ then shadows every newer image. So `core` installs every tool outside the homes
 
 For the same reason a version changes only through a pull request that passes
 the tests, never by a tool updating itself. Self-update is turned off for
-Claude Code and OpenCode in three places, so no way into a shell misses it:
+Claude Code in three places, so no way into a shell misses it (the first two also cover OpenCode):
 
 - the image's `ENV`, for CI job containers and `docker run` or `exec`
 - `/etc/environment`, for `su -l` and SSH logins

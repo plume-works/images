@@ -7,7 +7,7 @@ pytestmark = pytest.mark.privileged
 
 def test_engine_answers(engine):
     result = engine.sh("docker info")
-    assert result.returncode == 0, result.stderr
+    assert result.returncode == 0, f"exit {result.returncode}: {result.stdout!r} {result.stderr!r}"
 
 
 def test_second_call_keeps_the_same_daemon(engine):
@@ -26,12 +26,12 @@ def test_dev_uses_the_engine_without_sudo(engine, inner_image):
 
 def test_container_with_a_memory_limit_runs(engine, inner_image):
     result = engine.sh(f"docker run --rm --memory 64m {inner_image}")
-    assert result.returncode == 0, result.stdout + result.stderr
+    assert result.returncode == 0, f"exit {result.returncode}: {result.stdout!r} {result.stderr!r}"
 
 
 def test_docker_storage_is_a_mount(engine):
     result = engine.sh("findmnt /var/lib/docker")
-    assert result.returncode == 0, result.stdout + result.stderr
+    assert result.returncode == 0, f"exit {result.returncode}: {result.stdout!r} {result.stderr!r}"
 
 
 def test_log_is_appended(engine):
