@@ -11,13 +11,12 @@ group "default" {
 }
 
 target "core" {
-  context = "core"
+  context = "images/core"
   tags    = ["${REGISTRY}/core:${TAG}"]
   output  = ["type=docker"]
   labels = {
     "org.opencontainers.image.title"       = "core"
     "org.opencontainers.image.description" = "Host-neutral base image with dev tools for plume-works images"
     "org.opencontainers.image.source"      = "https://github.com/plume-works/images"
-    "org.opencontainers.image.version"     = ""
   }
 }

@@ -10,10 +10,10 @@ Container images for Plume Works development environments. Each image lives in i
 
 ```sh
 docker buildx bake core
-core/test.sh ghcr.io/plume-works/core:edge
+uv run pytest images/core
 ```
 
-`core/test.sh <image> [tools|docker]` runs one group of checks; the `docker` group starts privileged containers, so the host's Docker must allow them.
+`uv run pytest images/core` tests the built image (`--image` picks another). Tests that start a daemon need a host whose Docker allows privileged containers.
 
 ## Docker inside a container
 

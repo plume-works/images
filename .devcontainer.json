@@ -17,7 +17,7 @@
 	// "forwardPorts": [],
 
 	// Use 'postCreateCommand' to run commands after the container is created.
-	// "postCreateCommand": "uname -a",
+	"postCreateCommand": "sh -c 'curl -LsSf https://astral.sh/uv/$(sed -n s/^ARG.UV_VERSION=//p images/core/Dockerfile)/install.sh | sh'",
 
 	// Configure tool-specific properties.
 	"customizations": {

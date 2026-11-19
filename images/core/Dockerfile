@@ -53,7 +53,7 @@ RUN groupmod -n dev ubuntu \
  && echo 'dev ALL=(ALL) NOPASSWD:ALL' > /etc/sudoers.d/dev \
  && chmod 0440 /etc/sudoers.d/dev
 
-COPY --chmod=0755 start-dockerd /usr/local/bin/start-dockerd
+COPY --chmod=0755 start-docker /usr/local/bin/start-dockerd
 VOLUME /var/lib/docker
 
 USER dev
