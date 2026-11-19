@@ -1,6 +1,6 @@
 # The Docker daemon is opt-in, and core has no entrypoint
 
-`core` installs the Docker engine and one script, `start-dockerd`, that nothing
+`core` installs the Docker engine and one script, `start-docker`, that nothing
 calls by default. An image that wants Docker calls it from its own startup, so
 the daemon logic exists once and images that don't need Docker don't have to
 run privileged.
