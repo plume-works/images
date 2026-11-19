@@ -19,8 +19,8 @@ concurrency:
 env:
   # Same-repository pull requests and main publish; fork pull requests and manual runs on other branches do not.
   PUBLISH: ${{ (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository) || (github.event_name != 'pull_request' && github.ref == 'refs/heads/main') }}
-  # Tag of the published image; the build jobs push ${TAG}-<arch>, the publish job joins them into ${TAG}.
-  TAG: ${{ github.event_name == 'pull_request' && format('pr-{0}', github.event.pull_request.number) || 'edge' }}
+  # Tag of the published image (not TAG: docker-bake.hcl reads that); the build jobs push ${PUBLISH_TAG}-<arch>, the publish job joins them into ${PUBLISH_TAG}.
+  PUBLISH_TAG: ${{ github.event_name == 'pull_request' && format('pr-{0}', github.event.pull_request.number) || 'edge' }}
 
 jobs:
   build:
@@ -72,8 +72,8 @@ jobs:
         env:
           ARCH: ${{ matrix.arch }}
         run: |
-          docker tag ghcr.io/plume-works/core:edge "ghcr.io/plume-works/core:${TAG}-${ARCH}"
-          docker push "ghcr.io/plume-works/core:${TAG}-${ARCH}" | tee push.log
+          docker tag ghcr.io/plume-works/core:edge "ghcr.io/plume-works/core:${PUBLISH_TAG}-${ARCH}"
+          docker push "ghcr.io/plume-works/core:${PUBLISH_TAG}-${ARCH}" | tee push.log
           digest=$(sed -n 's/.*digest: \(sha256:[0-9a-f]\{64\}\).*/\1/p' push.log | tail -n 1)
           if [ -z "$digest" ]; then
             echo "::error::no digest in the push output"
@@ -112,6 +112,6 @@ jobs:
       - name: Create manifest
         run: |
           docker buildx imagetools create \
-            -t "ghcr.io/plume-works/core:${TAG}" \
+            -t "ghcr.io/plume-works/core:${PUBLISH_TAG}" \
             "ghcr.io/plume-works/core@$(cat digests/amd64)" \
             "ghcr.io/plume-works/core@$(cat digests/arm64)"
