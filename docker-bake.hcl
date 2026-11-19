@@ -10,23 +10,30 @@
 #   contexts = { parent = "target:<parent-name>" }
 # so it is built on this commit's parent straight from the builder, never on a published tag.
 #
-# Local use: `docker buildx bake --load`, then `images/<name>/smoke.sh ghcr.io/plume-works/<name>:ci`.
+# Local use: `docker buildx bake`, then `images/<name>/smoke.sh ghcr.io/plume-works/<name>:ci`.
 
 variable "REGISTRY" { default = "ghcr.io/plume-works" }
-# CI sets PUSH=true for the second, publishing pass (a cache hit, so the pushed bits are the tested bits).
+# CI sets PUSH=true when it publishes. The one build then also pushes each image by digest, untagged, alongside
+# loading it for the smoke tests: one build, two outputs, so the pushed bits are the tested bits by construction.
+# Nothing is tagged here; the publish job tags the digests only after every smoke test on both architectures passed.
 variable "PUSH" { default = false }
 # CI sets linux/amd64 or linux/arm64; empty means the builder's native platform.
 variable "PLATFORM" { default = "" }
 
+# The local :ci tag the smoke scripts use. Set as the docker output's name, not as `tags`: bake would add `tags`
+# to the push output too, and a tagged name cannot be pushed by digest.
 function "img" {
   params = [name]
-  # Test pass: a local :ci tag the smoke scripts use. Publish pass: the bare repository, pushed by digest.
-  result = PUSH ? "${REGISTRY}/${name}" : "${REGISTRY}/${name}:ci"
+  result = "${REGISTRY}/${name}:ci"
 }
 
+# Always load into the local engine for the smoke tests; with PUSH, also push the same build by digest.
 function "out" {
-  params = []
-  result = PUSH ? ["type=image,push-by-digest=true,name-canonical=true,push=true"] : ["type=docker"]
+  params = [name]
+  result = concat(
+    ["type=docker,name=${img(name)}"],
+    PUSH ? ["type=image,name=${REGISTRY}/${name},push-by-digest=true,name-canonical=true,push=true"] : []
+  )
 }
 
 group "default" {
@@ -35,14 +42,13 @@ group "default" {
 
 target "_common" {
   platforms = PLATFORM == "" ? [] : [PLATFORM]
-  output    = out()
   labels    = { "org.opencontainers.image.source" = "https://github.com/plume-works/images" }
 }
 
 target "core" {
   inherits = ["_common"]
   context  = "images/core"
-  tags     = [img("core")]
+  output   = out("core")
 }
 
 target "core-systemd" {
@@ -50,7 +56,7 @@ target "core-systemd" {
   context  = "images/core-systemd"
   args     = { BASE_IMAGE = "parent" }
   contexts = { parent = "target:core" }
-  tags     = [img("core-systemd")]
+  output   = out("core-systemd")
 }
 
 target "coder-template" {
@@ -58,7 +64,7 @@ target "coder-template" {
   context  = "images/coder-template"
   args     = { BASE_IMAGE = "parent" }
   contexts = { parent = "target:core-systemd" }
-  tags     = [img("coder-template")]
+  output   = out("coder-template")
 }
 
 target "devcontainer-base" {
@@ -66,5 +72,5 @@ target "devcontainer-base" {
   context  = "images/devcontainer-base"
   args     = { BASE_IMAGE = "parent" }
   contexts = { parent = "target:core-systemd" }
-  tags     = [img("devcontainer-base")]
+  output   = out("devcontainer-base")
 }

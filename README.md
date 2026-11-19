@@ -298,7 +298,7 @@ Add your project's own tooling with Features or your own Dockerfile on top. Thin
 ## Building and testing locally
 
 ```sh
-docker buildx bake --load
+docker buildx bake
 images/core/smoke.sh ghcr.io/plume-works/core:ci
 images/core-systemd/smoke.sh ghcr.io/plume-works/core-systemd:ci
 images/coder-template/smoke.sh ghcr.io/plume-works/coder-template:ci
