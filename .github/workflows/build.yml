@@ -1,5 +1,5 @@
 # Each architecture builds and tests the Core image on a native runner. pr-N (same-repo pull request) or edge
-# (main) is published only if both pass and the pushed image has the tested image's config digest.
+# (main) is published only if both pass and the pushed image has the tested image's manifest digest.
 name: build
 
 on:
@@ -83,14 +83,20 @@ jobs:
           TESTED: ${{ steps.build.outputs.metadata }}
           PUSHED: ${{ steps.push.outputs.metadata }}
         run: |
-          tested=$(jq -r '.core["containerimage.config.digest"] // empty' <<<"$TESTED")
-          pushed=$(jq -r '.core["containerimage.config.digest"] // empty' <<<"$PUSHED")
-          echo "tested: $tested"
-          echo "pushed: $pushed"
+          tested=$(jq -r '.core["containerimage.digest"] // empty' <<<"$TESTED")
+          pushed=$(jq -r '.core["containerimage.digest"] // empty' <<<"$PUSHED")
+          media=$(jq -r '.core["containerimage.descriptor"].mediaType // empty' <<<"$PUSHED")
+          echo "tested manifest digest: $tested"
+          echo "pushed manifest digest: $pushed"
+          echo "pushed mediaType: $media"
           if [ -z "$tested" ] || [ -z "$pushed" ] || [ "$tested" != "$pushed" ]; then
             echo "::error::the pushed image is not the tested image"
             exit 1
           fi
+          case "$media" in
+            *manifest.v1+json) ;;
+            *) echo "::error::the pushed descriptor is not a single-image manifest"; exit 1 ;;
+          esac
       - name: Save the pushed digest
         if: env.PUBLISH == 'true'
         env:

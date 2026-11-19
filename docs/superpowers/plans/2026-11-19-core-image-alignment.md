@@ -4,7 +4,7 @@
 
 **Goal:** Bring the core image on `core-images-try2` in line with issue 4, fix the handoff defects, replace the shell test with a pytest suite, and move version upkeep to self-hosted Renovate with hashes baked into the Dockerfile.
 
-**Architecture:** This branch's Dockerfile is patched, not replaced. `uv` and OpenCode become GitHub release archives checked against sha256 values held in `ARG`s; one Python script fills those `ARG`s from GitHub's release API and is both the build-time helper and Renovate's post-upgrade command. Tests drive containers from the host with pytest; CI builds and tests per architecture, then publishes `pr-N` or `edge` only if the pushed image's config digest equals the tested one.
+**Architecture:** This branch's Dockerfile is patched, not replaced. `uv` and OpenCode become GitHub release archives checked against sha256 values held in `ARG`s; one Python script fills those `ARG`s from GitHub's release API and is both the build-time helper and Renovate's post-upgrade command. Tests drive containers from the host with pytest; CI builds and tests per architecture, then publishes `pr-N` or `edge` only if the pushed image's manifest digest equals the tested one.
 
 **Tech Stack:** Docker Buildx bake, Ubuntu 26.04, pytest through `uv`, GitHub Actions, Renovate (run with `bunx` on the runner).
 
@@ -448,7 +448,7 @@ Keep its triggers, top-level permissions, concurrency block and matrix. Add a wo
 4. Build and load with `docker/bake-action` (`source: .`, target `core`), with `cache-from` and `cache-to` of `type=gha` scoped per architecture (`scope=core-<arch>`, `mode=max`). Keep its `metadata` output.
 5. `uv run pytest`, with `GHCR_TOKEN` set to `github.token` only when `PUBLISH` is true.
 6. If `PUBLISH`: log in to GHCR, then bake again with the same cache settings, `tags=ghcr.io/plume-works/core` and `output=type=image,push-by-digest=true,name-canonical=true,push=true`.
-7. If `PUBLISH`: fail unless `containerimage.config.digest` is non-empty in both metadata outputs and equal. Print both values.
+7. If `PUBLISH`: fail unless `containerimage.digest` (manifest) is non-empty in both metadata outputs and equal. Print both values.
 8. If `PUBLISH`: upload the pushed `containerimage.digest` as artifact `digest-<arch>`.
 
 Replace the `manifest` job with `publish`: `needs: build`, same `PUBLISH` condition, `packages: write`. It downloads both digests and runs one `docker buildx imagetools create -t ghcr.io/plume-works/core:<tag>` with both, where `<tag>` is `pr-<number>` for a pull request and `edge` otherwise. No commit-SHA tag.

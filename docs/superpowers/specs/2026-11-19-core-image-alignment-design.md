@@ -245,7 +245,7 @@ by default.
   - a pull request from this repo publishes `pr-N`
   - a push to `main` moves `edge`
   - a pull request from a fork publishes nothing
-- The job fails if the pushed image's config digest differs from the tested
+- The job fails if the pushed image's manifest digest differs from the tested
   image's.
 - `edge` and `pr-N` are the only tags. The commit-SHA tag is dropped.
 
@@ -349,7 +349,7 @@ From earlier reviews:
 | `start-dockerd` leaves the daemon running on timeout | fixed here |
 | `start-dockerd` overwrites its log | fixed here |
 | `packages: write` on pull request builds | needed now, to publish `pr-N` |
-| No check that a pushed digest is non-empty | covered by the config digest check |
+| No check that a pushed digest is non-empty | covered by the manifest digest check |
 | CI pulls `hello-world` anonymously | fixed by the GHCR mirror |
 | User tool directories on `PATH` (handoff) | dropped by Anton; all tools are system-wide |
 | `docker info` calls are not time-bounded | stays dismissed |
