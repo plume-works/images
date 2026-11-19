@@ -147,6 +147,7 @@ def test_homes_hold_only_shell_startup_files(image):
         capture_output=True,
         text=True,
     )
+    assert out.returncode == 0, f"find exited {out.returncode}: {out.stderr!r}"
     found = {path.rsplit("/", 1)[1] for path in out.stdout.split()}
     assert found <= {".bashrc", ".profile", ".bash_logout"}, f"homes hold {sorted(found)!r}"
 
@@ -164,7 +165,9 @@ def test_git_gets_a_credential_through_gh(plain, user, var):
 @pytest.mark.parametrize("user", USERS)
 def test_git_fails_without_a_token_and_does_not_prompt(plain, user):
     result = plain.sh(FILL.format(host="github.com"), user=user, timeout=40)
-    assert result.returncode != 0, f"git filled a credential without a token: {result.stdout!r}"
+    assert result.returncode not in (0, 124) and "password=" not in result.stdout, (
+        f"exit {result.returncode} (124 is the timeout kill), stdout {result.stdout!r}, stderr {result.stderr!r}"
+    )
 
 
 def test_gist_host_uses_gh_too(plain):
