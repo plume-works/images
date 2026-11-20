@@ -1,11 +1,12 @@
 {
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
-  "description": "Every pinned version in this repository is updated only through a Renovate pull request, which builds, tests and publishes pr-N like any other. Apt packages float by design and are not tracked.",
+  "description": "Every pinned version in this repository is updated only through a Renovate pull request, which builds, tests and publishes pr-N like any other, and merges by itself once its checks pass. Apt packages float by design and are not tracked.",
   "extends": [
     "config:recommended",
     "docker:pinDigests",
     "helpers:pinGitHubActionDigestsToSemver"
   ],
+  "automerge": true,
   "customManagers": [
     {
       "customType": "regex",
@@ -36,11 +37,10 @@
       "enabled": false
     },
     {
-      "description": "Digests of our own images (.devcontainer.json, the Coder template): one grouped pull request as soon as edge moves, merged by itself once its checks pass. Merging it does not publish again (images.yml ignores pushes that touch only these pins), so the bumps do not loop",
+      "description": "Digests of our own images (.devcontainer.json, the Coder template): one grouped pull request as soon as edge moves. Merging it does not publish again (images.yml ignores pushes that touch only these pins), so the bumps do not loop",
       "matchDatasources": ["docker"],
       "matchPackageNames": ["ghcr.io/plume-works/**"],
-      "groupName": "plume-works images",
-      "automerge": true
+      "groupName": "plume-works images"
     }
   ]
 }
