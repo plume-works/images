@@ -188,9 +188,3 @@ RUN install -m0755 -d /etc/apt/keyrings \
  && rm -rf /var/lib/apt/lists/* \
  && usermod -aG docker dev
 COPY --chmod=0755 start-docker /usr/local/bin/start-docker
-
-# The engine's storage is declared as volumes, so the engine works without volume flags: on the container's
-# own overlay filesystem it cannot start containers. /var/lib/containerd is where containerd.service keeps its
-# data under systemd. Inherited by every image built on this one, and a child image's build steps cannot write
-# there (ADR 0004). Declared last, so nothing in this build writes there afterwards either.
-VOLUME ["/var/lib/docker", "/var/lib/containerd"]

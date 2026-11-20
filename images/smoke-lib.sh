@@ -12,8 +12,8 @@
 #   smoke_init <prefix>   to name the container, and remove it and its anonymous volumes on exit
 #   boot [again]          to start it (again: the stopped one) and wait for a running system with no failed units
 # and runs commands in it with in_container. The cleanup on exit runs an optional `cleanup_extra` function too.
-# The container gets no volume flags: the inner engine's storage is the image's declared (anonymous) volumes,
-# which a stopped container keeps when it starts again.
+# In privileged mode the inner engine's storage needs volumes: the container gets anonymous ones, which a stopped
+# container keeps when it starts again. (Under sysbox it would need none.)
 
 container=""
 
@@ -60,7 +60,7 @@ boot() {
   if [ "${1:-}" = again ]; then
     docker start "$container" >/dev/null
   else
-    docker run -d --name "$container" --privileged "${image:?set by the caller}" >/dev/null
+    docker run -d --name "$container" --privileged -v /var/lib/docker -v /var/lib/containerd "${image:?set by the caller}" >/dev/null
   fi
   local state
   state=$(wait_system_running in_container)

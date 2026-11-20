@@ -134,11 +134,4 @@ docker inspect -f '{{index .Config.Labels "devcontainer.metadata"}}' "$container
   fail "the Feature was not applied"
 pass "a devcontainer Feature can be added on top and the container still comes up"
 
-# With no mounts at all, the engine still runs containers: its storage is the image's declared volumes (anonymous
-# ones, which `up` records for the cleanup).
-printf '{"image": "%s", "privileged": true}\n' "$image" >"$config"
-up
-in_devcontainer docker run --rm hello-world | grep 'Hello from Docker!' >/dev/null || fail "a container did not run without mounts"
-pass "Docker runs a container in a dev container with no mounts"
-
 echo "devcontainer-base smoke test passed: $image"
