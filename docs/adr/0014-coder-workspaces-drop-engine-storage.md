@@ -14,11 +14,6 @@ release) these warnings came with stale, overlapping sysbox and OverlayFS mounts
 
 - A restart or template update loses the inner engine's images, containers, volumes and build cache; they are
   pulled or built again. Data that must survive belongs in home.
-- The first build of an existing workspace after this change deletes its old engine volumes, with their data. If
-  sysbox still holds their mounts, that build fails on removing them; restart sysbox or remove the volumes by hand
-  once the old container is gone, then build again.
-- An anonymous volume outlives its container only if the container is removed some other way than by Coder;
-  `docker volume prune` on the host clears it.
 
 ## Considered options
 

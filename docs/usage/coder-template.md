@@ -41,5 +41,4 @@ come from the front matter of the template's README.
   keeps retrying until the user has run `claude` in the repository, accepted the trust prompt and `/login`ed
   ([ADR 0003](../adr/0003-remote-control-unit-exceptions.md)).
 - One volume per workspace persists across rebuilds: `/home/dev`. Everything else is recreated at every start,
-  the Docker engine's storage included ([ADR 0014](../adr/0014-coder-workspaces-drop-engine-storage.md)). A
-  workspace made before that change loses its old engine volumes at its next build.
+  the Docker engine's storage included ([ADR 0014](../adr/0014-coder-workspaces-drop-engine-storage.md)).

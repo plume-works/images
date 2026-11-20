@@ -147,18 +147,11 @@ resource "docker_image" "main" {
   keep_locally = true
 }
 
-# The only state that persists: home, in a volume mounted at the path below. Never replaced or deleted by a template
-# change; deleted with the workspace. The inner Docker engine's storage does not persist (ADR 0014): each container
-# gets fresh anonymous volumes there from the image's declared volumes, removed with it.
-locals {
-  state_volumes = {
-    home = "/home/dev"
-  }
-}
-
-resource "docker_volume" "state" {
-  for_each = local.state_volumes
-  name     = "coder-${data.coder_workspace.me.id}-${each.key}"
+# The only state that persists: home. Never replaced or deleted by a template change; deleted with the workspace.
+# The inner Docker engine's storage does not persist (ADR 0014): each container gets fresh anonymous volumes there
+# from the image's declared volumes, removed with it.
+resource "docker_volume" "home" {
+  name = "coder-${data.coder_workspace.me.id}-home"
   lifecycle {
     ignore_changes = all
   }
@@ -174,13 +167,6 @@ resource "docker_volume" "state" {
     label = "coder.workspace_id"
     value = data.coder_workspace.me.id
   }
-}
-
-# Home had a resource of its own before: without this, Terraform would replace it in every workspace made from an
-# earlier version of this template. The engine's volumes of earlier versions are deleted at the next build.
-moved {
-  from = docker_volume.home
-  to   = docker_volume.state["home"]
 }
 
 # Recreated at every start, so everything outside home comes fresh from the image.
@@ -199,8 +185,6 @@ resource "docker_container" "workspace" {
   # systemd's shutdown signal, and time for the inner Docker engine to stop its containers.
   stop_signal           = "SIGRTMIN+3"
   destroy_grace_seconds = 60
-  # The engine's anonymous volumes go with the container (the provider's default, relied on here).
-  remove_volumes = true
 
   # The only two things the template puts into the container; coder-agent.service reads them.
   # A Coder access URL on localhost means the host, as in Coder's own Docker template.
@@ -221,14 +205,11 @@ resource "docker_container" "workspace" {
     ip   = "host-gateway"
   }
 
-  dynamic "volumes" {
-    for_each = local.state_volumes
-    content {
-      container_path = volumes.value
-      volume_name    = docker_volume.state[volumes.key].name
-      read_only      = false
-    }
+  volumes {
+    container_path = "/home/dev"
+    volume_name    = docker_volume.home.name
   }
+
 
   labels {
     label = "coder.owner"
