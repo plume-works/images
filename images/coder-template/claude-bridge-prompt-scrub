@@ -1,0 +1,73 @@
+#!/usr/bin/env python3
+"""Empty the cloud-container prompt Claude remote control hands each session it spawns (ADR 0014).
+
+Remote control writes ~/.claude/bridge-spawn/<session>/append-system-prompt.txt, then starts the session with
+--append-system-prompt-file and the file's SHA-256. The session reads the file about 90 ms later and drops it if
+the hash no longer matches. Emptying the file as soon as it is written therefore drops the whole block.
+
+Fails open: a file this misses is used as before. Tells systemd it is ready once its watches are in place.
+"""
+import ctypes
+import os
+import socket
+import struct
+
+ROOT = os.path.expanduser("~/.claude/bridge-spawn")  # remote control ignores CLAUDE_CONFIG_DIR here
+NAME = "append-system-prompt.txt"
+IN_CLOSE_WRITE, IN_MOVED_TO, IN_CREATE, IN_IGNORED = 0x8, 0x80, 0x100, 0x8000
+IN_ONLYDIR, IN_ISDIR = 0x01000000, 0x40000000
+
+libc = ctypes.CDLL(None, use_errno=True)
+inotify = libc.inotify_init1(os.O_CLOEXEC)
+if inotify < 0:
+    raise OSError(ctypes.get_errno(), "inotify_init1")
+dirs = {}
+
+
+def watch(path, mask):
+    wd = libc.inotify_add_watch(inotify, os.fsencode(path), mask | IN_ONLYDIR)
+    if wd >= 0:
+        dirs[wd] = path
+    return wd >= 0
+
+
+def scrub(path):
+    try:
+        if os.path.getsize(path) > 0:
+            os.truncate(path, 0)
+    except FileNotFoundError:
+        pass
+
+
+def add_session(path):
+    # Watch first, then look: a file written in between is caught either way.
+    if watch(path, IN_CLOSE_WRITE | IN_MOVED_TO):
+        scrub(os.path.join(path, NAME))
+
+
+os.makedirs(ROOT, exist_ok=True)
+if not watch(ROOT, IN_CREATE | IN_MOVED_TO):
+    raise OSError(ctypes.get_errno(), f"inotify_add_watch {ROOT}")
+for entry in os.scandir(ROOT):
+    if entry.is_dir(follow_symlinks=False):
+        add_session(entry.path)
+
+if address := os.environ.get("NOTIFY_SOCKET"):
+    with socket.socket(socket.AF_UNIX, socket.SOCK_DGRAM) as s:
+        s.sendto(b"READY=1", "\0" + address[1:] if address.startswith("@") else address)
+
+while True:
+    buf = os.read(inotify, 65536)
+    i = 0
+    while i < len(buf):
+        wd, mask, _, size = struct.unpack_from("iIII", buf, i)
+        name = os.fsdecode(buf[i + 16 : i + 16 + size].rstrip(b"\0"))
+        i += 16 + size
+        if mask & IN_IGNORED:
+            if dirs.pop(wd, None) == ROOT:
+                raise SystemExit(f"{ROOT} went away")  # systemd restarts us, which recreates it
+        elif dirs.get(wd) == ROOT:
+            if mask & IN_ISDIR:
+                add_session(os.path.join(ROOT, name))
+        elif name == NAME and wd in dirs:
+            scrub(os.path.join(dirs[wd], name))
