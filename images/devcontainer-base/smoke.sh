@@ -15,7 +15,7 @@ here=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 usage_doc="$here/../../docs/usage/devcontainer-base.md"
 
 # renovate: datasource=npm depName=@devcontainers/cli
-DEVCONTAINER_CLI_VERSION=0.90.0
+DEVCONTAINER_CLI_VERSION=0.91.0
 
 devcontainer() {
   # The CLI builds derived images (dev's UID, Features) on the image under test, which exists only
