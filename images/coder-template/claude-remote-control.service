@@ -1,0 +1,26 @@
+# Claude Code remote control in worktree mode, in the repository the Coder template cloned (REPO_DIR,
+# imported), under agent-services.target. It opens no port: it connects out to Anthropic.
+#
+# Until the user has signed in (with a claude.ai subscription) and trusted the repository, it exits at once;
+# it is restarted for ever, so it starts working after the first sign-in with nothing else to restart.
+# Running `claude` in the repository and signing in there with /login does both.
+[Unit]
+Description=Claude Code remote control (worktree mode)
+PartOf=agent-services.target
+# Retry forever.
+StartLimitIntervalSec=0
+
+[Service]
+# Remote control refuses to start while an API key or a long-lived token is set, and the whole environment
+# is imported (ADR 0002), so a Coder secret meant for terminal use would stop it. Only these are kept back:
+# the one exception to ADR 0002's "every secret reaches the services" (ADR 0003).
+UnsetEnvironment=ANTHROPIC_API_KEY ANTHROPIC_AUTH_TOKEN CLAUDE_CODE_OAUTH_TOKEN
+# The one-time question "Enable Remote Control? (y/n)", which it asks on its input when that is not a
+# terminal and then records in ~/.claude.json. Running this service is the answer (ADR 0003); workspace trust
+# is deliberately left to the user. Without a terminal there is nothing else to read, so the end of this input
+# is harmless.
+StandardInputText=y
+# `$$` reaches the shell as `$`.
+ExecStart=/bin/sh -c 'cd "$${REPO_DIR:?not set: the Coder startup script imports it}" && exec /usr/local/bin/claude remote-control --spawn worktree'
+Restart=always
+RestartSec=15

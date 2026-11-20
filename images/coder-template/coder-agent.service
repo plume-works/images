@@ -1,0 +1,31 @@
+# The Coder agent, as dev. The Coder template uploads its two inputs before the container starts:
+#   /etc/coder/agent-init.sh  coder_agent.init_script: fetches the agent from the Coder server and runs it
+#   /etc/coder/agent-token    coder_agent.token, owned by dev, mode 0600
+# Without them (a plain `docker run`) the unit is skipped, not failed.
+[Unit]
+Description=Coder agent
+Wants=network-online.target user@1000.service
+After=network-online.target user@1000.service
+ConditionPathExists=/etc/coder/agent-init.sh
+
+[Service]
+Type=exec
+User=dev
+# What the agent launches (its startup script, terminals, apps) reaches dev's systemd user manager with
+# `systemctl --user`: that talks to $XDG_RUNTIME_DIR/systemd/private.
+Environment=XDG_RUNTIME_DIR=/run/user/1000
+# The agent reads its token from this file (CODER_AGENT_TOKEN_FILE), so it never sits in the unit or in
+# `docker inspect`.
+Environment=CODER_AGENT_TOKEN_FILE=/etc/coder/agent-token
+ExecStart=/bin/sh /etc/coder/agent-init.sh
+Restart=always
+RestartSec=10
+TimeoutStopSec=90
+# As in Coder's own unit: restarting the agent leaves the shells and sessions it started running.
+# (The agent services run under dev's user manager, not here, so they survive it either way.)
+KillMode=process
+OOMScoreAdjust=-900
+SyslogIdentifier=coder-agent
+
+[Install]
+WantedBy=multi-user.target

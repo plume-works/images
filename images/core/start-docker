@@ -1,0 +1,81 @@
+#!/bin/sh
+# start-docker: make sure a Docker engine is running, and return once it answers.
+#
+# For containers that do not run systemd (a CI job container): needs --privileged
+# (or sysbox). The image declares /var/lib/docker a volume; a runtime that ignores
+# that (Kubernetes) needs a volume mounted there. Does nothing if an engine already
+# answers. Where systemd is PID 1 it only asks systemd to start docker.service.
+# Run as root or as a user with passwordless sudo. START_DOCKER_TIMEOUT (seconds,
+# default 60) bounds the wait; the engine logs to /var/log/dockerd.log.
+set -eu
+started=
+timeout="${START_DOCKER_TIMEOUT:-60}"
+log=/var/log/dockerd.log
+
+if [ "$(id -u)" != 0 ]; then
+  exec sudo -n --preserve-env=START_DOCKER_TIMEOUT "$0" "$@"
+fi
+
+docker info >/dev/null 2>&1 && exit 0
+
+if [ -d /run/systemd/system ]; then
+  # systemd is PID 1: it owns the engine.
+  systemctl start docker.service
+else
+  # Serialize concurrent first calls so only one of them launches dockerd.
+  exec 9>/run/start-docker.lock
+  flock 9
+  if ! { [ -s /run/docker.pid ] && kill -0 "$(cat /run/docker.pid)" 2>/dev/null; }; then
+    mkdir -p /var/lib/docker
+    if [ "$(stat -f -c %T /var/lib/docker)" = overlayfs ]; then
+      echo "start-docker: /var/lib/docker is on the container's overlay filesystem, where the engine" >&2
+      echo "cannot start containers. The image declares a volume there, but this container runs" >&2
+      echo "without one (a runtime that ignores image volumes, such as Kubernetes, or a mount from" >&2
+      echo "an overlay filesystem): mount a volume at /var/lib/docker (Kubernetes: an emptyDir)." >&2
+      exit 1
+    fi
+    if [ ! -w /sys/fs/cgroup ]; then
+      echo "start-docker: /sys/fs/cgroup is read-only, so this container is not privileged: run it with --privileged (or sysbox)." >&2
+      exit 1
+    fi
+    # cgroup v2: move this namespace's processes out of its root cgroup so dockerd
+    # can enable every controller for its containers (as moby's hack/dind does).
+    if [ -f /sys/fs/cgroup/cgroup.controllers ]; then
+      mkdir -p /sys/fs/cgroup/init
+      xargs -rn1 </sys/fs/cgroup/cgroup.procs >/sys/fs/cgroup/init/cgroup.procs 2>/dev/null || :
+      sed -e 's/ / +/g' -e 's/^/+/' </sys/fs/cgroup/cgroup.controllers \
+        >/sys/fs/cgroup/cgroup.subtree_control 2>/dev/null || :
+    fi
+    nohup dockerd >>"$log" 2>&1 </dev/null 9>&- &
+    started=$!
+  fi
+fi
+
+# alive PID: the process runs. An exited child stays a zombie until the shell reaps it, and kill -0 still
+# succeeds on a zombie, so read its state instead.
+alive() {
+  state=$(sed -n 's/^.*) \(.\).*/\1/p' "/proc/$1/stat" 2>/dev/null) || return 1
+  [ -n "$state" ] && [ "$state" != Z ] && [ "$state" != X ]
+}
+
+i=0
+until docker info >/dev/null 2>&1; do
+  # Fail fast if the dockerd this run launched has already exited: waiting out the timeout cannot help.
+  if [ -n "$started" ] && ! alive "$started"; then
+    echo "start-docker: dockerd exited before the engine was ready; tail of $log:" >&2
+    tail -n 30 "$log" >&2 || :
+    exit 1
+  fi
+  i=$((i + 1))
+  if [ "$i" -gt "$timeout" ]; then
+    echo "start-docker: engine not ready after ${timeout}s; tail of $log:" >&2
+    tail -n 30 "$log" >&2 || :
+    # Do not leave behind a daemon this run launched.
+    if [ -n "$started" ]; then
+      kill -TERM "$started" 2>/dev/null || :
+      wait "$started" 2>/dev/null || :
+    fi
+    exit 1
+  fi
+  sleep 1
+done

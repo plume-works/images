@@ -1,0 +1,2 @@
+# terraform init (local runs and the lint workflow)
+.terraform/
