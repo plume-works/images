@@ -143,7 +143,7 @@ resource "coder_app" "opencode" {
 resource "docker_image" "main" {
   # Renovate proposes digest bumps: its terraform manager reads a docker_image name only as a literal string, so
   # keep the reference here, not in a local or variable.
-  name         = "ghcr.io/plume-works/coder-template:edge@sha256:9ecd24afa3916fbda71ebe8cd6d95d03581289d3f2c4b2067d919adc2989fea3"
+  name         = "ghcr.io/plume-works/coder-template:edge@sha256:b5329dde428fa076efdfc65c966115050ae43b361f2f28bc3772781884c31945"
   keep_locally = true
 }
 
