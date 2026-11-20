@@ -72,6 +72,8 @@ printf '%s\n' "$token" >"$work/agent-token"
 # The user's own settings, which Claude pre-approval must leave alone: its approvals are for the repository only.
 settings='{"model": "smoke"}'
 as_dev sh -c "mkdir -p ~/.claude && echo '$settings' >~/.claude/settings.json"
+# A ~/.claude.json that links into a dotfiles checkout, which must stay a link.
+as_dev sh -c 'mkdir -p ~/dotfiles && echo "{\"smoke\": \"kept\"}" >~/dotfiles/claude.json && ln -sf dotfiles/claude.json ~/.claude.json'
 
 docker stop -t 60 "$container" >/dev/null
 # Like the template's uploads: in place before the container starts, the token owned by dev and readable by
@@ -96,6 +98,9 @@ claude_has .claude.json '.projects["/home/dev/repo"].hasTrustDialogAccepted == t
 claude_has .claude.json '.projects["/home/dev/repo"].enableAllProjectMcpServers == true' ||
   fail "the repository's project MCP servers are not enabled"
 [ "$(as_dev cat /home/dev/.claude/settings.json)" = "$settings" ] || fail "Claude pre-approval touched ~/.claude/settings.json"
+[ "$(as_dev readlink /home/dev/.claude.json)" = dotfiles/claude.json ] || fail "the symlinked ~/.claude.json is no longer a link"
+claude_has dotfiles/claude.json '.smoke == "kept" and .hasCompletedOnboarding == true' ||
+  fail "the symlinked ~/.claude.json's target lacks the approvals or its own key"
 pass "with both Claude pre-approval choices on, onboarding, consent, trust and project MCP servers are granted"
 
 # Each agent service runs its app in its own tmux server, on a socket named after its unit (ADR 0015).
