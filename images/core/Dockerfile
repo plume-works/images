@@ -172,7 +172,7 @@ RUN install -d /etc/claude-code /etc/environment.d \
 # renovate: datasource=deb depName=docker-ce extractVersion=^5:(?<version>[^-]+)-
 ARG DOCKER_VERSION=29.10.0
 # renovate: datasource=deb depName=docker-buildx-plugin extractVersion=^(?<version>[^-]+)-
-ARG BUILDX_VERSION=0.39.0
+ARG BUILDX_VERSION=0.39.1
 # renovate: datasource=deb depName=docker-compose-plugin extractVersion=^(?<version>[^-]+)-
 ARG COMPOSE_VERSION=5.8.0
 # hadolint ignore=DL3008
