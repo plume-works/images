@@ -31,6 +31,12 @@
   ],
   "packageRules": [
     {
+      "description": "Docker's packages are looked up in the apt repository the core image installs them from, which publishes a release hours or days after GitHub does, so Renovate proposes only versions that install. The suite is the codename of the core image's Ubuntu release: change it with that release",
+      "matchDatasources": ["deb"],
+      "matchPackageNames": ["docker-*"],
+      "registryUrls": ["https://download.docker.com/linux/ubuntu?suite=resolute&components=stable&binaryArch=amd64"]
+    },
+    {
       "description": "Child Dockerfiles default BASE_IMAGE to our own image for plain local builds; CI always builds them on this commit's parent. Never pin or bump it.",
       "matchManagers": ["dockerfile"],
       "matchPackageNames": ["ghcr.io/plume-works/**"],

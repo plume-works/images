@@ -170,11 +170,11 @@ RUN install -d /etc/claude-code /etc/environment.d \
 # Docker engine, CLI, Buildx and Compose from Docker's apt repository, which keeps old versions, so they pin.
 # containerd.io floats. The packages also enable docker.service and containerd.service for systemd,
 # which the core systemd image relies on; here, without systemd, start-docker runs the engine on demand.
-# renovate: datasource=github-releases depName=moby/moby extractVersion=^docker-v(?<version>.+)$
+# renovate: datasource=deb depName=docker-ce extractVersion=^5:(?<version>[^-]+)-
 ARG DOCKER_VERSION=29.10.0
-# renovate: datasource=github-releases depName=docker/buildx extractVersion=^v(?<version>.+)$
+# renovate: datasource=deb depName=docker-buildx-plugin extractVersion=^(?<version>[^-]+)-
 ARG BUILDX_VERSION=0.39.0
-# renovate: datasource=github-releases depName=docker/compose extractVersion=^v(?<version>.+)$
+# renovate: datasource=deb depName=docker-compose-plugin extractVersion=^(?<version>[^-]+)-
 ARG COMPOSE_VERSION=5.8.0
 # hadolint ignore=DL3008
 RUN install -m0755 -d /etc/apt/keyrings \
