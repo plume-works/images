@@ -13,4 +13,7 @@ RUN install -d -m0755 /etc/coder \
 
 # The agent services: user units for dev's user manager, pulled in by agent-services.target. Nothing enables
 # them; only the Coder agent's startup script starts the target (ADR 0002).
-COPY agent-services.target opencode.service claude-remote-control.service /etc/systemd/user/
+COPY agent-services.target opencode.service claude-remote-control.service claude-bridge-prompt-scrub.service \
+     /etc/systemd/user/
+# Drops the cloud-container prompt remote control hands its sessions (ADR 0014).
+COPY --chmod=0755 claude-bridge-prompt-scrub /usr/local/libexec/

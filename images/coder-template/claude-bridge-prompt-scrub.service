@@ -1,0 +1,14 @@
+# Empties the cloud-container prompt Claude remote control hands each session it spawns (ADR 0014), under
+# agent-services.target. Ready only once it watches, and ordered before remote control, so no session slips by.
+[Unit]
+Description=Drop the cloud-container prompt from Claude remote control sessions
+PartOf=agent-services.target
+Before=claude-remote-control.service
+# Retry forever.
+StartLimitIntervalSec=0
+
+[Service]
+Type=notify
+ExecStart=/usr/local/libexec/claude-bridge-prompt-scrub
+Restart=always
+RestartSec=1
