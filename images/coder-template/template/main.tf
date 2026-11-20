@@ -147,19 +147,11 @@ resource "docker_image" "main" {
   keep_locally = true
 }
 
-# The only state that persists: home, and the inner Docker engine's storage (containerd's included), each in a
-# volume mounted at the path below. Never replaced or deleted by a template change; deleted with the workspace.
-locals {
-  state_volumes = {
-    home       = "/home/dev"
-    docker     = "/var/lib/docker"
-    containerd = "/var/lib/containerd"
-  }
-}
-
-resource "docker_volume" "state" {
-  for_each = local.state_volumes
-  name     = "coder-${data.coder_workspace.me.id}-${each.key}"
+# The only state that persists: home. Never replaced or deleted by a template change; deleted with the workspace.
+# Nothing is mounted at the inner Docker engine's storage (ADR 0014): sysbox gives each container its own, removed
+# with it.
+resource "docker_volume" "home" {
+  name = "coder-${data.coder_workspace.me.id}-home"
   lifecycle {
     ignore_changes = all
   }
@@ -177,22 +169,7 @@ resource "docker_volume" "state" {
   }
 }
 
-# The volumes had one resource each before: without these, Terraform would replace them, home included, in every
-# workspace made from an earlier version of this template.
-moved {
-  from = docker_volume.home
-  to   = docker_volume.state["home"]
-}
-moved {
-  from = docker_volume.docker
-  to   = docker_volume.state["docker"]
-}
-moved {
-  from = docker_volume.containerd
-  to   = docker_volume.state["containerd"]
-}
-
-# Recreated at every start, so everything outside the three volumes comes fresh from the image.
+# Recreated at every start, so everything outside home comes fresh from the image.
 resource "docker_container" "workspace" {
   count    = data.coder_workspace.me.start_count
   image    = docker_image.main.image_id
@@ -228,14 +205,11 @@ resource "docker_container" "workspace" {
     ip   = "host-gateway"
   }
 
-  dynamic "volumes" {
-    for_each = local.state_volumes
-    content {
-      container_path = volumes.value
-      volume_name    = docker_volume.state[volumes.key].name
-      read_only      = false
-    }
+  volumes {
+    container_path = "/home/dev"
+    volume_name    = docker_volume.home.name
   }
+
 
   labels {
     label = "coder.owner"

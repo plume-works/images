@@ -45,8 +45,9 @@ control starts on its own within 15 seconds. You do this once: sign-ins live in 
 
 ## What survives
 
-Your home directory (the checkout, agent sign-ins, shell history) and the Docker engine's images, containers and
-volumes persist for the life of the workspace. Everything else comes fresh from the image at every start. The
-repository is cloned only if `/home/dev/<repository>` has no checkout yet; the URL cannot be changed later.
+Your home directory (the checkout, agent sign-ins, shell history) persists for the life of the workspace.
+Everything else comes fresh from the image at every start, the Docker engine's images, containers, volumes and
+build cache included ([why](https://github.com/plume-works/images/blob/main/docs/adr/0014-no-engine-storage-volumes.md)).
+The repository is cloned only if `/home/dev/<repository>` has no checkout yet; the URL cannot be changed later.
 If the clone fails (a private repository without `GITHUB_TOKEN`, say), the workspace still starts and the startup
 script's log says why; clone it into `/home/dev/<repository>` from a terminal and the agent services pick it up.

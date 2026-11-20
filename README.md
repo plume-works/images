@@ -63,7 +63,8 @@ and check:
    with a new PID, and the OpenCode button works (after `OPENCODE_PASSWORD`).
 5. VS Code Desktop and code-server open the repository.
 6. Home survives a rebuild: write a file in `~`, stop and start the workspace (or update it to a new template
-   version), and the file and a `docker pull`ed image are still there.
+   version), and the file is still there, while a `docker pull`ed image is gone
+   ([ADR 0014](docs/adr/0014-no-engine-storage-volumes.md)).
 7. Stopping the workspace finishes within the 60-second grace period, without Docker killing the container.
 
 ### Linting

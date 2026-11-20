@@ -1,9 +1,8 @@
 #!/usr/bin/env bash
 # Smoke test for the core systemd image. Usage: images/core-systemd/smoke.sh <image-ref>
 #
-# Boots the image with its own entrypoint in privileged mode (hosted runners have no sysbox),
-# with no volume flags (the image declares the inner engine's storage as volumes), and checks what booting adds
-# to the core image.
+# Boots the image with its own entrypoint in privileged mode (hosted runners have no sysbox), with anonymous
+# volumes for the inner engine's storage, and checks what booting adds to the core image.
 # It does not repeat the core image's checks. Stops at the first failed check.
 set -euo pipefail
 
@@ -26,14 +25,10 @@ in_container journalctl -b --no-pager -u docker.service -q | grep . >/dev/null |
 [ -z "$(in_container journalctl -b --no-pager -q _TRANSPORT=kernel)" ] || fail "journald reads the kernel log"
 pass "journald holds entries, service logs included, and does not read the kernel log"
 
-mounts=$(docker inspect -f '{{range .Mounts}}{{.Destination}} {{end}}' "$container")
-for d in /var/lib/docker /var/lib/containerd; do
-  grep -qw "$d" <<<"$mounts" || fail "no volume at $d although the image declares one (mounts: $mounts)"
-done
 in_container systemctl is-active --quiet docker.service || fail "docker.service is not active after boot"
 in_container docker pull -q hello-world >/dev/null
 in_container docker run --rm hello-world | grep 'Hello from Docker!' >/dev/null || fail "a container did not run"
-pass "the Docker service starts at boot and runs a container, with no volume flags on the outer container"
+pass "the Docker service starts at boot and runs a container"
 
 # Nobody has logged in: dev's user manager runs because of the image, not a session.
 # (systemd gives the user manager its own session of class "manager"; that is not a login.)
@@ -100,6 +95,6 @@ boot again
 in_container docker info >/dev/null 2>&1 || fail "the inner engine did not come back on the same storage"
 [ "$(in_container docker inspect -f '{{.State.ExitCode}}' running)" = 137 ] || fail "the inner engine did not stop its containers"
 in_container docker start running >/dev/null || fail "a container stopped by the shutdown does not start again"
-pass "the inner engine stopped its containers on shutdown and starts again on the same (anonymous) volumes"
+pass "the inner engine stopped its containers on shutdown and starts again on the same volumes"
 
 echo "core-systemd smoke test passed: $image"

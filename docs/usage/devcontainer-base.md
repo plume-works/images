@@ -10,9 +10,11 @@ snippets below; the image does not choose how it runs ([ADR 0001](../adr/0001-do
 - **sysbox** (Linux hosts with [sysbox](https://github.com/nestybox/sysbox) installed): no privileged container.
 - **Privileged mode** (macOS, or Linux without sysbox): Docker Desktop on macOS offers sysbox only in a paid tier.
 
-Both mount named volumes for the Docker engine's storage, so its images and build cache survive a rebuild, and
-for all of `/home/dev`, so agent sign-ins and shell history do too. The home volume is yours to keep, drop or
-replace; a new one is filled from the image's `/home/dev`.
+Both mount a named volume for all of `/home/dev`, so agent sign-ins and shell history survive a rebuild. The home
+volume is yours to keep, drop or replace; a new one is filled from the image's `/home/dev`. Under sysbox, mount
+nothing at the Docker engine's storage: sysbox gives each container its own, and a volume there can take the
+host down ([ADR 0014](../adr/0014-no-engine-storage-volumes.md)), so images and build cache go with each rebuild. In
+privileged mode the engine needs volumes there; named ones keep its images and build cache across rebuilds.
 
 With sysbox:
 
@@ -20,11 +22,7 @@ With sysbox:
 {
   "image": "ghcr.io/plume-works/devcontainer-base:edge@sha256:<digest>",
   "runArgs": ["--runtime=sysbox-runc"],
-  "mounts": [
-    "source=dc-${devcontainerId}-docker,target=/var/lib/docker,type=volume",
-    "source=dc-${devcontainerId}-containerd,target=/var/lib/containerd,type=volume",
-    "source=dc-${devcontainerId}-home,target=/home/dev,type=volume"
-  ]
+  "mounts": ["source=dc-${devcontainerId}-home,target=/home/dev,type=volume"]
 }
 ```
 
@@ -44,7 +42,7 @@ In privileged mode (the smoke test brings this one up):
 ```
 
 `${devcontainerId}` is stable for a workspace folder, so the volumes survive "Rebuild Container". Never share the
-Docker volumes between two running containers.
+Docker volumes between two containers.
 
 ## Adding your own tooling
 
