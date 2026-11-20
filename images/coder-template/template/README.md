@@ -42,13 +42,13 @@ when you restart the workspace. Useful ones:
 
 ## Claude pre-approval
 
-Two choices when you create the workspace, both on by default and fixed for its life. A workspace is a sandbox,
-so switch them off only for really untrusted code; then Claude asks you as usual. Off only means not granted:
-nothing already granted is revoked. Claude's onboarding welcome is skipped either way.
+Two workspace-wide choices when you create the workspace, both on by default and fixed for its life: the
+workspace is the sandbox. Switch them off only for really untrusted code; then Claude asks you as usual. Off only
+means not granted: nothing already granted is revoked. Claude's onboarding welcome is skipped either way.
 
 - **Claude remote control**: grants remote control's one-time consent, so it never waits on that prompt.
-- **Claude trust workspace**: trusts the cloned repository, and enables its project MCP servers, so remote control
-  and Claude sessions start in it without a prompt.
+- **Claude trust workspace**: trusts the cloned repository, so remote control and Claude sessions start in it
+  without a prompt, and approves the project MCP servers of every project in the workspace.
 
 Remote control sessions run in Claude's auto permission mode.
 

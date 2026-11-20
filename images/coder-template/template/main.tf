@@ -63,7 +63,7 @@ data "coder_parameter" "repo_url" {
 data "coder_parameter" "claude_remote_control" {
   name         = "claude_remote_control"
   display_name = "Claude remote control"
-  description  = "Grant Claude remote control's one-time consent, so it never waits on that prompt."
+  description  = "Workspace-wide (the workspace is the sandbox): grant Claude remote control's one-time consent, so it never waits on that prompt."
   type         = "bool"
   default      = "true"
   mutable      = false
@@ -72,7 +72,7 @@ data "coder_parameter" "claude_remote_control" {
 data "coder_parameter" "claude_trust_workspace" {
   name         = "claude_trust_workspace"
   display_name = "Claude trust workspace"
-  description  = "Trust the cloned repository in Claude, its project MCP servers included. Switch off for really untrusted code."
+  description  = "Workspace-wide (the workspace is the sandbox): trust the cloned repository in Claude, and approve every project's MCP servers. Switch off for really untrusted code."
   type         = "bool"
   default      = "true"
   mutable      = false
