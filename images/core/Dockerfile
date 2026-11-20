@@ -77,7 +77,7 @@ RUN UV_PYTHON_INSTALL_DIR=/opt/uv/python UV_PYTHON_BIN_DIR=/usr/local/bin UV_CAC
 
 # Bun, which also covers the need for Node.js (deliberately absent).
 # renovate: datasource=github-releases depName=oven-sh/bun extractVersion=^bun-v(?<version>.+)$
-ARG BUN_VERSION=1.4.4
+ARG BUN_VERSION=1.4.5
 RUN case "$(uname -m)" in x86_64) b=x64 ;; aarch64) b=aarch64 ;; esac; d=$(mktemp -d) \
  && base="https://github.com/oven-sh/bun/releases/download/bun-v${BUN_VERSION}" \
  && curl -fsSL "$base/bun-linux-$b.zip" -o "$d/bun-linux-$b.zip" \
