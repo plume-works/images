@@ -30,9 +30,7 @@ The first push creates the template; later pushes add a version and make it acti
 come from the front matter of the template's README.
 
 `main.tf` pins the image by digest, and Renovate's "plume-works images" pull request moves it as soon as
-`edge` moves, merging itself once its checks pass. **Until the image is first published, the digest is a
-placeholder of zeros**: before the first push, replace it with the digest of `edge`
-(`docker buildx imagetools inspect ghcr.io/plume-works/coder-template:edge`) or merge Renovate's pull request.
+`edge` moves, merging itself once its checks pass.
 
 ## Troubleshooting
 
