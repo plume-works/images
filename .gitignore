@@ -23,3 +23,6 @@ env/
 .coverage.*
 htmlcov/
 .ipynb_checkpoints/
+
+# In tree temp files
+/.tmp/

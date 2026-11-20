@@ -1,3 +1,8 @@
+
+## Local temporary files
+
+Use gitignored .tmp in the repo root for your temporary files, so you can clean them up once done.
+
 ## Agent skills
 
 ### Issue tracker
