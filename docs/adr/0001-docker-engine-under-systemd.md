@@ -15,5 +15,6 @@ systemd in a container needs either the sysbox runtime or privileged mode:
 
 - **Docker CLI only, engine supplied by each environment** (runner socket, docker-in-docker Feature). Rejected: the engine is a fundamental agent tool and must behave the same in all three images.
 - **supervisord as PID 1.** Rejected for the reason above.
+- **An entrypoint in the core image that starts the engine.** Rejected: every CI job container would inherit it and have to run privileged, even one that never uses Docker. This is what the predecessor did.
 - **Privileged mode everywhere.** Rejected for Coder on safety grounds.
 - **Sysbox everywhere.** Rejected because it shuts out macOS users without a paid Docker Desktop tier.
