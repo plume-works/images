@@ -28,8 +28,7 @@ repository that needs it.
 ## Developing this repository
 
 This repository is developed inside its own devcontainer base image (`.devcontainer.json`, privileged-mode
-snippet), so the image gets continuous real use and its engine builds and tests the images. (Until the image is
-first published, `.devcontainer.json` still uses a stock Ubuntu dev container.)
+snippet), so the image gets continuous real use and its engine builds and tests the images.
 
 Each image lives in `images/<name>/` with its `Dockerfile` and `smoke.sh`; `docker-bake.hcl` lists them, and
 `.github/workflows/images.yml` builds, tests and publishes them all.
