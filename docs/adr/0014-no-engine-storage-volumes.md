@@ -1,7 +1,5 @@
 # No volumes at the Docker engine's storage under sysbox
 
-Supersedes [ADR 0004](0004-engine-storage-declared-as-volumes.md).
-
 The core image declares no volumes. Under sysbox, nothing is mounted at the inner Docker engine's storage
 (`/var/lib/docker`, `/var/lib/containerd`): sysbox gives each container its own host directories there, created
 and removed with the container. So a Coder workspace keeps only its home directory, and the devcontainer sysbox
@@ -23,7 +21,7 @@ OverlayFS mounts, and the host went down.
 
 ## Considered options
 
-- **Volumes declared in the core image** (ADR 0004): every consumer worked with no flags, but under sysbox the
+- **Volumes declared in the core image** (the decision this replaces): every consumer worked with no flags, but under sysbox the
   declared volumes are mounts at the engine's storage, and named volumes over them were reused across containers.
 - **Named volumes per workspace, reused by every container** (the Coder template and devcontainer sysbox snippet
   before this decision): the cause above.
