@@ -25,8 +25,12 @@ locals {
   repo_dir = "/home/dev/${trimsuffix(basename(data.coder_parameter.repo_url.value), ".git")}"
 
   # Git identity from the Coder account: its full name, or its username when it has none. The provider reports a
-  # missing full name as "default", not as empty.
-  git_name  = contains(["", "default"], data.coder_workspace_owner.me.full_name) ? data.coder_workspace_owner.me.name : data.coder_workspace_owner.me.full_name
+  # missing full name (an empty CODER_WORKSPACE_OWNER_NAME) as "default", not as empty.
+  git_name = (
+    contains(["", "default"], data.coder_workspace_owner.me.full_name)
+    ? data.coder_workspace_owner.me.name
+    : data.coder_workspace_owner.me.full_name
+  )
   git_email = data.coder_workspace_owner.me.email
 }
 
