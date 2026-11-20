@@ -38,10 +38,23 @@ when you restart the workspace. Useful ones:
 - Do not use `ANTHROPIC_API_KEY`, `ANTHROPIC_AUTH_TOKEN` or `CLAUDE_CODE_OAUTH_TOKEN` for Claude remote control:
   it needs a claude.ai subscription sign-in, and they are kept away from it.
 
+## Claude pre-approval
+
+Two choices when you create the workspace, both on by default and fixed for its life. A workspace is a sandbox,
+so switch them off only for really untrusted code; then Claude asks you as usual. Off only means not granted:
+nothing already granted is revoked. Claude's onboarding welcome is skipped either way.
+
+- **Claude remote control**: grants remote control's one-time consent, so it never waits on that prompt.
+- **Claude trust workspace**: trusts the cloned repository, and enables its project MCP servers, so remote control
+  and Claude sessions start in it without a prompt.
+
+Remote control sessions run in Claude's auto permission mode.
+
 ## First-time setup
 
-Run `claude` in the repository, accept the trust prompt, and `/login` with your claude.ai subscription. Remote
-control starts on its own within 15 seconds. You do this once: sign-ins live in your home directory.
+Run `claude` in the repository and `/login` with your claude.ai subscription (accept the trust prompt if you
+switched **Claude trust workspace** off). Remote control starts on its own within 15 seconds. You do this once:
+sign-ins live in your home directory.
 
 ## What survives
 

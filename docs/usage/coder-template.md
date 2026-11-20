@@ -38,7 +38,8 @@ come from the front matter of the template's README.
 - A new or rotated Coder secret reaches the services only on workspace restart
   ([ADR 0002](../adr/0002-coder-secrets-reach-services-through-systemd.md)).
 - Claude remote control never sees `ANTHROPIC_API_KEY`, `ANTHROPIC_AUTH_TOKEN` or `CLAUDE_CODE_OAUTH_TOKEN`, and
-  keeps retrying until the user has run `claude` in the repository, accepted the trust prompt and `/login`ed
+  keeps retrying until the user has `/login`ed and the repository is trusted: by Claude pre-approval unless
+  switched off at creation, else by running `claude` in it
   ([ADR 0003](../adr/0003-remote-control-unit-exceptions.md)).
 - One volume per workspace persists across rebuilds: `/home/dev`. Everything else is recreated at every start,
   the Docker engine's storage included ([ADR 0014](../adr/0014-no-engine-storage-volumes.md)).

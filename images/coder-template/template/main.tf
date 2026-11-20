@@ -50,7 +50,6 @@ data "coder_provisioner" "me" {}
 data "coder_workspace" "me" {}
 data "coder_workspace_owner" "me" {}
 
-# The only parameter.
 data "coder_parameter" "repo_url" {
   name         = "repo_url"
   display_name = "Repository URL"
@@ -58,6 +57,25 @@ data "coder_parameter" "repo_url" {
   type         = "string"
   mutable      = false
   icon         = "/icon/git.svg"
+}
+
+# Claude pre-approval (ADR 0003): the two choices only. The image acts on them (claude-pre-approval.service).
+data "coder_parameter" "claude_remote_control" {
+  name         = "claude_remote_control"
+  display_name = "Claude remote control"
+  description  = "Grant Claude remote control's one-time consent, so it never waits on that prompt."
+  type         = "bool"
+  default      = "true"
+  mutable      = false
+}
+
+data "coder_parameter" "claude_trust_workspace" {
+  name         = "claude_trust_workspace"
+  display_name = "Claude trust workspace"
+  description  = "Trust the cloned repository in Claude, its project MCP servers included. Switch off for really untrusted code."
+  type         = "bool"
+  default      = "true"
+  mutable      = false
 }
 
 resource "coder_agent" "main" {
@@ -74,6 +92,9 @@ resource "coder_agent" "main" {
     GIT_AUTHOR_EMAIL    = local.git_email
     GIT_COMMITTER_NAME  = local.git_name
     GIT_COMMITTER_EMAIL = local.git_email
+    # "true" or "false".
+    CLAUDE_PREAPPROVE_REMOTE_CONTROL  = data.coder_parameter.claude_remote_control.value
+    CLAUDE_PREAPPROVE_TRUST_WORKSPACE = data.coder_parameter.claude_trust_workspace.value
   }
 
   # Runs as dev in bash (compgen is a bash builtin). Coder secrets are in its environment, so the clone can use

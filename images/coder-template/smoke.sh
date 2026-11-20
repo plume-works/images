@@ -49,8 +49,9 @@ password="smoke-password-$RANDOM$RANDOM"
 
 # A stand-in for coder_agent.init_script (a POSIX sh script). It records what the agent would see, then runs
 # what the template's startup script runs: clone a repository (here: create one), then the hand-off.
-# The imported variables stand for Coder user secrets. CLAUDE_CODE_OAUTH_TOKEN is one a user may well
-# define for terminal use, and it would stop remote control.
+# The imported variables stand for Coder user secrets and the template's agent variables, with both Claude
+# pre-approval choices on. CLAUDE_CODE_OAUTH_TOKEN is a secret a user may well define for terminal use, and it
+# would stop remote control.
 cat >"$work/agent-init.sh" <<EOF
 #!/usr/bin/env sh
 set -eu
@@ -58,11 +59,15 @@ set -eu
 git init -q /home/dev/repo
 git -C /home/dev/repo -c user.name=smoke -c user.email=smoke@example.com commit -q --allow-empty -m init
 export REPO_DIR=/home/dev/repo SMOKE_VAR=$var OPENCODE_PASSWORD=$password CLAUDE_CODE_OAUTH_TOKEN=smoke-not-a-token
+export CLAUDE_PREAPPROVE_REMOTE_CONTROL=true CLAUDE_PREAPPROVE_TRUST_WORKSPACE=true
 bash -c 'systemctl --user import-environment \$(compgen -e) && systemctl --user start agent-services.target'
 echo started >>/home/dev/agent-saw
 exec sleep infinity
 EOF
 printf '%s\n' "$token" >"$work/agent-token"
+
+# A setting of the user's own, which Claude pre-approval must keep.
+as_dev sh -c 'mkdir -p ~/.claude && echo "{\"model\": \"smoke\"}" >~/.claude/settings.json'
 
 docker stop -t 60 "$container" >/dev/null
 # Like the template's uploads: in place before the container starts, the token owned by dev and readable by
@@ -77,6 +82,16 @@ wait_for 60 as_dev grep -qx started /home/dev/agent-saw || fail "the Coder agent
 pass "the Coder agent runs as dev, reads its token from the uploaded file and reaches dev's user manager"
 
 as_dev systemctl --user is-active --quiet agent-services.target || fail "agent-services.target is not active"
+
+# Claude pre-approval, both choices on: everything granted, the user's own setting kept.
+claude_state() { as_dev jq -e "$1" /home/dev/.claude.json >/dev/null; }
+claude_settings() { as_dev jq -e "$1" /home/dev/.claude/settings.json >/dev/null; }
+claude_state '.hasCompletedOnboarding == true' || fail "Claude's onboarding is not marked completed"
+claude_state '.remoteDialogSeen == true' || fail "remote control's consent is not granted"
+claude_state '.projects["/home/dev/repo"].hasTrustDialogAccepted == true' || fail "the repository is not trusted"
+claude_settings '.enableAllProjectMcpServers == true' || fail "project MCP servers are not enabled"
+claude_settings '.model == "smoke"' || fail "Claude pre-approval lost the user's own setting"
+pass "with both Claude pre-approval choices on, onboarding, consent, trust and project MCP servers are granted"
 pid=$(as_dev systemctl --user show -p MainPID --value opencode.service)
 [ "$pid" != 0 ] || fail "the OpenCode server is not running"
 as_dev cat "/proc/$pid/environ" | tr '\0' '\n' | grep -x "SMOKE_VAR=$var" >/dev/null ||
@@ -123,5 +138,18 @@ pass "remote control keeps retrying until a sign-in exists, without the API-toke
 
 as_dev systemctl --user is-active --quiet agent-services.target || fail "agent-services.target stopped"
 pass "the target stays up while its services restart"
+
+# Claude pre-approval, both choices off: a fresh home's Claude files, and the hand-off again with the choices off,
+# as a restarted workspace's startup script does it.
+as_dev systemctl --user stop agent-services.target
+as_dev rm -rf /home/dev/.claude.json /home/dev/.claude
+as_dev systemctl --user set-environment CLAUDE_PREAPPROVE_REMOTE_CONTROL=false CLAUDE_PREAPPROVE_TRUST_WORKSPACE=false
+as_dev systemctl --user start agent-services.target
+claude_state '.hasCompletedOnboarding == true' || fail "Claude's onboarding is not marked completed with both choices off"
+claude_state '.remoteDialogSeen != true' || fail "remote control's consent is granted although switched off"
+claude_state '.projects["/home/dev/repo"].hasTrustDialogAccepted != true' || fail "the repository is trusted although switched off"
+! as_dev test -e /home/dev/.claude/settings.json || ! claude_settings '.enableAllProjectMcpServers == true' ||
+  fail "project MCP servers are enabled although switched off"
+pass "with both Claude pre-approval choices off, only onboarding is granted"
 
 echo "coder-template smoke test passed: $image"

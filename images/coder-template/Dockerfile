@@ -11,6 +11,7 @@ COPY coder-agent.service /etc/systemd/system/
 RUN install -d -m0755 /etc/coder \
  && systemctl enable coder-agent.service
 
-# The agent services: user units for dev's user manager, pulled in by agent-services.target. Nothing enables
-# them; only the Coder agent's startup script starts the target (ADR 0002).
-COPY agent-services.target opencode.service claude-remote-control.service /etc/systemd/user/
+# The agent services and Claude pre-approval: user units for dev's user manager, pulled in by
+# agent-services.target. Nothing enables them; only the Coder agent's startup script starts the target (ADR 0002).
+COPY agent-services.target opencode.service claude-pre-approval.service claude-remote-control.service /etc/systemd/user/
+COPY --chmod=0755 claude-pre-approval /usr/local/bin/claude-pre-approval
