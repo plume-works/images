@@ -51,7 +51,7 @@ jobs:
 
       - name: Delete the stale pr-N tags
         if: steps.list.outputs.tags != ''
-        uses: dataaxiom/ghcr-cleanup-action@d52806a0dc70b430571a37da1fde39733ffd640f # v1
+        uses: dataaxiom/ghcr-cleanup-action@d52806a0dc70b430571a37da1fde39733ffd640f # v1.2.2
         with:
           packages: ${{ steps.list.outputs.packages }}
           delete-tags: ${{ steps.list.outputs.tags }}
