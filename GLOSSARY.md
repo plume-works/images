@@ -29,5 +29,5 @@ A long-running app (such as OpenCode's server or Claude remote control) that the
 _Avoid_: User service, background agent
 
 **Claude pre-approval**:
-Granting, for the workspace user and before Claude Code asks, its remote control consent and trust in the workspace's repository.
+Answering Claude Code's first-run questions for the workspace user before Claude Code asks them: its onboarding, its remote control consent, and trust in the workspace's repository and that repository's MCP servers.
 _Avoid_: Seeding, auto-trust
