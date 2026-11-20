@@ -1,12 +1,13 @@
 {
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
-  "description": "Every pinned version in this repository is updated only through a Renovate pull request, which builds, tests and publishes pr-N like any other, and merges by itself once its checks pass. Apt packages float by design and are not tracked.",
+  "description": "Every pinned version in this repository is updated only through a Renovate pull request, which builds, tests and publishes pr-N like any other, and merges by itself once its checks pass, with no hourly limit on new pull requests, so a pin bump never waits behind others. Apt packages float by design and are not tracked.",
   "extends": [
     "config:recommended",
     "docker:pinDigests",
     "helpers:pinGitHubActionDigestsToSemver"
   ],
   "automerge": true,
+  "prHourlyLimit": 0,
   "customManagers": [
     {
       "customType": "regex",
