@@ -58,9 +58,13 @@ RUN a=$(dpkg --print-architecture); f="git-lfs-linux-$a-v${GIT_LFS_VERSION}.tar.
  && git lfs install --system --skip-repo \
  && rm -rf "$d"
 
-# uv, and the Python it manages: the interpreter under /opt/uv/python, python/python3 linked into /usr/local/bin.
-# The UV_* locations are build-time only. At run time a user's own extra Pythons and tools go to their home
-# (their choice, not something the image ships), while the image's Python is found through PATH.
+# Python is Ubuntu's (python3, with python-is-python3 for `python`), floating with the release like any apt package.
+# hadolint ignore=DL3008
+RUN apt-get update \
+ && apt-get install -y --no-install-recommends python3 python-is-python3 \
+ && rm -rf /var/lib/apt/lists/*
+# uv, for projects and virtual environments; with no Python of its own installed, it uses Ubuntu's.
+# A user's own extra Pythons and tools go to their home (their choice, not something the image ships).
 # renovate: datasource=github-releases depName=astral-sh/uv
 ARG UV_VERSION=0.13.9
 RUN t="$(uname -m)-unknown-linux-gnu"; d=$(mktemp -d) \
@@ -69,11 +73,6 @@ RUN t="$(uname -m)-unknown-linux-gnu"; d=$(mktemp -d) \
  && echo "$(curl -fsSL "$u.sha256" | cut -d' ' -f1)  $d/uv.tgz" | sha256sum -c - \
  && tar -xzf "$d/uv.tgz" -C /usr/local/bin --strip-components=1 "uv-$t/uv" "uv-$t/uvx" \
  && rm -rf "$d"
-# renovate: datasource=python-version depName=python
-ARG PYTHON_VERSION=3.15.2
-RUN UV_PYTHON_INSTALL_DIR=/opt/uv/python UV_PYTHON_BIN_DIR=/usr/local/bin UV_CACHE_DIR=/tmp/uv-cache \
-    uv python install "${PYTHON_VERSION}" --default --preview-features python-install-default \
- && rm -rf /tmp/uv-cache
 
 # Bun, which also covers the need for Node.js (deliberately absent).
 # renovate: datasource=github-releases depName=oven-sh/bun extractVersion=^bun-v(?<version>.+)$
@@ -107,7 +106,7 @@ RUN case "$(uname -m)" in x86_64) f=ninja-linux.zip ;; aarch64) f=ninja-linux-aa
  && unzip -q "$d/$f" -d /usr/local/bin \
  && rm -rf "$d"
 
-# fish, the upstream static build: Ubuntu's package would pull in a second Python. bash stays dev's shell.
+# fish, the upstream static build, pinned (Ubuntu's package floats). bash stays dev's shell.
 # renovate: datasource=github-releases depName=fish-shell/fish-shell
 ARG FISH_VERSION=4.9.3
 RUN d=$(mktemp -d) \

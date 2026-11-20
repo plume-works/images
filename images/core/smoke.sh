@@ -55,14 +55,21 @@ case "$(opencode --version)" in
   *) fail "opencode is $(opencode --version), not version 2" ;;
 esac
 
-# A virtual environment dev makes gets the Python uv manages system-wide, not a per-user download
-# and not the distribution's.
+# The Python is Ubuntu's, and a virtual environment dev makes with uv gets it too, not a per-user download.
+for py in python python3; do
+  case "$(readlink -f "$(command -v $py)")" in
+    /usr/bin/python3*) ;;
+    *) fail "$py is $(readlink -f "$(command -v $py)"), not Ubuntu's Python" ;;
+  esac
+done
+pass "python and python3 are Ubuntu's ($(python3 --version))"
 venv_python=$(su dev -c 'cd "$(mktemp -d)" && uv venv -q v && readlink -f v/bin/python') \
   || fail "uv venv fails as dev"
 case "$venv_python" in
-  /root/* | /home/* | /usr/bin/*) fail "uv venv as dev uses $venv_python, not uv's system-wide Python" ;;
+  /usr/bin/python3*) ;;
+  *) fail "uv venv as dev uses $venv_python, not Ubuntu's Python" ;;
 esac
-pass "uv venv as dev uses the system-wide Python ($venv_python)"
+pass "uv venv as dev uses Ubuntu's Python ($venv_python)"
 
 # No Node.js: Bun covers that need.
 for tool in node nodejs npm npx; do
