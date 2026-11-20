@@ -21,7 +21,7 @@ name cloned into `/home/dev/<repository>`. Source and documentation:
   Coder deployment.
 - **Claude remote control** in worktree mode on your repository: each remote session gets its own worktree.
 - A Docker engine of your own inside the workspace.
-- Git commits under the name and email of your Coder account.
+- Git commits under the full name (or, if it has none, the username) and email of your Coder account.
 
 Both agent services are supervised by systemd and restarted whenever they stop. Logs:
 `journalctl --user -u opencode -u claude-remote-control`, and `journalctl -u coder-agent` for the agent.

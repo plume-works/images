@@ -57,7 +57,8 @@ and check:
    `systemctl --user show-environment | grep PROBE_SECRET` and
    `tr '\0' '\n' < /proc/$(systemctl --user show -p MainPID --value opencode)/environ | grep PROBE_SECRET` both
    find it.
-3. `git commit` shows your Coder name and email; `git push` works with only the `GITHUB_TOKEN` secret.
+3. `git commit` shows your Coder full name (or your username, if the account has no full name) and email;
+   `git push` works with only the `GITHUB_TOKEN` secret.
 4. A killed service restarts: `systemctl --user kill -s KILL opencode`, then within seconds it is active again
    with a new PID, and the OpenCode button works (after `OPENCODE_PASSWORD`).
 5. VS Code Desktop and code-server open the repository.
