@@ -149,8 +149,8 @@ main_pid() { as_dev systemctl --user show -p MainPID --value opencode.service; }
 main=$(main_pid)
 as_dev tmux -L opencode new-window -d -- sh -c 'echo smoke-extra-window; exit 4'
 sleep 3
-[ "$(main_pid)" = "$main" ] && [ "$(opencode_pid)" = "$pid" ] && opencode_info >/dev/null ||
-  fail "a pane other than the app's ending ended OpenCode's service"
+untouched() { [ "$(main_pid)" = "$main" ] && [ "$(opencode_pid)" = "$pid" ] && opencode_info >/dev/null; }
+untouched || fail "a pane other than the app's ending ended OpenCode's service"
 pass "a pane other than the app's ending leaves the agent service running"
 
 as_dev kill -9 "$pid"
