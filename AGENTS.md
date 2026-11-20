@@ -1,3 +1,14 @@
+# Images repo
+
+`README.md` states the repo purpose. Keep it current as the repo evolves, and brief: durable knowledge belongs in ADRs and `GLOSSARY.md`, not the README.
+
+## Design principles
+
+YAGNI, KISS, DRY.
+
+YAGNI, KISS, DRY.
+
+YAGNI, KISS, DRY.
 
 ## Local temporary files
 
@@ -15,4 +26,10 @@ Uses the five default triage labels: `needs-triage`, `needs-info`, `ready-for-ag
 
 ### Domain docs
 
-Single-context: one `GLOSSARY.md` at the repo root and ADRs in `docs/adr/`. See `docs/agents/domain.md`.
+Single-context: one `GLOSSARY.md` at the repo root and ADRs in `docs/adr/`. Record decisions and glossary terms with the `domain-modeling` skill.
+
+@docs/agents/domain.md
+
+## Reviews
+
+Log every finding a reviewer dismissed, and end the task with a report of them for a human to review.
