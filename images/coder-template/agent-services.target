@@ -5,4 +5,4 @@
 #   systemctl --user start agent-services.target
 [Unit]
 Description=Agent services (started by the Coder agent, never at boot)
-Wants=opencode.service claude-remote-control.service claude-bridge-prompt-scrub.service
+Wants=opencode.service claude-remote-control.service

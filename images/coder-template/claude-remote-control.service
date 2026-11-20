@@ -7,6 +7,10 @@
 [Unit]
 Description=Claude Code remote control (worktree mode)
 PartOf=agent-services.target
+# Never without the scrubber that drops the cloud-container prompt from its sessions (ADR 0014), which is ready
+# only once it watches.
+Requires=claude-bridge-prompt-scrub.service
+After=claude-bridge-prompt-scrub.service
 # Retry forever.
 StartLimitIntervalSec=0
 

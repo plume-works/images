@@ -1,9 +1,8 @@
 # Empties the cloud-container prompt Claude remote control hands each session it spawns (ADR 0014), under
-# agent-services.target. Ready only once it watches, and ordered before remote control, so no session slips by.
+# agent-services.target. Remote control requires it and starts only once it is ready, that is, watching.
 [Unit]
 Description=Drop the cloud-container prompt from Claude remote control sessions
 PartOf=agent-services.target
-Before=claude-remote-control.service
 # Retry forever.
 StartLimitIntervalSec=0
 
