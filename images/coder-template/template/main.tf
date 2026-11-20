@@ -113,7 +113,7 @@ module "code-server" {
   agent_id = coder_agent.main.id
   folder   = local.repo_dir
   # renovate: datasource=github-releases depName=coder/code-server
-  install_version = "4.145.2"
+  install_version = "4.146.0"
 }
 
 # OpenCode's server (API and web UI), run by opencode.service on localhost:4096. OpenCode cannot run under a path
