@@ -20,12 +20,15 @@ dump_extra() {
 }
 as_dev() { docker exec -u dev -e XDG_RUNTIME_DIR=/run/user/1000 "$container" "$@"; }
 
-# Wait up to $1 seconds for a command to succeed.
+# Wait up to $1 seconds for a command to succeed, trying it every tenth of a second: often enough to catch a
+# pane that lives only briefly.
 wait_for() {
-  local t=$1
+  local end=$((SECONDS + $1))
   shift
-  for _ in $(seq "$t"); do "$@" >/dev/null 2>&1 && return 0; sleep 1; done
-  return 1
+  until "$@" >/dev/null 2>&1; do
+    [ "$SECONDS" -lt "$end" ] || return 1
+    sleep 0.1
+  done
 }
 
 # --- First boot: a plain container, nothing uploaded --------------------------------------------------------
@@ -84,34 +87,34 @@ pass "the Coder agent runs as dev, reads its token from the uploaded file and re
 as_dev systemctl --user is-active --quiet agent-services.target || fail "agent-services.target is not active"
 
 # Claude pre-approval, both choices on: everything granted, the user's own setting kept.
-claude_state() { as_dev jq -e "$1" /home/dev/.claude.json >/dev/null; }
-claude_settings() { as_dev jq -e "$1" /home/dev/.claude/settings.json >/dev/null; }
-claude_state '.hasCompletedOnboarding == true' || fail "Claude's onboarding is not marked completed"
-claude_state '.remoteDialogSeen == true' || fail "remote control's consent is not granted"
-claude_state '.projects["/home/dev/repo"].hasTrustDialogAccepted == true' || fail "the repository is not trusted"
-claude_settings '.enableAllProjectMcpServers == true' || fail "project MCP servers are not enabled"
-claude_settings '.model == "smoke"' || fail "Claude pre-approval lost the user's own setting"
+# claude_has FILE FILTER: FILTER holds in /home/dev/FILE.
+claude_has() { as_dev jq -e "$2" "/home/dev/$1" >/dev/null; }
+claude_has .claude.json '.hasCompletedOnboarding == true' || fail "Claude's onboarding is not marked completed"
+claude_has .claude.json '.remoteDialogSeen == true' || fail "remote control's consent is not granted"
+claude_has .claude.json '.projects["/home/dev/repo"].hasTrustDialogAccepted == true' || fail "the repository is not trusted"
+claude_has .claude/settings.json '.enableAllProjectMcpServers == true' || fail "project MCP servers are not enabled"
+claude_has .claude/settings.json '.model == "smoke"' || fail "Claude pre-approval lost the user's own setting"
 pass "with both Claude pre-approval choices on, onboarding, consent, trust and project MCP servers are granted"
 
 # Each agent service runs its app in its own tmux server, on a socket named after its unit (ADR 0015).
 # opencode_pid: the OpenCode server's PID, when it is the live process in the pane of socket opencode, and still
 # in opencode.service (so systemd supervises and stops it).
 opencode_pid() {
-  local p
+  local p pid
   p=$(as_dev tmux -L opencode display-message -p -t opencode '#{pane_dead} #{pane_pid}') && [ "${p% *}" = 0 ] ||
     return 1
-  as_dev cat "/proc/${p#* }/cmdline" | tr '\0' ' ' | grep 'opencode serve' >/dev/null &&
-    as_dev cat "/proc/${p#* }/cgroup" | grep '/opencode\.service$' >/dev/null && echo "${p#* }"
+  pid=${p#* }
+  as_dev cat "/proc/$pid/cmdline" | tr '\0' ' ' | grep 'opencode serve' >/dev/null &&
+    as_dev cat "/proc/$pid/cgroup" | grep '/opencode\.service$' >/dev/null && echo "$pid"
 }
 wait_for 60 opencode_pid || fail "the OpenCode server does not run in the pane of tmux socket opencode"
 pid=$(opencode_pid)
-# Remote control has no sign-in here, so it runs only briefly before each restart: look for its pane often.
-# shellcheck disable=SC2016 # a script for the container's shell
-as_dev sh -c 'for _ in $(seq 600); do
-    tmux -L claude-remote-control display-message -p -t claude-remote-control "#{pane_start_command}" 2>/dev/null |
-      grep "claude remote-control" >/dev/null && exit
-    sleep 0.1
-  done; exit 1' || fail "remote control does not run in the pane of tmux socket claude-remote-control"
+# Remote control has no sign-in here, so it runs only briefly before each restart.
+rc_pane() {
+  as_dev tmux -L claude-remote-control display-message -p -t claude-remote-control '#{pane_start_command}' |
+    grep 'claude remote-control' >/dev/null
+}
+wait_for 60 rc_pane || fail "remote control does not run in the pane of tmux socket claude-remote-control"
 pass "each agent service runs its app in the pane of a tmux socket named after its unit"
 
 as_dev cat "/proc/$pid/environ" | tr '\0' '\n' | grep -x "SMOKE_VAR=$var" >/dev/null ||
@@ -186,10 +189,10 @@ pass "an agent service's tmux server ends with its app, or when the service stop
 as_dev rm -rf /home/dev/.claude.json /home/dev/.claude
 as_dev systemctl --user set-environment CLAUDE_PREAPPROVE_REMOTE_CONTROL=false CLAUDE_PREAPPROVE_TRUST_WORKSPACE=false
 as_dev systemctl --user start agent-services.target
-claude_state '.hasCompletedOnboarding == true' || fail "Claude's onboarding is not marked completed with both choices off"
-claude_state '.remoteDialogSeen != true' || fail "remote control's consent is granted although switched off"
-claude_state '.projects["/home/dev/repo"].hasTrustDialogAccepted != true' || fail "the repository is trusted although switched off"
-! as_dev test -e /home/dev/.claude/settings.json || ! claude_settings '.enableAllProjectMcpServers == true' ||
+claude_has .claude.json '.hasCompletedOnboarding == true' || fail "Claude's onboarding is not marked completed with both choices off"
+claude_has .claude.json '.remoteDialogSeen != true' || fail "remote control's consent is granted although switched off"
+claude_has .claude.json '.projects["/home/dev/repo"].hasTrustDialogAccepted != true' || fail "the repository is trusted although switched off"
+! as_dev test -e /home/dev/.claude/settings.json || ! claude_has .claude/settings.json '.enableAllProjectMcpServers == true' ||
   fail "project MCP servers are enabled although switched off"
 pass "with both Claude pre-approval choices off, only onboarding is granted"
 
