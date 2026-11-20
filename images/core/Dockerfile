@@ -173,7 +173,7 @@ RUN install -d /etc/claude-code /etc/environment.d \
 # renovate: datasource=github-releases depName=moby/moby extractVersion=^docker-v(?<version>.+)$
 ARG DOCKER_VERSION=29.10.0
 # renovate: datasource=github-releases depName=docker/buildx extractVersion=^v(?<version>.+)$
-ARG BUILDX_VERSION=0.39.0
+ARG BUILDX_VERSION=0.39.1
 # renovate: datasource=github-releases depName=docker/compose extractVersion=^v(?<version>.+)$
 ARG COMPOSE_VERSION=5.8.0
 # hadolint ignore=DL3008
