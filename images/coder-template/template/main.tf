@@ -140,7 +140,7 @@ resource "docker_image" "main" {
   # keep the reference here, not in a local or variable.
   # FIXME before the first push: the digest below is a placeholder of zeros until the image is first published (#15).
   # Replace it with the digest of ghcr.io/plume-works/coder-template:edge, or merge Renovate's digest pull request.
-  name         = "ghcr.io/plume-works/coder-template:edge@sha256:0000000000000000000000000000000000000000000000000000000000000000"
+  name         = "ghcr.io/plume-works/coder-template:edge@sha256:b6c315af8b3abc5455ce82092b75089b5ae6a1cdc6bb91959919598a58578965"
   keep_locally = true
 }
 
