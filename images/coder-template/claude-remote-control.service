@@ -4,7 +4,7 @@
 #
 # Until the user has signed in (with a claude.ai subscription) and trusted the repository, it exits at once;
 # it is restarted for ever, so it starts working after the first sign-in with nothing else to restart.
-# Claude pre-approval (claude-pre-approval.service, ADR 0003) grants the trust unless the user switched it off;
+# Claude pre-approval (claude-pre-approval.service, ADR 0016) grants the trust unless the user switched it off;
 # then running `claude` in the repository does. Signing in there with /login does the rest. It also grants the
 # one-time remote control consent; switched off, remote control waits at that question in its tmux pane for the
 # user to answer it there (docs/usage/coder-template.md).

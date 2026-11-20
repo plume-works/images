@@ -1,4 +1,4 @@
-# Claude pre-approval (ADR 0003), under agent-services.target: once per start of the target, before remote
+# Claude pre-approval (ADR 0016), under agent-services.target: once per start of the target, before remote
 # control, from the Coder template's choices in the imported environment (ADR 0002). See the script for what
 # it writes. Its own unit, not remote control's, so it does not run again on remote control's restarts.
 [Unit]

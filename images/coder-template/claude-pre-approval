@@ -1,5 +1,5 @@
 #!/bin/sh
-# Claude pre-approval (ADR 0003), run by claude-pre-approval.service as the workspace user. Records in the user's
+# Claude pre-approval (ADR 0016), run by claude-pre-approval.service as the workspace user. Records in the user's
 # ~/.claude.json what the user would otherwise answer at Claude's first-run prompts, merging into what is there.
 # The Coder template's two choices arrive as imported variables (ADR 0002), each `true` or `false`; unset means
 # off. Off means not written: nothing is ever revoked.
