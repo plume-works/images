@@ -1,41 +1,24 @@
-// For format details, see https://aka.ms/devcontainer.json. For config options, see the
-// README at: https://github.com/devcontainers/templates/tree/main/src/ubuntu
+// This repository develops in its own devcontainer base image (see the README), with the
+// privileged-mode snippet from the README. Renovate proposes digest bumps for the pin.
+// Do not add the docker-in-docker Feature: the image runs its own Docker engine under systemd.
 {
-	"name": "Ubuntu",
-	// Or use a Dockerfile or Docker Compose file. More info: https://containers.dev/guide/dockerfile
-	"image": "mcr.microsoft.com/devcontainers/base:resolute",
+	"name": "images",
+	"image": "ghcr.io/plume-works/devcontainer-base:edge@sha256:5dc12065d4ff1bd7933df458f22b91b7e7f9ee7e77105f99c24bf534d31fd6a5",
 	"privileged": true,
+	"mounts": [
+		"source=dc-${devcontainerId}-docker,target=/var/lib/docker,type=volume",
+		"source=dc-${devcontainerId}-containerd,target=/var/lib/containerd,type=volume",
+		"source=dc-${devcontainerId}-home,target=/home/dev,type=volume"
+	],
 
-	// Features to add to the dev container. More info: https://containers.dev/features.
-	"features": {
-    "ghcr.io/meaningful-ooo/devcontainer-features/homebrew:2": {},
-		"ghcr.io/devcontainers/features/docker-in-docker": {},
-		"ghcr.io/devcontainers/features/github-cli": {}
-	},
-
-	// This breaks claude auth
-	// "mounts": [
-	// 	"source=claude-code-config,target=/home/vscode/.claude,type=volume"
-	// ],
-
-	// Use 'forwardPorts' to make a list of ports inside the container available locally.
-	// "forwardPorts": [],
-
-	// Use 'postCreateCommand' to run commands after the container is created.
-	// "postCreateCommand": "uname -a",
-
-	// Configure tool-specific properties.
+	// The image's metadata already sets the remote user (dev) and installs the Claude Code extension.
 	"customizations": {
 		"vscode": {
 			"extensions": [
-				"anthropic.claude-code",
 				"mhutchie.git-graph",
 				"eamodio.gitlens",
 				"codezombiech.gitignore"
 			]
-		}	
+		}
 	}
-
-	// Uncomment to connect as root instead. More info: https://aka.ms/dev-containers-non-root.
-	// "remoteUser": "root"
 }
