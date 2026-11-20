@@ -69,8 +69,9 @@ exec sleep infinity
 EOF
 printf '%s\n' "$token" >"$work/agent-token"
 
-# A setting of the user's own, which Claude pre-approval must keep.
-as_dev sh -c 'mkdir -p ~/.claude && echo "{\"model\": \"smoke\"}" >~/.claude/settings.json'
+# The user's own settings, which Claude pre-approval must leave alone: its approvals are for the repository only.
+settings='{"model": "smoke"}'
+as_dev sh -c "mkdir -p ~/.claude && echo '$settings' >~/.claude/settings.json"
 
 docker stop -t 60 "$container" >/dev/null
 # Like the template's uploads: in place before the container starts, the token owned by dev and readable by
@@ -92,8 +93,9 @@ claude_has() { as_dev jq -e "$2" "/home/dev/$1" >/dev/null; }
 claude_has .claude.json '.hasCompletedOnboarding == true' || fail "Claude's onboarding is not marked completed"
 claude_has .claude.json '.remoteDialogSeen == true' || fail "remote control's consent is not granted"
 claude_has .claude.json '.projects["/home/dev/repo"].hasTrustDialogAccepted == true' || fail "the repository is not trusted"
-claude_has .claude/settings.json '.enableAllProjectMcpServers == true' || fail "project MCP servers are not enabled"
-claude_has .claude/settings.json '.model == "smoke"' || fail "Claude pre-approval lost the user's own setting"
+claude_has .claude.json '.projects["/home/dev/repo"].enableAllProjectMcpServers == true' ||
+  fail "the repository's project MCP servers are not enabled"
+[ "$(as_dev cat /home/dev/.claude/settings.json)" = "$settings" ] || fail "Claude pre-approval touched ~/.claude/settings.json"
 pass "with both Claude pre-approval choices on, onboarding, consent, trust and project MCP servers are granted"
 
 # Each agent service runs its app in its own tmux server, on a socket named after its unit (ADR 0015).
@@ -201,8 +203,9 @@ as_dev systemctl --user start agent-services.target
 claude_has .claude.json '.hasCompletedOnboarding == true' || fail "Claude's onboarding is not marked completed with both choices off"
 claude_has .claude.json '.remoteDialogSeen != true' || fail "remote control's consent is granted although switched off"
 claude_has .claude.json '.projects["/home/dev/repo"].hasTrustDialogAccepted != true' || fail "the repository is trusted although switched off"
-! as_dev test -e /home/dev/.claude/settings.json || ! claude_has .claude/settings.json '.enableAllProjectMcpServers == true' ||
-  fail "project MCP servers are enabled although switched off"
+claude_has .claude.json '.projects["/home/dev/repo"].enableAllProjectMcpServers != true' ||
+  fail "the repository's project MCP servers are enabled although switched off"
+! as_dev test -e /home/dev/.claude/settings.json || fail "Claude pre-approval created ~/.claude/settings.json"
 pass "with both Claude pre-approval choices off, only onboarding is granted"
 
 echo "coder-template smoke test passed: $image"
