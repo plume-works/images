@@ -34,14 +34,15 @@ pass "dev is UID 1000 with bash and passwordless sudo"
 
 # Each tool answers, as root and as dev, from a system-wide location (not under a home).
 as() { if [ "$1" = root ]; then bash -c "$2"; else su "$1" -c "$2"; fi; }
-for tool in git gh git-lfs uv uvx python python3 bun bunx cmake ninja fish jq claude opencode; do
+for tool in git gh git-lfs uv uvx python python3 bun bunx cmake ninja fish jq tmux btop claude opencode; do
   for user in root dev; do
     path=$(as "$user" "command -v $tool") || fail "$tool is not on $user's PATH"
     case "$(readlink -f "$path")" in
       /root/* | /home/*) fail "$tool resolves under a home directory for $user: $path" ;;
     esac
     # Capture, then keep the first line: piping into head under pipefail can kill a multi-line writer.
-    version=$(as "$user" "$tool --version" 2>&1) || fail "$tool does not run as $user"
+    flag=--version; [ "$tool" = tmux ] && flag=-V
+    version=$(as "$user" "$tool $flag" 2>&1) || fail "$tool does not run as $user"
     version=${version%%$'\n'*}
     [ -n "$version" ] || fail "$tool reports no version as $user"
   done
