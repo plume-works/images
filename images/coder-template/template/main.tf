@@ -149,8 +149,7 @@ resource "docker_image" "main" {
 
 # The only state that persists: home, in a volume mounted at the path below. Never replaced or deleted by a template
 # change; deleted with the workspace. The inner Docker engine's storage does not persist (ADR 0014): each container
-# gets fresh anonymous volumes there from the image's declared volumes, removed with it. Under sysbox, a named
-# volume reused by the replacement container can still be mounted by the old one, which corrupts it.
+# gets fresh anonymous volumes there from the image's declared volumes, removed with it.
 locals {
   state_volumes = {
     home = "/home/dev"
