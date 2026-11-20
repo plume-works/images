@@ -92,8 +92,28 @@ claude_state '.projects["/home/dev/repo"].hasTrustDialogAccepted == true' || fai
 claude_settings '.enableAllProjectMcpServers == true' || fail "project MCP servers are not enabled"
 claude_settings '.model == "smoke"' || fail "Claude pre-approval lost the user's own setting"
 pass "with both Claude pre-approval choices on, onboarding, consent, trust and project MCP servers are granted"
-pid=$(as_dev systemctl --user show -p MainPID --value opencode.service)
-[ "$pid" != 0 ] || fail "the OpenCode server is not running"
+
+# Each agent service runs its app in its own tmux server, on a socket named after its unit (ADR 0015).
+# opencode_pid: the OpenCode server's PID, when it is the live process in the pane of socket opencode, and still
+# in opencode.service (so systemd supervises and stops it).
+opencode_pid() {
+  local p
+  p=$(as_dev tmux -L opencode display-message -p -t opencode '#{pane_dead} #{pane_pid}') && [ "${p% *}" = 0 ] ||
+    return 1
+  as_dev cat "/proc/${p#* }/cmdline" | tr '\0' ' ' | grep 'opencode serve' >/dev/null &&
+    as_dev cat "/proc/${p#* }/cgroup" | grep '/opencode\.service$' >/dev/null && echo "${p#* }"
+}
+wait_for 60 opencode_pid || fail "the OpenCode server does not run in the pane of tmux socket opencode"
+pid=$(opencode_pid)
+# Remote control has no sign-in here, so it runs only briefly before each restart: look for its pane often.
+# shellcheck disable=SC2016 # a script for the container's shell
+as_dev sh -c 'for _ in $(seq 600); do
+    tmux -L claude-remote-control display-message -p -t claude-remote-control "#{pane_start_command}" 2>/dev/null |
+      grep "claude remote-control" >/dev/null && exit
+    sleep 0.1
+  done; exit 1' || fail "remote control does not run in the pane of tmux socket claude-remote-control"
+pass "each agent service runs its app in the pane of a tmux socket named after its unit"
+
 as_dev cat "/proc/$pid/environ" | tr '\0' '\n' | grep -x "SMOKE_VAR=$var" >/dev/null ||
   fail "the imported variable did not reach the OpenCode server"
 pass "a variable imported the ADR 0002 way reaches a service under agent-services.target"
@@ -117,15 +137,14 @@ pass "the agent services listen on localhost only"
 as_dev kill -9 "$pid"
 restarted() {
   local p
-  p=$(as_dev systemctl --user show -p MainPID --value opencode.service)
-  [ "$p" != 0 ] && [ "$p" != "$pid" ] && opencode_info
+  p=$(opencode_pid) && [ "$p" != "$pid" ] && opencode_info
 }
-wait_for 60 restarted || fail "the OpenCode server was not restarted after being killed"
-pass "a killed OpenCode server is restarted, still with the imported environment"
+wait_for 60 restarted || fail "the OpenCode server was not restarted in a new pane after being killed"
+pass "a killed OpenCode server is restarted in a new pane, still with the imported environment"
 
 # Remote control has no sign-in here, so it exits at once and must keep being restarted, without ever
-# reaching a failed state. Its error shows the imported CLAUDE_CODE_OAUTH_TOKEN was kept from it: with the
-# variable it would say a full-scope login token is required.
+# reaching a failed state. Its error, on the last screen the journal gets at each exit, shows the imported
+# CLAUDE_CODE_OAUTH_TOKEN was kept from it: with the variable it would say a full-scope login token is required.
 rc_restarts() { as_dev systemctl --user show -p NRestarts --value claude-remote-control.service; }
 rc_retried() { [ "$(rc_restarts)" -ge 2 ]; }
 wait_for 90 rc_retried || fail "remote control is not being restarted (restarts: $(rc_restarts))"
@@ -139,9 +158,31 @@ pass "remote control keeps retrying until a sign-in exists, without the API-toke
 as_dev systemctl --user is-active --quiet agent-services.target || fail "agent-services.target stopped"
 pass "the target stays up while its services restart"
 
+# Remote control redraws its status about once a second once signed in, which needs a real sign-in. A stand-in
+# agent service, through the same wrapper, redraws a status line in place, then exits with status 3.
+# shellcheck disable=SC2016 # a script for the container's shell
+as_dev systemd-run --user -q --unit smoke-redraw /usr/local/bin/run-in-tmux smoke-redraw sh -c '
+  for i in $(seq 10); do printf "\033[1A\033[2Kstatus %s\n" "$i"; sleep 0.2; done
+  echo stopping; exit 3'
+redraw_done() { [ "$(as_dev systemctl --user show -p ActiveState --value smoke-redraw.service)" = failed ]; }
+wait_for 30 redraw_done || fail "the stand-in agent service did not end"
+[ "$(as_dev systemctl --user show -p ExecMainStatus --value smoke-redraw.service)" = 3 ] ||
+  fail "the service does not report its app's exit status"
+# What the service itself wrote, without systemd's own lines about it.
+redraw_log=$(as_dev journalctl --user _SYSTEMD_USER_UNIT=smoke-redraw.service --no-pager -q -o cat)
+[ "$redraw_log" = $'status 10\nstopping' ] ||
+  fail "the journal does not hold exactly the app's last screen: $(head -n 20 <<<"$redraw_log")"
+pass "an agent service's journal holds only its app's last screen, once, and the app's exit status"
+
+# no_tmux NAME...: no tmux server answers on any of these sockets.
+no_tmux() { for n in "$@"; do ! as_dev tmux -L "$n" list-sessions >/dev/null 2>&1 || return 1; done; }
+no_tmux smoke-redraw || fail "the tmux server outlived its app"
+
 # Claude pre-approval, both choices off: a fresh home's Claude files, and the hand-off again with the choices off,
 # as a restarted workspace's startup script does it.
 as_dev systemctl --user stop agent-services.target
+no_tmux opencode claude-remote-control || fail "a tmux server outlived its stopped agent service"
+pass "an agent service's tmux server ends with its app, or when the service stops"
 as_dev rm -rf /home/dev/.claude.json /home/dev/.claude
 as_dev systemctl --user set-environment CLAUDE_PREAPPROVE_REMOTE_CONTROL=false CLAUDE_PREAPPROVE_TRUST_WORKSPACE=false
 as_dev systemctl --user start agent-services.target

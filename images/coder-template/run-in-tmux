@@ -1,0 +1,36 @@
+#!/bin/sh
+# run-in-tmux NAME COMMAND...: runs an agent service's app inside its own tmux server (ADR 0015), on socket NAME
+# in tmux's default per-user directory, in a single pane: `tmux -L NAME attach -r` to look, without -r to answer.
+# Each agent service unit prefixes its ExecStart with it.
+#
+# It stays in the foreground for as long as the app runs, so systemd remains the only supervisor. The journal gets
+# none of the app's live output, only its last screen (with scrollback) once, when it exits. Then the tmux server
+# goes too, no dead pane kept, and this exits with the app's exit status (128 + its signal, if one killed it).
+# Stopping the service stops the app and the tmux server with it: they all run in the service's cgroup.
+set -eu
+name=${1:?usage: run-in-tmux NAME COMMAND...}
+shift
+
+# tmux moves every pane it starts into a systemd scope of its own, out of the service's cgroup, through the user's
+# bus. The server gets no bus address, so it cannot; its panes, the app's included, get it back.
+t() { env -u DBUS_SESSION_BUS_ADDRESS -u XDG_RUNTIME_DIR tmux -L "$name" "$@"; }
+
+# The dead pane is kept only until its last screen is read. The hook is set before the app starts, so even an app
+# that exits at once is seen: a signal sent before anyone waits is kept for the first wait.
+t start-server \
+  \; set-environment -g DBUS_SESSION_BUS_ADDRESS "$DBUS_SESSION_BUS_ADDRESS" \
+  \; set-environment -g XDG_RUNTIME_DIR "$XDG_RUNTIME_DIR" \
+  \; set -g remain-on-exit on \; set -g remain-on-exit-format '' \
+  \; set-hook -g pane-died "wait-for -S $name" \
+  \; new-session -d -s "$name" -- "$@"
+t wait-for "$name"
+
+status=$(t display-message -p -t "$name" '#{?pane_dead_signal,#{e|+:128,#{pane_dead_signal}},#{pane_dead_status}}')
+# Without the blank lines below the last output (the command substitution drops them).
+screen=$(t capture-pane -p -J -S - -t "$name")
+t kill-server
+# journald finds a line's unit from its writer's PID, and only while the writer runs: this shell writes it (printf
+# is a builtin), then stays a moment.
+[ -z "$screen" ] || printf '%s\n' "$screen"
+sleep 1
+exit "$status"

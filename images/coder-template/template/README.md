@@ -23,7 +23,9 @@ name cloned into `/home/dev/<repository>`. Source and documentation:
 - A Docker engine of your own inside the workspace.
 - Git commits under the full name (or, if it has none, the username) and email of your Coder account.
 
-Both agent services are supervised by systemd and restarted whenever they stop. Logs:
+Both agent services are supervised by systemd and restarted whenever they stop. Each runs in its own tmux
+server, named after it: `tmux -L opencode attach -r` (or `-L claude-remote-control`) shows its screen, read-only;
+without `-r` you can answer a prompt it waits on. The journal holds only each app's last screen when it exited:
 `journalctl --user -u opencode -u claude-remote-control`, and `journalctl -u coder-agent` for the agent.
 
 ## Coder secrets
@@ -34,7 +36,7 @@ when you restart the workspace. Useful ones:
 - `GITHUB_TOKEN`: `git clone`, `git push` and `gh` use it with no setup. Needed to clone a private repository.
 - `OPENCODE_PASSWORD`: the password OpenCode's web UI asks for (user `opencode`), on top of your Coder sign-in.
   Without it, OpenCode makes up a new one at every start; find it with
-  `journalctl --user -u opencode | grep password`.
+  `tmux -L opencode capture-pane -p -S - | grep password`.
 - Do not use `ANTHROPIC_API_KEY`, `ANTHROPIC_AUTH_TOKEN` or `CLAUDE_CODE_OAUTH_TOKEN` for Claude remote control:
   it needs a claude.ai subscription sign-in, and they are kept away from it.
 

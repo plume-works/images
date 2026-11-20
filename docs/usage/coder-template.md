@@ -34,7 +34,12 @@ come from the front matter of the template's README.
 
 ## Troubleshooting
 
-- Logs: `journalctl -u coder-agent` and `journalctl --user -u opencode -u claude-remote-control`.
+- Each agent service runs its app in its own tmux server, named after its unit
+  ([ADR 0015](../adr/0015-agent-services-run-inside-tmux.md)). To see where one is stuck, as the workspace user:
+  `tmux -L opencode attach -r` or `tmux -L claude-remote-control attach -r` (read-only, so a stray keystroke
+  cannot reach the app; detach with `Ctrl-b d`). Attach without `-r` to answer a prompt the app waits on.
+- Logs: `journalctl -u coder-agent` and `journalctl --user -u opencode -u claude-remote-control`. The journal holds
+  none of an app's live output, only its last screen (with scrollback) each time it exited.
 - A new or rotated Coder secret reaches the services only on workspace restart
   ([ADR 0002](../adr/0002-coder-secrets-reach-services-through-systemd.md)).
 - Claude remote control never sees `ANTHROPIC_API_KEY`, `ANTHROPIC_AUTH_TOKEN` or `CLAUDE_CODE_OAUTH_TOKEN`, and
