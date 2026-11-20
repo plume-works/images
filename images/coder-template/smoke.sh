@@ -137,6 +137,15 @@ nonlocal=$(in_container awk 'FNR > 1 && $4 == "0A" { split($2, a, ":"); print a[
 [ -z "$nonlocal" ] || fail "something listens on a non-loopback address: $nonlocal"
 pass "the agent services listen on localhost only"
 
+# A user attached without -r opens a window of their own, whose shell then exits: OpenCode's service must not end.
+main_pid() { as_dev systemctl --user show -p MainPID --value opencode.service; }
+main=$(main_pid)
+as_dev tmux -L opencode new-window -d -- sh -c 'echo smoke-extra-window; exit 4'
+sleep 3
+[ "$(main_pid)" = "$main" ] && [ "$(opencode_pid)" = "$pid" ] && opencode_info >/dev/null ||
+  fail "a pane other than the app's ending ended OpenCode's service"
+pass "a pane other than the app's ending leaves the agent service running"
+
 as_dev kill -9 "$pid"
 restarted() {
   local p

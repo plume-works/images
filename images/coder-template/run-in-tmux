@@ -15,19 +15,21 @@ shift
 # bus. The server gets no bus address, so it cannot; its panes, the app's included, get it back.
 t() { env -u DBUS_SESSION_BUS_ADDRESS -u XDG_RUNTIME_DIR tmux -L "$name" "$@"; }
 
-# The dead pane is kept only until its last screen is read. The hook is set before the app starts, so even an app
-# that exits at once is seen: a signal sent before anyone waits is kept for the first wait.
-t start-server \
+# Only the app's pane is watched, so a pane the user opens beside it neither ends the service nor gets reported.
+# It is kept, once dead, only until its last screen is read. Its options and hook are set in the same command list
+# that starts the app, before the server handles anything else, so even an app that exits at once is seen; and a
+# signal sent before anyone waits is kept for the first wait.
+pane=$(t start-server \
   \; set-environment -g DBUS_SESSION_BUS_ADDRESS "$DBUS_SESSION_BUS_ADDRESS" \
   \; set-environment -g XDG_RUNTIME_DIR "$XDG_RUNTIME_DIR" \
-  \; set -g remain-on-exit on \; set -g remain-on-exit-format '' \
-  \; set-hook -g pane-died "wait-for -S $name" \
-  \; new-session -d -s "$name" -- "$@"
+  \; new-session -d -P -F '#{pane_id}' -s "$name" -- "$@" \
+  \; set -p -t "$name" remain-on-exit on \; set -p -t "$name" remain-on-exit-format '' \
+  \; set-hook -p -t "$name" pane-died "wait-for -S $name")
 t wait-for "$name"
 
-status=$(t display-message -p -t "$name" '#{?pane_dead_signal,#{e|+:128,#{pane_dead_signal}},#{pane_dead_status}}')
+status=$(t display-message -p -t "$pane" '#{?pane_dead_signal,#{e|+:128,#{pane_dead_signal}},#{pane_dead_status}}')
 # Without the blank lines below the last output (the command substitution drops them).
-screen=$(t capture-pane -p -J -S - -t "$name")
+screen=$(t capture-pane -p -J -S - -t "$pane")
 t kill-server
 # journald finds a line's unit from its writer's PID, and only while the writer runs: this shell writes it (printf
 # is a builtin), then stays a moment.
