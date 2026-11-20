@@ -90,7 +90,7 @@ RUN case "$(uname -m)" in x86_64) b=x64 ;; aarch64) b=aarch64 ;; esac; d=$(mktem
 
 # CMake from Kitware's release tarball.
 # renovate: datasource=github-releases depName=Kitware/CMake extractVersion=^v(?<version>.+)$
-ARG CMAKE_VERSION=4.5.0
+ARG CMAKE_VERSION=4.5.1
 RUN f="cmake-${CMAKE_VERSION}-linux-$(uname -m).tar.gz"; d=$(mktemp -d) \
  && base="https://github.com/Kitware/CMake/releases/download/v${CMAKE_VERSION}" \
  && curl -fsSL "$base/$f" -o "$d/$f" \
