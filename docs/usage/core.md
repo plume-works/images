@@ -5,7 +5,7 @@
 
 ## What is in it
 
-- Python through `uv`, Bun (there is no Node.js), CMake, Ninja, Git, Git LFS, GitHub CLI, fish and jq.
+- Ubuntu's Python (`python`, `python3`) and `uv`, Bun (there is no Node.js), CMake, Ninja, Git, Git LFS, GitHub CLI, fish and jq.
 - The Claude Code and OpenCode command-line tools, installed bare: no settings, plugins, skills, MCP servers or
   credentials, and they never update themselves.
 - The Docker engine, CLI, Buildx and Compose.
