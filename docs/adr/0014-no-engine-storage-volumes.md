@@ -21,8 +21,9 @@ OverlayFS mounts, and the host went down.
 
 ## Considered options
 
-- **Volumes declared in the core image** (the decision this replaces): every consumer worked with no flags, but under sysbox the
-  declared volumes are mounts at the engine's storage, and named volumes over them were reused across containers.
+- **Volumes declared in the core image** (the decision this replaces): every consumer worked with no flags, but
+  under sysbox the declared volumes are mounts at the engine's storage, and named volumes over them were reused
+  across containers.
 - **Named volumes per workspace, reused by every container** (the Coder template and devcontainer sysbox snippet
   before this decision): the cause above.
 - **A unique named volume per container, deleted once the old container and its mounts are gone**: keeps the cache,
