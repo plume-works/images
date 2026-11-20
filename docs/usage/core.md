@@ -45,4 +45,5 @@ to `/var/log/dockerd.log`; `START_DOCKER_TIMEOUT` (seconds, default 60) bounds t
 - A Dockerfile built on these images cannot add files under either path.
 - A runtime that ignores image volumes (Kubernetes) needs a volume mounted at `/var/lib/docker`, and at
   `/var/lib/containerd` under systemd (an `emptyDir`, say). Without one, `start-docker` refuses to start and says so.
-- Never share these volumes between two running containers.
+- Never share these volumes between two containers, not even with one that is still shutting down: under sysbox
+  its mounts can outlive it ([ADR 0014](../adr/0014-coder-workspaces-drop-engine-storage.md)).
