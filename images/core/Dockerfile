@@ -5,8 +5,9 @@ FROM ubuntu:26.04@sha256:d66b366dac61b575bee2aef07e9c26e8070096fbe84a3d4d3eb0da0
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 
 # apt packages float within the Ubuntu release at build time (Git included);
-# everything else below is pinned by version. jq, tmux and btop are interactive conveniences (see the admission
-# rule below); jq also reads the Claude Code release manifest below.
+# everything else below is pinned by version. jq and btop are interactive conveniences (see the admission rule
+# below); jq also reads the Claude Code release manifest below. tmux is a requirement: the Coder template image
+# runs its agent services inside it (ADR 0015).
 # hadolint ignore=DL3008
 RUN apt-get update \
  && apt-get install -y --no-install-recommends btop ca-certificates curl git gnupg jq sudo tmux unzip xz-utils \

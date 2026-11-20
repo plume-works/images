@@ -45,6 +45,6 @@ come from the front matter of the template's README.
 - Claude remote control never sees `ANTHROPIC_API_KEY`, `ANTHROPIC_AUTH_TOKEN` or `CLAUDE_CODE_OAUTH_TOKEN`, and
   keeps retrying until the user has `/login`ed and the repository is trusted: by Claude pre-approval unless
   switched off at creation, else by running `claude` in it
-  ([ADR 0003](../adr/0003-remote-control-unit-exceptions.md)).
+  ([ADR 0003](../adr/0003-claude-remote-control-and-pre-approval.md)).
 - One volume per workspace persists across rebuilds: `/home/dev`. Everything else is recreated at every start,
   the Docker engine's storage included ([ADR 0014](../adr/0014-no-engine-storage-volumes.md)).
