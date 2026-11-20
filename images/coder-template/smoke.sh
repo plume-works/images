@@ -69,11 +69,11 @@ exec sleep infinity
 EOF
 printf '%s\n' "$token" >"$work/agent-token"
 
-# The user's own settings, which Claude pre-approval must leave alone: its approvals are for the repository only.
-settings='{"model": "smoke"}'
-as_dev sh -c "mkdir -p ~/.claude && echo '$settings' >~/.claude/settings.json"
-# A ~/.claude.json that links into a dotfiles checkout, which must stay a link.
-as_dev sh -c 'mkdir -p ~/dotfiles && echo "{\"smoke\": \"kept\"}" >~/dotfiles/claude.json && ln -sf dotfiles/claude.json ~/.claude.json'
+# A ~/.claude.json and a ~/.claude/settings.json (with a setting of the user's own) that link into a dotfiles
+# checkout, which must stay links.
+as_dev sh -c 'mkdir -p ~/dotfiles ~/.claude && echo "{\"smoke\": \"kept\"}" >~/dotfiles/claude.json &&
+  echo "{\"model\": \"smoke\"}" >~/dotfiles/settings.json &&
+  ln -sf dotfiles/claude.json ~/.claude.json && ln -sf ../dotfiles/settings.json ~/.claude/settings.json'
 
 docker stop -t 60 "$container" >/dev/null
 # Like the template's uploads: in place before the container starts, the token owned by dev and readable by
@@ -95,13 +95,16 @@ claude_has() { as_dev jq -e "$2" "/home/dev/$1" >/dev/null; }
 claude_has .claude.json '.hasCompletedOnboarding == true' || fail "Claude's onboarding is not marked completed"
 claude_has .claude.json '.remoteDialogSeen == true' || fail "remote control's consent is not granted"
 claude_has .claude.json '.projects["/home/dev/repo"].hasTrustDialogAccepted == true' || fail "the repository is not trusted"
-claude_has .claude.json '.projects["/home/dev/repo"].enableAllProjectMcpServers == true' ||
-  fail "the repository's project MCP servers are not enabled"
-[ "$(as_dev cat /home/dev/.claude/settings.json)" = "$settings" ] || fail "Claude pre-approval touched ~/.claude/settings.json"
+claude_has .claude.json '.projects["/home/dev/repo"] | has("enableAllProjectMcpServers") | not' ||
+  fail "project MCP servers are approved for the repository only, not for the whole workspace"
+claude_has .claude/settings.json '.enableAllProjectMcpServers == true and .model == "smoke"' ||
+  fail "project MCP servers are not approved for the whole workspace, or the user's own setting is lost"
 [ "$(as_dev readlink /home/dev/.claude.json)" = dotfiles/claude.json ] || fail "the symlinked ~/.claude.json is no longer a link"
+[ "$(as_dev readlink /home/dev/.claude/settings.json)" = ../dotfiles/settings.json ] ||
+  fail "the symlinked ~/.claude/settings.json is no longer a link"
 claude_has dotfiles/claude.json '.smoke == "kept" and .hasCompletedOnboarding == true' ||
   fail "the symlinked ~/.claude.json's target lacks the approvals or its own key"
-pass "with both Claude pre-approval choices on, onboarding, consent, trust and project MCP servers are granted"
+pass "with both Claude pre-approval choices on, onboarding, consent, trust and every project's MCP servers are granted"
 
 # Each agent service runs its app in its own tmux server, on a socket named after its unit (ADR 0015).
 # opencode_pid: the OpenCode server's PID, when it is the live process in the pane of socket opencode, and still
@@ -208,8 +211,6 @@ as_dev systemctl --user start agent-services.target
 claude_has .claude.json '.hasCompletedOnboarding == true' || fail "Claude's onboarding is not marked completed with both choices off"
 claude_has .claude.json '.remoteDialogSeen != true' || fail "remote control's consent is granted although switched off"
 claude_has .claude.json '.projects["/home/dev/repo"].hasTrustDialogAccepted != true' || fail "the repository is trusted although switched off"
-claude_has .claude.json '.projects["/home/dev/repo"].enableAllProjectMcpServers != true' ||
-  fail "the repository's project MCP servers are enabled although switched off"
 ! as_dev test -e /home/dev/.claude/settings.json || fail "Claude pre-approval created ~/.claude/settings.json"
 pass "with both Claude pre-approval choices off, only onboarding is granted"
 

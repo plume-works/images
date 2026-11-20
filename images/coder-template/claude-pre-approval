@@ -1,12 +1,12 @@
 #!/bin/sh
 # Claude pre-approval (ADR 0016), run by claude-pre-approval.service as the workspace user. Records in the user's
-# ~/.claude.json what the user would otherwise answer at Claude's first-run prompts, merging into what is there.
-# The Coder template's two choices arrive as imported variables (ADR 0002), each `true` or `false`; unset means
-# off. Off means not written: nothing is ever revoked.
-#   always                                    onboarding completed
-#   CLAUDE_PREAPPROVE_REMOTE_CONTROL=true     remote control consent
-#   CLAUDE_PREAPPROVE_TRUST_WORKSPACE=true    trust in REPO_DIR, and in its project MCP servers (Claude Code moves
-#                                             that approval into REPO_DIR's .claude/settings.local.json at start)
+# own Claude files what the user would otherwise answer at Claude's first-run prompts, merging into what is
+# there. The Coder template's two choices arrive as imported variables (ADR 0002), each `true` or `false`;
+# unset means off. Off means not written: nothing is ever revoked.
+#   always                                    onboarding completed                 ~/.claude.json
+#   CLAUDE_PREAPPROVE_REMOTE_CONTROL=true     remote control consent               ~/.claude.json
+#   CLAUDE_PREAPPROVE_TRUST_WORKSPACE=true    trust in REPO_DIR                    ~/.claude.json
+#                                             every project's MCP servers          ~/.claude/settings.json
 set -eu
 # ~/.claude.json holds the sign-in: whatever is written here is for the user only.
 umask 077
@@ -14,13 +14,23 @@ umask 077
 remote_control=${CLAUDE_PREAPPROVE_REMOTE_CONTROL:-false}
 trust=${CLAUDE_PREAPPROVE_TRUST_WORKSPACE:-false}
 
-# The real file, so that a symlinked ~/.claude.json (a dotfiles checkout's, say) stays a link.
-file=$(readlink -f ~/.claude.json)
-[ -s "$file" ] || echo '{}' >"$file"
+# merge FILE JQ-ARGS...: apply a jq filter to a JSON file, created as {} if missing or empty. Writes the real
+# file, so that a symlinked one (a dotfiles checkout's, say) stays a link.
+merge() {
+  mkdir -p "$(dirname "$1")"
+  file=$(readlink -f "$1")
+  shift
+  [ -s "$file" ] || echo '{}' >"$file"
+  jq "$@" "$file" >"$file.new"
+  mv "$file.new" "$file"
+}
+
 # shellcheck disable=SC2016 # jq's own $variables
-jq --argjson rc "$remote_control" --argjson trust "$trust" --arg dir "${REPO_DIR:?not set: the Coder startup script imports it}" '
+merge ~/.claude.json --argjson rc "$remote_control" --argjson trust "$trust" --arg dir "${REPO_DIR:?not set: the Coder startup script imports it}" '
   .hasCompletedOnboarding = true
   | if $rc then .remoteDialogSeen = true end
-  | if $trust then .projects[$dir] += {hasTrustDialogAccepted: true, enableAllProjectMcpServers: true} end' \
-  "$file" >"$file.new"
-mv "$file.new" "$file"
+  | if $trust then .projects[$dir].hasTrustDialogAccepted = true end'
+
+if [ "$trust" = true ]; then
+  merge ~/.claude/settings.json '.enableAllProjectMcpServers = true'
+fi
