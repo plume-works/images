@@ -134,7 +134,7 @@ module "code-server" {
   agent_id = coder_agent.main.id
   folder   = local.repo_dir
   # renovate: datasource=github-releases depName=coder/code-server
-  install_version = "4.145.2"
+  install_version = "4.146.0"
 }
 
 # OpenCode's server (API and web UI), run by opencode.service on localhost:4096. OpenCode cannot run under a path
@@ -164,7 +164,7 @@ resource "coder_app" "opencode" {
 resource "docker_image" "main" {
   # Renovate proposes digest bumps: its terraform manager reads a docker_image name only as a literal string, so
   # keep the reference here, not in a local or variable.
-  name         = "ghcr.io/plume-works/coder-template:edge@sha256:199f3934e2228899a4aa2bbc361a30c0294aaef9b3058d221d6ae43a5e61208e"
+  name         = "ghcr.io/plume-works/coder-template:edge@sha256:a7c5d16fc275c77cf67e41950890cdfe43e472c9d783b50c64882ba806140a35"
   keep_locally = true
 }
 

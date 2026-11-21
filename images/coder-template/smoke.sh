@@ -177,6 +177,16 @@ grep -q 'You must be logged in to use Remote Control' <<<"$rc_log" ||
 ! grep -q 'full-scope login token' <<<"$rc_log" || fail "remote control saw CLAUDE_CODE_OAUTH_TOKEN"
 pass "remote control keeps retrying until a sign-in exists, without the API-token variables that stop it"
 
+# The scrubber empties a prompt file written the way remote control writes one, in a session folder that did
+# not exist when it started, and leaves the session's other files alone (ADR 0014).
+as_dev systemctl --user is-active --quiet claude-bridge-prompt-scrub.service || fail "the prompt scrubber is not running"
+session=/home/dev/.claude/bridge-spawn/smoke-session
+as_dev sh -c "mkdir $session && echo cloud >$session/append-system-prompt.txt && echo '{}' >$session/mcp.json"
+emptied() { [ "$(as_dev stat -c %s "$session/append-system-prompt.txt")" = 0 ]; }
+wait_for 5 emptied || fail "the prompt scrubber did not empty a new session's prompt file"
+[ "$(as_dev cat "$session/mcp.json")" = '{}' ] || fail "the prompt scrubber touched a session's other files"
+pass "the prompt scrubber empties the cloud-container prompt of each new remote control session"
+
 as_dev systemctl --user is-active --quiet agent-services.target || fail "agent-services.target stopped"
 pass "the target stays up while its services restart"
 
