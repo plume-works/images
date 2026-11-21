@@ -1,13 +1,11 @@
 #!/usr/bin/env bash
-# Smoke test for the devcontainer base image. Usage: images/devcontainer-base/smoke.sh <image-ref>
+# Smoke test for the devcontainer base image.
 #
 # Brings the image up the way a consumer does: with the devcontainer CLI, from a devcontainer.json
 # holding the image and the usage doc's privileged-mode snippet (hosted runners have no sysbox).
 # The image's metadata label is its interface, and a plain `docker run` would not read it.
-# It does not repeat the core systemd image's checks. Stops at the first failed check.
-#
-# Needs Node (npx) or Bun (bunx) to run the devcontainer CLI, and a Docker daemon that sees this
-# machine's /tmp (true on a GitHub runner and wherever the daemon is local).
+# It does not repeat the core systemd image's checks.
+# Needs a Docker daemon that sees this machine's /tmp (true on a GitHub runner and wherever the daemon is local).
 set -euo pipefail
 
 image="${1:?usage: $0 <image-ref>}"

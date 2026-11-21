@@ -1,6 +1,5 @@
 #!/usr/bin/env bash
-# Print every image of the bake file's default group, one per line, parent first. Run from the repository root;
-# extra arguments go to `docker buildx bake --print`.
+# Print every image of the bake file's default group, one per line, parent first.
 #
 # The one list of images that CI (images.yml, ghcr-cleanup.yml) works from. The order comes from the bake file's
 # own parent links (a `contexts` entry "target:<parent>"), not from the group: `bake --print` sorts the group

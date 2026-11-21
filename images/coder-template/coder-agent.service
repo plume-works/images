@@ -21,7 +21,7 @@ ExecStart=/bin/sh /etc/coder/agent-init.sh
 Restart=always
 RestartSec=10
 TimeoutStopSec=90
-# As in Coder's own unit: restarting the agent leaves the shells and sessions it started running.
+# Restarting the agent leaves the shells and sessions it started running.
 # (The agent services run under dev's user manager, not here, so they survive it either way.)
 KillMode=process
 OOMScoreAdjust=-900

@@ -1,10 +1,9 @@
 #!/usr/bin/env bash
-# Smoke test for the core image. Usage: images/core/smoke.sh <image-ref>
+# Smoke test for the core image.
 #
 # Runs the checks inside the image the way a CI job container would: as root,
 # with no systemd. The Docker engine checks add only what a job needing an engine adds:
 # privileged mode and an anonymous volume at /var/lib/docker (hosted runners have no sysbox).
-# Stops at the first failed check.
 set -euo pipefail
 
 image="${1:?usage: $0 <image-ref>}"

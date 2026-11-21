@@ -1,7 +1,6 @@
 #!/bin/sh
-# run-in-tmux NAME COMMAND...: runs an agent service's app inside its own tmux server (ADR 0015), on socket NAME
-# in tmux's default per-user directory, in a single pane. Each agent service unit prefixes its ExecStart with it.
-# Attaching to it: docs/usage/coder-template.md.
+# Runs an agent service's app inside its own tmux server (ADR 0015), on socket NAME in tmux's default per-user
+# directory, in a single pane. Attaching to it: docs/usage/coder-template.md.
 #
 # It stays in the foreground for as long as the app runs, so systemd remains the only supervisor. When the app
 # exits, this prints the pane's last screen (with scrollback), ends the tmux server, no dead pane kept, and exits
