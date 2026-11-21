@@ -1,0 +1,12 @@
+[Unit]
+Description=Claude default settings (written over the user's at each start)
+PartOf=agent-services.target
+# Claude pre-approval adds to the same file, and remote control must start with the defaults in place.
+Before=claude-pre-approval.service claude-remote-control.service
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStartPre=/bin/mkdir -p %h/.claude
+# cp, not install: it writes through a symlinked file (a dotfiles checkout's, say) instead of replacing the link.
+ExecStart=/bin/cp /usr/local/share/claude-code/default-settings.json %h/.claude/settings.json

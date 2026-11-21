@@ -31,3 +31,7 @@ _Avoid_: User service, background agent
 **Claude pre-approval**:
 Answering Claude Code's first-run questions for the workspace user before Claude Code asks them: its onboarding.
 _Avoid_: Seeding, auto-trust
+
+**Claude default settings**:
+The Claude Code user settings the Coder template image gives every workspace user, taking precedence over the user's own.
+_Avoid_: Managed settings, baked-in settings

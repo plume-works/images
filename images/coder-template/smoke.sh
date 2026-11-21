@@ -86,8 +86,12 @@ claude_has .claude.json '.remoteDialogSeen == true' || fail "remote control's co
 claude_has .claude.json '.projects["/home/dev/repo"].hasTrustDialogAccepted == true' || fail "the repository is not trusted"
 claude_has .claude.json '.projects["/home/dev/repo"] | has("enableAllProjectMcpServers") | not' ||
   fail "project MCP servers are approved for the repository only, not for the whole workspace"
-claude_has .claude/settings.json '.enableAllProjectMcpServers == true and .model == "smoke"' ||
-  fail "project MCP servers are not approved for the whole workspace, or the user's own setting is lost"
+claude_has .claude/settings.json '.enableAllProjectMcpServers == true' ||
+  fail "project MCP servers are not approved for the whole workspace"
+# shellcheck disable=SC2016 # jq's own $d
+as_dev jq -e --slurpfile d /usr/local/share/claude-code/default-settings.json \
+  'del(.enableAllProjectMcpServers) == $d[0]' /home/dev/dotfiles/settings.json >/dev/null ||
+  fail "the Claude default settings are not written over the symlinked ~/.claude/settings.json's target"
 [ "$(as_dev readlink /home/dev/.claude.json)" = dotfiles/claude.json ] || fail "the symlinked ~/.claude.json is no longer a link"
 [ "$(as_dev readlink /home/dev/.claude/settings.json)" = ../dotfiles/settings.json ] ||
   fail "the symlinked ~/.claude/settings.json is no longer a link"
@@ -207,7 +211,11 @@ as_dev systemctl --user start agent-services.target
 claude_has .claude.json '.hasCompletedOnboarding == true' || fail "Claude's onboarding is not marked completed with both choices off"
 claude_has .claude.json '.remoteDialogSeen != true' || fail "remote control's consent is granted although switched off"
 claude_has .claude.json '.projects["/home/dev/repo"].hasTrustDialogAccepted != true' || fail "the repository is trusted although switched off"
-! as_dev test -e /home/dev/.claude/settings.json || fail "Claude pre-approval created ~/.claude/settings.json"
+claude_has .claude/settings.json 'has("enableAllProjectMcpServers") | not' ||
+  fail "project MCP servers are approved although switched off"
 pass "with both Claude pre-approval choices off, only onboarding is granted"
+as_dev cmp -s /usr/local/share/claude-code/default-settings.json /home/dev/.claude/settings.json ||
+  fail "a fresh home's ~/.claude/settings.json is not the Claude default settings"
+pass "the Claude default settings are written over a fresh home's or a symlinked ~/.claude/settings.json"
 
 echo "coder-template smoke test passed: $image"
