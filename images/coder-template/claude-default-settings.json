@@ -15,8 +15,6 @@
   "includeGitInstructions": false,
   "permissions": {
     "deny": [
-      "EnterPlanMode",
-      "ExitPlanMode",
       "DesignSync",
       "NotebookEdit",
       "ReportFindings",
