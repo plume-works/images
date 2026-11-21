@@ -1,20 +1,3 @@
-# Build, test and publish every image of this repository.
-#
-# Shape (each step is data-driven from images/docker-bake.hcl, so adding an image needs no change here; the list of
-# images, parent first, comes from .github/scripts/images.sh):
-#   build-test (amd64), build-test (arm64)   one job per architecture, each on a native runner
-#     1. bake builds all images of this commit once, children on this commit's parent, and loads them; if
-#        publishing, the same build is also pushed by digest with no tag (two outputs of one build, so the pushed
-#        bits are the tested bits; an untagged digest is not published until step 4 tags it)
-#     2. images/<name>/smoke.sh runs against each image, parent first
-#     3. if publishing and every smoke test passed: the digests are uploaded as an artifact
-#   publish                                   runs only if every image passed on both architectures
-#     4. tags every image for both architectures: pr-N for a pull request, edge for main
-#
-# So pr-N and edge move on all images or none: a failed smoke test on either architecture skips publish. If the
-# registry fails partway through tagging, re-run the job.
-# Pull requests from forks build and test only.
-# pr-N tags are deleted two weeks after the pull request closes (ghcr-cleanup.yml).
 name: images
 
 on:
@@ -75,8 +58,7 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      # One build. It is always loaded for the smoke tests; when publishing (PUSH), the same build is also
-      # pushed by digest, untagged. Nothing is built a second time, so nothing untested can be pushed.
+      # Load and push are two outputs of one build, so the pushed bits are the tested bits.
       - name: Build every image of this commit, load it, and push it by digest if publishing
         env:
           PUSH: ${{ env.PUBLISH }}
@@ -92,7 +74,6 @@ jobs:
             echo "::endgroup::"
           done
 
-      # Only reached when every smoke test passed: the publish job tags nothing it has no digest for.
       - name: Record digests
         if: env.PUBLISH == 'true'
         run: |
@@ -111,7 +92,6 @@ jobs:
           retention-days: 1
 
   publish:
-    # needs: a failed or cancelled build on either architecture skips this job, so no tag moves.
     needs: build
     if: (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository) || (github.event_name != 'pull_request' && github.ref == 'refs/heads/main')
     runs-on: ubuntu-26.04
@@ -119,7 +99,6 @@ jobs:
       contents: read
       packages: write
     steps:
-      # For the list of images: the bake file is its one source.
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
@@ -138,8 +117,7 @@ jobs:
         env:
           TAG: ${{ github.event_name == 'pull_request' && format('pr-{0}', github.event.pull_request.number) || 'edge' }}
         run: |
-          # This job runs only if every image passed on both architectures (needs: build). If the registry fails
-          # partway, some images carry the new tag; re-run the job.
+          # If the registry fails partway, some images carry the new tag; re-run the job.
           # Assign first: a failed command substitution in a for list does not stop bash -e.
           images=$(.github/scripts/images.sh)
           for img in $images; do
