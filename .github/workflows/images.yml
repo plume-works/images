@@ -1,16 +1,9 @@
 name: images
 
 on:
-  # Pull requests always run: their checks are required, and a check that never starts blocks the merge.
   pull_request:
   push:
     branches: [main]
-    # Only a change to an image publishes again; Renovate's pin bumps of our own images (.devcontainer.json,
-    # templates/coder/) would otherwise loop.
-    paths:
-      - 'images/**'
-      - '.github/scripts/images.sh'
-      - '.github/workflows/images.yml'
   workflow_dispatch:
 
 permissions:
@@ -28,8 +21,47 @@ env:
   PUBLISH: ${{ (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository) || (github.event_name != 'pull_request' && github.ref == 'refs/heads/main') }}
 
 jobs:
+  # Only a change to an image builds and publishes; Renovate's pin bumps of our own images (.devcontainer.json,
+  # templates/coder/) would otherwise loop. A manual run always builds.
+  paths-filter:
+    name: Need to run?
+    runs-on: ubuntu-26.04
+    permissions:
+      contents: read
+      actions: read
+      pull-requests: read
+    outputs:
+      pass: ${{ steps.filter.outputs.pass == 'true' || github.event_name == 'workflow_dispatch' }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          filter: tree:0
+          persist-credentials: false
+
+      # A failed main run published nothing, so a push to main compares against the last commit this workflow
+      # passed on, not the previous push.
+      - name: Find the base commit
+        id: shas
+        uses: nrwl/nx-set-shas@e602fada7ad5987b0f7b1905e7a99ea1c661514c # v5.1.0
+        with:
+          set-environment-variables-for-job: 'false'
+
+      - name: Filter
+        id: filter
+        uses: dorny/paths-filter@ceb8a2b8f2d89434be7ff52d3de7ec3738c5cc9d # v4.0.3
+        with:
+          base: ${{ steps.shas.outputs.base }}
+          filters: |
+            pass:
+              - 'images/**'
+              - '.github/scripts/images.sh'
+              - '.github/workflows/images.yml'
+
   build:
     name: build-test (${{ matrix.arch }})
+    needs: paths-filter
+    if: needs.paths-filter.outputs.pass == 'true'
     strategy:
       fail-fast: true
       matrix:
@@ -125,3 +157,24 @@ jobs:
               "$REGISTRY/$img@$(jq -r --arg i "$img" '.[$i]' "$RUNNER_TEMP/digests/amd64.json")" \
               "$REGISTRY/$img@$(jq -r --arg i "$img" '.[$i]' "$RUNNER_TEMP/digests/arm64.json")"
           done
+
+  finished:
+    name: CI finished
+    needs: [paths-filter, build, publish]
+    runs-on: ubuntu-26.04
+    permissions: {}
+    timeout-minutes: 10
+    if: always()
+    steps:
+      - name: Execution was not needed!
+        if: needs.paths-filter.outputs.pass != 'true'
+        run: exit 0
+      - name: All jobs succeeded!
+        if: ${{ success() }}
+        run: exit 0
+      - name: Some jobs have failed!
+        if: ${{ contains(needs.*.result, 'failure') }}
+        run: exit 1
+      - name: Some jobs have been cancelled!
+        if: ${{ cancelled() || contains(needs.*.result, 'cancelled') }}
+        run: exit 1
