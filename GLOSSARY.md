@@ -23,3 +23,11 @@ _Avoid_: Workspace template
 **Devcontainer base image**:
 The image a repository's `devcontainer.json` names for a dev container opened from local VS Code, adding to the core systemd image what an attached editor needs.
 _Avoid_: Devcontainer image, devcontainer runtime
+
+**Agent service**:
+A long-running app (such as OpenCode's server or Claude remote control) that the Coder template image runs for the workspace user once the Coder agent has handed over its environment.
+_Avoid_: User service, background agent
+
+**Claude pre-approval**:
+Answering Claude Code's first-run questions for the workspace user before Claude Code asks them: its onboarding.
+_Avoid_: Seeding, auto-trust

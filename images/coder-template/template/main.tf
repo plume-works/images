@@ -50,7 +50,6 @@ data "coder_provisioner" "me" {}
 data "coder_workspace" "me" {}
 data "coder_workspace_owner" "me" {}
 
-# The only parameter.
 data "coder_parameter" "repo_url" {
   name         = "repo_url"
   display_name = "Repository URL"
@@ -58,6 +57,25 @@ data "coder_parameter" "repo_url" {
   type         = "string"
   mutable      = false
   icon         = "/icon/git.svg"
+}
+
+# Claude pre-approval (ADR 0016): the two choices only. The image acts on them (claude-pre-approval.service).
+data "coder_parameter" "claude_remote_control" {
+  name         = "claude_remote_control"
+  display_name = "Claude remote control"
+  description  = "Workspace-wide (the workspace is the sandbox): grant Claude remote control's one-time consent, so it never waits on that prompt."
+  type         = "bool"
+  default      = "true"
+  mutable      = false
+}
+
+data "coder_parameter" "claude_trust_workspace" {
+  name         = "claude_trust_workspace"
+  display_name = "Claude trust workspace"
+  description  = "Workspace-wide (the workspace is the sandbox): trust the cloned repository in Claude, and approve every project's MCP servers. Switch off for really untrusted code."
+  type         = "bool"
+  default      = "true"
+  mutable      = false
 }
 
 resource "coder_agent" "main" {
@@ -74,6 +92,9 @@ resource "coder_agent" "main" {
     GIT_AUTHOR_EMAIL    = local.git_email
     GIT_COMMITTER_NAME  = local.git_name
     GIT_COMMITTER_EMAIL = local.git_email
+    # "true" or "false".
+    CLAUDE_PREAPPROVE_REMOTE_CONTROL  = data.coder_parameter.claude_remote_control.value
+    CLAUDE_PREAPPROVE_TRUST_WORKSPACE = data.coder_parameter.claude_trust_workspace.value
   }
 
   # Runs as dev in bash (compgen is a bash builtin). Coder secrets are in its environment, so the clone can use
@@ -143,7 +164,7 @@ resource "coder_app" "opencode" {
 resource "docker_image" "main" {
   # Renovate proposes digest bumps: its terraform manager reads a docker_image name only as a literal string, so
   # keep the reference here, not in a local or variable.
-  name         = "ghcr.io/plume-works/coder-template:edge@sha256:a7c5d16fc275c77cf67e41950890cdfe43e472c9d783b50c64882ba806140a35"
+  name         = "ghcr.io/plume-works/coder-template:edge@sha256:14b70b384856d8067b1b3a12d9fece899bc6d4f91454393f130c1405b945719b"
   keep_locally = true
 }
 

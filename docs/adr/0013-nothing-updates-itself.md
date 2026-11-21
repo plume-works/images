@@ -1,12 +1,11 @@
 # Nothing updates itself
 
-An image's content stays what was built and tested: a version changes only through a pull request that passes
-the tests, never by a tool updating itself in a running container. Self-update is turned off for Claude Code and
-OpenCode in every way into a shell or service:
+An image's content stays what was built and tested: nothing in a running container updates itself, and a pinned
+version changes only through a pull request that passes the tests. Self-update is turned off for Claude Code and
+OpenCode however a shell or service is started, and for Claude Code also in a way a user cannot override. The
+core systemd image turns off the OS's periodic updates for the same reason.
 
-- the image's `ENV`, for CI job containers and `docker run` or `exec`
-- `/etc/environment`, for `su -l` and SSH logins
-- `/etc/environment.d`, for services under a systemd user manager
-- for Claude Code also `/etc/claude-code/managed-settings.json`, which a user cannot override
+## Consequences
 
-The core systemd image masks the OS's periodic update timers for the same reason.
+- Apt packages are the exception to pinning: they float within the Ubuntu release, so a rebuild can pick up
+  newer ones, but only through a build that passes the same tests.

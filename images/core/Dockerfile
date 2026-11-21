@@ -5,8 +5,9 @@ FROM ubuntu:26.04@sha256:d66b366dac61b575bee2aef07e9c26e8070096fbe84a3d4d3eb0da0
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 
 # apt packages float within the Ubuntu release at build time (Git included);
-# everything else below is pinned by version. jq, tmux and btop are interactive conveniences (see the admission
-# rule below); jq also reads the Claude Code release manifest below.
+# everything else below is pinned by version. jq and btop are interactive conveniences (see the admission rule
+# below); jq also reads the Claude Code release manifest below. tmux is a requirement: the Coder template image
+# runs its agent services inside it (ADR 0015).
 # hadolint ignore=DL3008
 RUN apt-get update \
  && apt-get install -y --no-install-recommends btop ca-certificates curl git gnupg jq sudo tmux unzip xz-utils \
@@ -125,7 +126,7 @@ RUN d=$(mktemp -d) \
 # them, so the signer is checked: the last field of the VALIDSIG status line is the signing key's primary
 # fingerprint, whether the primary key or a subkey made the signature.
 # renovate: datasource=npm depName=@anthropic-ai/claude-code
-ARG CLAUDE_CODE_VERSION=2.1.329
+ARG CLAUDE_CODE_VERSION=2.1.330
 RUN case "$(uname -m)" in x86_64) p=linux-x64 ;; aarch64) p=linux-arm64 ;; esac; d=$(mktemp -d) \
  && fpr=31DDDE24DDFAB679F42D7BD2BAA929FF1A7ECACE \
  && base="https://downloads.claude.ai/claude-code-releases/${CLAUDE_CODE_VERSION}" \

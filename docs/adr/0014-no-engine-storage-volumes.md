@@ -17,7 +17,6 @@ OverlayFS mounts, and the host went down.
 - Under sysbox, a restart, rebuild or template update loses the inner engine's images, containers, volumes and
   build cache; they are pulled or built again. Data that must survive belongs in home.
 - Privileged consumers (CI jobs, the smoke tests, the devcontainer privileged snippet) carry volume flags.
-  `start-docker` refuses to start with its storage on the overlay filesystem and says what to mount.
 
 ## Considered options
 
