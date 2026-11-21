@@ -16,7 +16,8 @@ commit, so CI, workspaces and dev containers always have the same toolchain.
 All four are published for `linux/amd64` and `linux/arm64`. The only tags are `edge` (the latest tested `main`;
 it moves on all four images together, and only when every image passes on both architectures) and `pr-N` (a pull
 request, deleted two weeks after it closes). There are no version tags: pin by tag and digest,
-`<image>:edge@sha256:<digest>`, and let Renovate propose digest bumps.
+`<image>:edge@sha256:<digest>`, and let Renovate propose digest bumps. The `cache-amd64` and `cache-arm64` tags are CI's
+build cache, not images to pull.
 
 **Not a goal for now:** an image deployed as a service that takes coding requests from agents. It is a known
 future image, but the four images above should not grow features in anticipation of it.
@@ -29,6 +30,9 @@ repository that needs it.
 
 This repository is developed inside its own devcontainer base image (`.devcontainer.json`, privileged-mode
 snippet), so the image gets continuous real use and its engine builds and tests the images.
+
+It takes no outside contributions: pull requests come from collaborators' branches of this repository, and forks
+are not supported ([ADR 0020](docs/adr/0020-pull-requests-from-collaborators-only.md)).
 
 Each image lives in `images/<name>/` with its `Dockerfile` and `smoke.sh`; `images/docker-bake.hcl` lists them, and
 `.github/workflows/images.yml` builds, tests and publishes them all.
