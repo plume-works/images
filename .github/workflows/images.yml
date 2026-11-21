@@ -16,9 +16,8 @@ concurrency:
 
 env:
   REGISTRY: ghcr.io/plume-works
-  # Publish for same-repository pull requests (Renovate's included) and for main. Forks build and test only;
-  # a manual run on another branch must not move edge.
-  PUBLISH: ${{ (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository) || (github.event_name != 'pull_request' && github.ref == 'refs/heads/main') }}
+  # A manual run on another branch must not move edge.
+  PUBLISH: ${{ github.event_name == 'pull_request' || github.ref == 'refs/heads/main' }}
 
 jobs:
   # Only a change to an image builds and publishes; Renovate's pin bumps of our own images (.devcontainer.json,
@@ -82,8 +81,8 @@ jobs:
       # Default docker-container driver: push-by-digest is not available with the plain docker driver.
       - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
 
+      # Every run reads and writes the build cache in GHCR, publishing or not.
       - name: Log in to GHCR
-        if: env.PUBLISH == 'true'
         uses: docker/login-action@8aa5831fb8d48d8f76594c7ddde61ae58019f550 # v4.8.0
         with:
           registry: ghcr.io
@@ -94,6 +93,7 @@ jobs:
       - name: Build every image of this commit, load it, and push it by digest if publishing
         env:
           PUSH: ${{ env.PUBLISH }}
+          CACHE: true
         working-directory: images
         run: docker buildx bake --metadata-file "$RUNNER_TEMP/meta.json"
 
@@ -125,7 +125,7 @@ jobs:
 
   publish:
     needs: build
-    if: (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository) || (github.event_name != 'pull_request' && github.ref == 'refs/heads/main')
+    if: github.event_name == 'pull_request' || github.ref == 'refs/heads/main'
     runs-on: ubuntu-26.04
     permissions:
       contents: read
