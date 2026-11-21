@@ -46,7 +46,7 @@ RUN for host in github.com gist.github.com; do \
 # only once, so anything installed there would freeze at that day's version and shadow newer images.
 # Admission rule: a build toolchain is added only when at least two plume-works repositories need it in CI.
 
-# Git LFS from the release tarball (apt's lags behind and floats); its filters are registered in /etc/gitconfig.
+# Git LFS from the release tarball, pinned (Ubuntu's package floats); its filters are registered in /etc/gitconfig.
 # renovate: datasource=github-releases depName=git-lfs/git-lfs extractVersion=^v(?<version>.+)$
 ARG GIT_LFS_VERSION=3.8.1
 RUN a=$(dpkg --print-architecture); f="git-lfs-linux-$a-v${GIT_LFS_VERSION}.tar.gz"; d=$(mktemp -d) \
@@ -75,7 +75,7 @@ RUN t="$(uname -m)-unknown-linux-gnu"; d=$(mktemp -d) \
  && tar -xzf "$d/uv.tgz" -C /usr/local/bin --strip-components=1 "uv-$t/uv" "uv-$t/uvx" \
  && rm -rf "$d"
 
-# Bun, which also covers the need for Node.js (deliberately absent).
+# Bun, which also covers the need for Node.js (not installed, ADR 0010).
 # renovate: datasource=github-releases depName=oven-sh/bun extractVersion=^bun-v(?<version>.+)$
 ARG BUN_VERSION=1.4.5
 RUN case "$(uname -m)" in x86_64) b=x64 ;; aarch64) b=aarch64 ;; esac; d=$(mktemp -d) \
@@ -143,8 +143,8 @@ RUN case "$(uname -m)" in x86_64) p=linux-x64 ;; aarch64) p=linux-arm64 ;; esac;
  && rm -rf "$d"
 
 # OpenCode 2: the release binary (its releases are immutable but publish no checksum file).
-# The 1.x line still gets releases, and GitHub marks them "latest"; Renovate offers the highest version, so it
-# stays on 2.x, and the anchored extractVersion skips the repository's process-daemon-v* releases.
+# Must stay on 2.x (smoke.sh checks it); Renovate offers the highest version, and the anchored extractVersion
+# skips the repository's process-daemon-v* releases.
 # renovate: datasource=github-releases depName=anomalyco/opencode extractVersion=^v(?<version>.+)$
 ARG OPENCODE_VERSION=2.3.2
 RUN case "$(uname -m)" in x86_64) p=linux-x64 ;; aarch64) p=linux-arm64 ;; esac; d=$(mktemp -d) \

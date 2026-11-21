@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Print, comma-separated, every pr-N tag that one of the given images carries for a pull request closed (merged
-# or not) at least DAYS days ago. Prints nothing if there is none. Usage: stale-pr-tags.sh DAYS IMAGE...
+# or not) at least DAYS days ago. Prints nothing if there is none.
 #
 # Needs gh with read access to the organization's container packages and to the repository's pull requests;
 # the repository is gh's (GH_REPO, or the git remote), and its owner owns the packages.

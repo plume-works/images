@@ -4,8 +4,6 @@
 # For containers that do not run systemd (a CI job container): needs sysbox, or
 # --privileged with a volume mounted at /var/lib/docker. Does nothing if an engine already
 # answers. Where systemd is PID 1 it only asks systemd to start docker.service.
-# Run as root or as a user with passwordless sudo. START_DOCKER_TIMEOUT (seconds,
-# default 60) bounds the wait; the engine logs to /var/log/dockerd.log.
 set -eu
 started=
 timeout="${START_DOCKER_TIMEOUT:-60}"

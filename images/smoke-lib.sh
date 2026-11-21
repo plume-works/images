@@ -1,17 +1,9 @@
 # shellcheck shell=bash
-# Shared helpers for the smoke tests of the images that boot systemd. Sourced, not run:
-#   source "$(dirname "${BASH_SOURCE[0]}")/../smoke-lib.sh"
-#
-# $container is the container under test (a name or an ID), or empty while there is none. fail dumps its failed
-# units and the end of its journal, plus whatever an optional `dump_extra` function in the caller prints.
+# Shared helpers for the smoke tests of the images that boot systemd.
 #
 # Under `set -o pipefail`, never pipe into `grep -q`: it exits at the first match, the writer can die of SIGPIPE,
 # and the pipeline then fails although the line was there. Use `grep … >/dev/null`, which reads all its input.
 #
-# A script that starts the container itself (docker run, privileged: hosted runners have no sysbox) calls
-#   smoke_init <prefix>   to name the container, and remove it and its anonymous volumes on exit
-#   boot [again]          to start it (again: the stopped one) and wait for a running system with no failed units
-# and runs commands in it with in_container. The cleanup on exit runs an optional `cleanup_extra` function too.
 # In privileged mode the inner engine's storage needs volumes: the container gets anonymous ones, which a stopped
 # container keeps when it starts again. (Under sysbox it would need none.)
 

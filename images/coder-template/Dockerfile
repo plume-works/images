@@ -17,5 +17,5 @@ RUN install -d -m0755 /etc/coder \
 COPY agent-services.target opencode.service claude-pre-approval.service claude-remote-control.service \
      claude-bridge-prompt-scrub.service /etc/systemd/user/
 COPY --chmod=0755 claude-pre-approval run-in-tmux /usr/local/bin/
-# Drops the cloud-container prompt remote control hands its sessions (ADR 0014).
+# Drops the cloud-container prompt remote control hands its sessions (ADR 0018).
 COPY --chmod=0755 claude-bridge-prompt-scrub /usr/local/libexec/

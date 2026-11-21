@@ -9,8 +9,6 @@
 #   args     = { BASE_IMAGE = "parent" }
 #   contexts = { parent = "target:<parent-name>" }
 # so it is built on this commit's parent straight from the builder, never on a published tag.
-#
-# Local use: `docker buildx bake`, then `images/<name>/smoke.sh ghcr.io/plume-works/<name>:ci`.
 
 variable "REGISTRY" { default = "ghcr.io/plume-works" }
 # CI sets PUSH=true when it publishes. The one build then also pushes each image by digest, untagged, alongside

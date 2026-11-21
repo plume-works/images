@@ -1,5 +1,5 @@
 // This repository develops in its own devcontainer base image (see the README), with the
-// privileged-mode snippet from the README. Renovate proposes digest bumps for the pin.
+// privileged-mode snippet from docs/usage/devcontainer-base.md. Renovate proposes digest bumps for the pin.
 // Do not add the docker-in-docker Feature: the image runs its own Docker engine under systemd.
 {
 	"name": "images",
