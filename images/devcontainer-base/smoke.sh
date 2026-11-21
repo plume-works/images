@@ -1,6 +1,4 @@
 #!/usr/bin/env bash
-# Smoke test for the devcontainer base image.
-#
 # Brings the image up the way a consumer does: with the devcontainer CLI, from a devcontainer.json
 # holding the image and the usage doc's privileged-mode snippet (hosted runners have no sysbox).
 # The image's metadata label is its interface, and a plain `docker run` would not read it.
@@ -74,7 +72,6 @@ write_config() {
     sed -E "s|\"image\": *\"[^\"]*\"|\"image\": \"$image\"|" >"$config"
   grep -q "\"image\": \"$image\"" "$config" || fail "no privileged-mode snippet with an image in docs/usage/devcontainer-base.md"
   if [ -n "$extra" ]; then
-    # A top-level field before the closing brace of the snippet.
     sed -i -E '$!b; s|^\}|,'"$extra"'\n}|' "$config"
   fi
 }
@@ -92,8 +89,6 @@ up() {
   [ "$state" = running ] || fail "system state after up is '$state', not running"
 }
 
-# The label is the image's whole addition: exactly the remote user, the Claude Code extension and
-# overrideCommand false. No lifecycle commands, no mounts.
 label=$(docker image inspect -f '{{index .Config.Labels "devcontainer.metadata"}}' "$image")
 jq -e '. == [{"remoteUser": "dev", "overrideCommand": false,
               "customizations": {"vscode": {"extensions": ["anthropic.claude-code"]}}}]' <<<"$label" >/dev/null ||

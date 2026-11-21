@@ -1,21 +1,12 @@
-# Claude Code remote control in worktree mode, in the repository the Coder template cloned (REPO_DIR,
-# imported), under agent-services.target. It opens no port: it connects out to Anthropic. New sessions run in
-# the auto permission mode.
-#
-# Until the user has signed in (with a claude.ai subscription) and trusted the repository, it exits at once;
-# it is restarted for ever, so it starts working after the first sign-in with nothing else to restart.
-# Claude pre-approval (claude-pre-approval.service, ADR 0016) grants the trust unless the user switched it off;
-# then running `claude` in the repository does. Signing in there with /login does the rest. It also grants the
-# one-time remote control consent; switched off, remote control waits at that question in its tmux pane for the
-# user to answer it there (docs/usage/coder-template.md).
+# It opens no port: it connects out to Anthropic.
+# Until the user has signed in and trusted the repository it exits at once; it is restarted for ever, so it
+# starts working after the first sign-in with nothing else to restart (docs/usage/coder-template.md).
 [Unit]
 Description=Claude Code remote control (worktree mode)
 PartOf=agent-services.target
-# Starts the scrubber that drops the cloud-container prompt from its sessions (ADR 0018) and waits until it is
-# ready, that is, watching. Wants, not Requires: a scrubber restart must not restart this unit and kill its sessions.
+# Wants, not Requires: a scrubber restart must not restart this unit and kill its sessions.
 Wants=claude-bridge-prompt-scrub.service
 After=claude-bridge-prompt-scrub.service
-# Retry forever.
 StartLimitIntervalSec=0
 
 [Service]
@@ -23,7 +14,7 @@ StartLimitIntervalSec=0
 # is imported (ADR 0002), so a Coder secret meant for terminal use would stop it. Only these are kept back:
 # the one exception to ADR 0002's "every secret reaches the services" (ADR 0017).
 UnsetEnvironment=ANTHROPIC_API_KEY ANTHROPIC_AUTH_TOKEN CLAUDE_CODE_OAUTH_TOKEN
-# In tmux, socket claude-remote-control (ADR 0015). `$$` reaches the shell as `$`.
+# `$$` reaches the shell as `$`.
 ExecStart=/usr/local/bin/run-in-tmux claude-remote-control /bin/sh -c 'cd "$${REPO_DIR:?not set: the Coder startup script imports it}" && exec /usr/local/bin/claude remote-control --spawn worktree --permission-mode auto'
 Restart=always
 RestartSec=15

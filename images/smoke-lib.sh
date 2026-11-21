@@ -1,6 +1,4 @@
 # shellcheck shell=bash
-# Shared helpers for the smoke tests of the images that boot systemd.
-#
 # Under `set -o pipefail`, never pipe into `grep -q`: it exits at the first match, the writer can die of SIGPIPE,
 # and the pipeline then fails although the line was there. Use `grep … >/dev/null`, which reads all its input.
 #

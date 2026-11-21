@@ -10,6 +10,10 @@ YAGNI, KISS, DRY.
 
 YAGNI, KISS, DRY.
 
+## Code comments
+
+A comment says why: a constraint, gotcha or rejected alternative the code cannot show. Never restate what the code, a step name or another comment already says. No file headers narrating the file.
+
 ## Local temporary files
 
 Use gitignored .tmp in the repo root for your temporary files, so you can clean them up once done.
@@ -36,3 +40,8 @@ Delete superseded ADRs in the same PR that introduces replacement. List old deci
 ## Reviews
 
 Log every finding a reviewer dismissed, and end the task with a report of them for a human to review.
+
+## PR
+
+NEVER PUT DIFFS into PR body, description, comments.
+NEVER LIST FILES into PR body, description, comments.

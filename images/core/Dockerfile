@@ -1,20 +1,15 @@
-# Core image: the toolchains every other image here is built on, also used directly as a CI job container.
-# The default user stays root (no USER line), because GitHub Actions job containers expect it.
+# No USER line: GitHub Actions job containers expect root.
 FROM ubuntu:26.04@sha256:d66b366dac61b575bee2aef07e9c26e8070096fbe84a3d4d3eb0da069b5d76db
 
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 
-# apt packages float within the Ubuntu release at build time (Git included);
-# everything else below is pinned by version. jq and btop are interactive conveniences (see the admission rule
-# below); jq also reads the Claude Code release manifest below. tmux is a requirement: the Coder template image
-# runs its agent services inside it (ADR 0015).
-# hadolint ignore=DL3008
+# jq and btop are interactive conveniences outside the admission rule below. tmux: the Coder template image runs
+# its agent services inside it (ADR 0015).
 RUN apt-get update \
  && apt-get install -y --no-install-recommends btop ca-certificates curl git gnupg jq sudo tmux unzip xz-utils \
  && rm -rf /var/lib/apt/lists/*
 
-# dev: the non-root user at UID 1000, with bash and passwordless sudo.
-# The base image ships user `ubuntu` at UID 1000; it is replaced, not renamed.
+# The base image's user `ubuntu` holds UID 1000.
 RUN userdel --remove ubuntu \
  && useradd --create-home --uid 1000 --user-group --shell /bin/bash dev \
  && echo 'dev ALL=(ALL) NOPASSWD:ALL' > /etc/sudoers.d/dev \
@@ -34,8 +29,8 @@ RUN a=$(dpkg --print-architecture); f="gh_${GH_VERSION}_linux_$a.tar.gz"; d=$(mk
  && cp "$d/gh_${GH_VERSION}_linux_$a/share/man/man1/"* /usr/local/share/man/man1/ \
  && rm -rf "$d"
 
-# git's system-wide credential helper for GitHub is the GitHub CLI, so git authenticates wherever GH_TOKEN or
-# GITHUB_TOKEN is set. The empty entry first clears any helper inherited from elsewhere for these hosts.
+# git authenticates to GitHub wherever GH_TOKEN or GITHUB_TOKEN is set. The empty entry clears any helper
+# inherited from elsewhere.
 RUN for host in github.com gist.github.com; do \
       git config --system "credential.https://$host.helper" '' \
    && git config --system --add "credential.https://$host.helper" '!/usr/local/bin/gh auth git-credential'; \
@@ -46,7 +41,7 @@ RUN for host in github.com gist.github.com; do \
 # only once, so anything installed there would freeze at that day's version and shadow newer images.
 # Admission rule: a build toolchain is added only when at least two plume-works repositories need it in CI.
 
-# Git LFS from the release tarball, pinned (Ubuntu's package floats); its filters are registered in /etc/gitconfig.
+# Git LFS from the release tarball, pinned (Ubuntu's package floats).
 # renovate: datasource=github-releases depName=git-lfs/git-lfs extractVersion=^v(?<version>.+)$
 ARG GIT_LFS_VERSION=3.8.1
 RUN a=$(dpkg --print-architecture); f="git-lfs-linux-$a-v${GIT_LFS_VERSION}.tar.gz"; d=$(mktemp -d) \
@@ -59,13 +54,10 @@ RUN a=$(dpkg --print-architecture); f="git-lfs-linux-$a-v${GIT_LFS_VERSION}.tar.
  && git lfs install --system --skip-repo \
  && rm -rf "$d"
 
-# Python is Ubuntu's (python3, with python-is-python3 for `python`), floating with the release like any apt package.
-# hadolint ignore=DL3008
 RUN apt-get update \
  && apt-get install -y --no-install-recommends python3 python-is-python3 \
  && rm -rf /var/lib/apt/lists/*
-# uv, for projects and virtual environments; with no Python of its own installed, it uses Ubuntu's.
-# A user's own extra Pythons and tools go to their home (their choice, not something the image ships).
+# With no Python of its own, uv uses Ubuntu's. A user's own extra Pythons and tools go to their home.
 # renovate: datasource=github-releases depName=astral-sh/uv
 ARG UV_VERSION=0.13.9
 RUN t="$(uname -m)-unknown-linux-gnu"; d=$(mktemp -d) \
@@ -88,7 +80,6 @@ RUN case "$(uname -m)" in x86_64) b=x64 ;; aarch64) b=aarch64 ;; esac; d=$(mktem
  && ln -s bun /usr/local/bin/bunx \
  && rm -rf "$d"
 
-# CMake from Kitware's release tarball.
 # renovate: datasource=github-releases depName=Kitware/CMake extractVersion=^v(?<version>.+)$
 ARG CMAKE_VERSION=4.5.1
 RUN f="cmake-${CMAKE_VERSION}-linux-$(uname -m).tar.gz"; d=$(mktemp -d) \
@@ -99,7 +90,7 @@ RUN f="cmake-${CMAKE_VERSION}-linux-$(uname -m).tar.gz"; d=$(mktemp -d) \
  && tar -xzf "$d/$f" -C /usr/local --strip-components=1 --exclude='*/doc' --exclude='*/man' \
  && rm -rf "$d"
 
-# Ninja (its releases publish no checksums).
+# Ninja releases publish no checksums.
 # renovate: datasource=github-releases depName=ninja-build/ninja extractVersion=^v(?<version>.+)$
 ARG NINJA_VERSION=1.13.2
 RUN case "$(uname -m)" in x86_64) f=ninja-linux.zip ;; aarch64) f=ninja-linux-aarch64.zip ;; esac; d=$(mktemp -d) \
@@ -107,7 +98,7 @@ RUN case "$(uname -m)" in x86_64) f=ninja-linux.zip ;; aarch64) f=ninja-linux-aa
  && unzip -q "$d/$f" -d /usr/local/bin \
  && rm -rf "$d"
 
-# fish, the upstream static build, pinned (Ubuntu's package floats). bash stays dev's shell.
+# Ubuntu's fish package floats. bash stays dev's shell.
 # renovate: datasource=github-releases depName=fish-shell/fish-shell
 ARG FISH_VERSION=4.9.3
 RUN d=$(mktemp -d) \
@@ -120,8 +111,7 @@ RUN d=$(mktemp -d) \
 # Installed bare: no settings, plugins, skills, MCP servers or credentials. Turning self-updating off is part
 # of installing them, not configuration.
 
-# Claude Code: the native binary from Anthropic's release bucket, checked against the GPG-signed manifest.
-# (The official installer puts it under ~/.local, and the npm package needs Node.js.)
+# Claude Code: the official installer puts it under ~/.local, and the npm package needs Node.js.
 # The keyfile may hold more keys than the pinned one, and gpg --verify accepts a good signature from any of
 # them, so the signer is checked: the last field of the VALIDSIG status line is the signing key's primary
 # fingerprint, whether the primary key or a subkey made the signature.
@@ -142,7 +132,7 @@ RUN case "$(uname -m)" in x86_64) p=linux-x64 ;; aarch64) p=linux-arm64 ;; esac;
  && install -m0755 "$d/claude" /usr/local/bin/claude \
  && rm -rf "$d"
 
-# OpenCode 2: the release binary (its releases are immutable but publish no checksum file).
+# OpenCode releases publish no checksum file.
 # Must stay on 2.x (smoke.sh checks it); Renovate offers the highest version, and the anchored extractVersion
 # skips the repository's process-daemon-v* releases.
 # renovate: datasource=github-releases depName=anomalyco/opencode extractVersion=^v(?<version>.+)$
@@ -167,8 +157,7 @@ RUN install -d /etc/claude-code /etc/environment.d \
  && printf '%s\n' DISABLE_AUTOUPDATER=1 DISABLE_UPDATES=1 OPENCODE_DISABLE_AUTOUPDATE=1 \
       | tee -a /etc/environment > /etc/environment.d/50-no-self-update.conf
 
-# Docker engine, CLI, Buildx and Compose from Docker's apt repository, which keeps old versions, so they pin.
-# containerd.io floats. The packages also enable docker.service and containerd.service for systemd,
+# Docker's apt repository keeps old versions, so these pin; containerd.io floats. The packages enable docker.service and containerd.service for systemd,
 # which the core systemd image relies on; here, without systemd, start-docker runs the engine on demand.
 # renovate: datasource=deb depName=docker-ce extractVersion=^5:(?<version>[^-]+)-
 ARG DOCKER_VERSION=29.10.0
@@ -176,7 +165,6 @@ ARG DOCKER_VERSION=29.10.0
 ARG BUILDX_VERSION=0.39.1
 # renovate: datasource=deb depName=docker-compose-plugin extractVersion=^(?<version>[^-]+)-
 ARG COMPOSE_VERSION=5.8.0
-# hadolint ignore=DL3008
 RUN install -m0755 -d /etc/apt/keyrings \
  && curl -fsSL https://download.docker.com/linux/ubuntu/gpg -o /etc/apt/keyrings/docker.asc \
  && . /etc/os-release \

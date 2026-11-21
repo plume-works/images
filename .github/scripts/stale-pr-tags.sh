@@ -1,11 +1,6 @@
 #!/usr/bin/env bash
-# Print, comma-separated, every pr-N tag that one of the given images carries for a pull request closed (merged
-# or not) at least DAYS days ago. Prints nothing if there is none.
-#
-# Needs gh with read access to the organization's container packages and to the repository's pull requests;
-# the repository is gh's (GH_REPO, or the git remote), and its owner owns the packages.
-# Works from the tags that exist, not from the closed pull requests, so its work does not grow with history,
-# and a pr-N that a late publish put back after the pull request closed is found too.
+# Works from existing tags, not closed pull requests: cost does not grow with history, and a pr-N a late
+# publish put back is found too.
 set -euo pipefail
 
 days=${1:?usage: $0 DAYS IMAGE...}

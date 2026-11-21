@@ -17,7 +17,7 @@ The image a Coder template runs directly as its workspace container, adding to t
 _Avoid_: Workspace image, deploy image
 
 **Coder template**:
-The Coder workspace definition that runs the Coder template image, kept in this repository beside the image it is coupled to.
+The Coder workspace definition that runs the Coder template image, kept in this repository with the image it is coupled to.
 _Avoid_: Workspace template
 
 **Devcontainer base image**:

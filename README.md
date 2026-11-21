@@ -30,13 +30,13 @@ repository that needs it.
 This repository is developed inside its own devcontainer base image (`.devcontainer.json`, privileged-mode
 snippet), so the image gets continuous real use and its engine builds and tests the images.
 
-Each image lives in `images/<name>/` with its `Dockerfile` and `smoke.sh`; `docker-bake.hcl` lists them, and
+Each image lives in `images/<name>/` with its `Dockerfile` and `smoke.sh`; `images/docker-bake.hcl` lists them, and
 `.github/workflows/images.yml` builds, tests and publishes them all.
 
 ### Building and testing
 
 ```sh
-docker buildx bake
+(cd images && docker buildx bake)
 images/core/smoke.sh ghcr.io/plume-works/core:ci
 images/core-systemd/smoke.sh ghcr.io/plume-works/core-systemd:ci
 images/coder-template/smoke.sh ghcr.io/plume-works/coder-template:ci
@@ -77,7 +77,7 @@ request; any finding fails it. Locally, from the repository root:
 docker run --rm -i -v "$PWD/.hadolint.yaml:/.config/hadolint.yaml" hadolint/hadolint:v2.15.1 < images/core/Dockerfile
 docker run --rm -v "$PWD:/mnt" -w /mnt --entrypoint sh koalaman/shellcheck-alpine:v0.11.0 .github/scripts/shellcheck-all.sh
 docker run --rm -v "$PWD:/repo" -w /repo rhysd/actionlint:1.7.12
-T="docker run --rm -u $(id -u):$(id -g) -e HOME=/tmp -v $PWD:/w -w /w hashicorp/terraform:1.17.2 -chdir=images/coder-template/template"
+T="docker run --rm -u $(id -u):$(id -g) -e HOME=/tmp -v $PWD:/w -w /w hashicorp/terraform:1.17.2 -chdir=templates/coder"
 $T fmt -check -diff && $T init -backend=false -input=false && $T validate
 ```
 

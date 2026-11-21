@@ -1,11 +1,5 @@
-# Clean up the images' packages in GHCR, once a day: delete the pr-N tag of every pull request closed (merged or
-# not) at least PR_TAG_DAYS days ago, on every image, with the images under it.
-#
-# Only images a deleted pr-N tag held go. Every other untagged image stays for now, because an image edge has
-# moved off is untagged too, and this cleanup cannot tell it from what a superseded or failed run left behind.
-# On a schedule, not when a pull request closes: a run still publishing when its pull request closes puts pr-N
-# back after an on-close cleanup, and only a later sweep finds it.
-# The image list comes from the bake file (.github/scripts/images.sh), so adding an image needs no change here.
+# Untagged images are kept: one edge moved off looks the same as one a failed run left behind.
+# On a schedule, not on pull request close: a run still publishing at close would put pr-N back.
 name: ghcr-cleanup
 
 on:

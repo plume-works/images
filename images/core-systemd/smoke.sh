@@ -1,9 +1,5 @@
 #!/usr/bin/env bash
-# Smoke test for the core systemd image.
-#
-# Boots the image with its own entrypoint in privileged mode (hosted runners have no sysbox), with anonymous
-# volumes for the inner engine's storage, and checks what booting adds to the core image.
-# It does not repeat the core image's checks.
+# Privileged mode: hosted runners have no sysbox. It does not repeat the core image's checks.
 set -euo pipefail
 
 image="${1:?usage: $0 <image-ref>}"

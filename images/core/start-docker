@@ -1,9 +1,5 @@
 #!/bin/sh
-# start-docker: make sure a Docker engine is running, and return once it answers.
-#
-# For containers that do not run systemd (a CI job container): needs sysbox, or
-# --privileged with a volume mounted at /var/lib/docker. Does nothing if an engine already
-# answers. Where systemd is PID 1 it only asks systemd to start docker.service.
+# For containers that do not run systemd (a CI job container); where systemd runs, it defers to docker.service.
 set -eu
 started=
 timeout="${START_DOCKER_TIMEOUT:-60}"
@@ -59,7 +55,6 @@ alive() {
 
 i=0
 until docker info >/dev/null 2>&1; do
-  # Fail fast if the dockerd this run launched has already exited: waiting out the timeout cannot help.
   if [ -n "$started" ] && ! alive "$started"; then
     echo "start-docker: dockerd exited before the engine was ready; tail of $log:" >&2
     tail -n 30 "$log" >&2 || :
@@ -69,7 +64,6 @@ until docker info >/dev/null 2>&1; do
   if [ "$i" -gt "$timeout" ]; then
     echo "start-docker: engine not ready after ${timeout}s; tail of $log:" >&2
     tail -n 30 "$log" >&2 || :
-    # Do not leave behind a daemon this run launched.
     if [ -n "$started" ]; then
       kill -TERM "$started" 2>/dev/null || :
       wait "$started" 2>/dev/null || :

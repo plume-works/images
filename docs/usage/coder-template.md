@@ -2,11 +2,11 @@
 
 `ghcr.io/plume-works/coder-template`: the core systemd image plus the Coder agent and two agent services
 (OpenCode's server and Claude remote control), run directly as the workspace container by the **Coder template**
-in [`images/coder-template/template/`](../../images/coder-template/template/). It is used only through that
+in [`templates/coder/`](../../templates/coder/). It is used only through that
 template.
 
 What a workspace gives its users, the Coder secrets they set and their first-time setup are in the
-[template's README](../../images/coder-template/template/README.md), which Coder shows on the template's page.
+[template's README](../../templates/coder/README.md), which Coder shows on the template's page.
 This page is for the administrator of the Coder host.
 
 ## Requirements on the Coder deployment
@@ -23,7 +23,7 @@ Nothing pushes it automatically. From a clean checkout:
 
 ```sh
 coder login https://coder.example.com
-coder templates push plume-works -d images/coder-template/template -m "<commit or change>" -y
+coder templates push plume-works -d templates/coder -m "<commit or change>" -y
 ```
 
 The first push creates the template; later pushes add a version and make it active. Its name and description

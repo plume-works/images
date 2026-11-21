@@ -1,12 +1,3 @@
-# The Coder template: one workspace container, run directly from the Coder template image under sysbox.
-#
-# How a workspace starts (ADR 0002): systemd boots as PID 1, its coder-agent.service runs the init script uploaded
-# below, and the agent's startup script clones the repository, hands its whole environment to dev's systemd user
-# manager and starts agent-services.target (OpenCode server and Claude remote control). The image's side of this
-# contract is in images/coder-template/ (the units) and docs/adr/0002.
-#
-# REQUIRES SYSBOX on the Docker host (runtime sysbox-runc). There is no privileged fallback.
-
 terraform {
   required_providers {
     coder = {
@@ -21,11 +12,9 @@ terraform {
 }
 
 locals {
-  # Where the repository is cloned: /home/dev/<repository name>.
   repo_dir = "/home/dev/${trimsuffix(basename(data.coder_parameter.repo_url.value), ".git")}"
 
-  # Git identity from the Coder account: its full name, or its username when it has none. The provider reports a
-  # missing full name (an empty CODER_WORKSPACE_OWNER_NAME) as "default", not as empty.
+  # The provider reports a missing full name (an empty CODER_WORKSPACE_OWNER_NAME) as "default", not as empty.
   git_name = (
     contains(["", "default"], data.coder_workspace_owner.me.full_name)
     ? data.coder_workspace_owner.me.name
@@ -86,13 +75,12 @@ resource "coder_agent" "main" {
   # In the agent's environment, so in its startup script, every terminal and app, and (through the import below)
   # every agent service.
   env = {
-    REPO_URL            = data.coder_parameter.repo_url.value
-    REPO_DIR            = local.repo_dir
-    GIT_AUTHOR_NAME     = local.git_name
-    GIT_AUTHOR_EMAIL    = local.git_email
-    GIT_COMMITTER_NAME  = local.git_name
-    GIT_COMMITTER_EMAIL = local.git_email
-    # "true" or "false".
+    REPO_URL                          = data.coder_parameter.repo_url.value
+    REPO_DIR                          = local.repo_dir
+    GIT_AUTHOR_NAME                   = local.git_name
+    GIT_AUTHOR_EMAIL                  = local.git_email
+    GIT_COMMITTER_NAME                = local.git_name
+    GIT_COMMITTER_EMAIL               = local.git_email
     CLAUDE_PREAPPROVE_REMOTE_CONTROL  = data.coder_parameter.claude_remote_control.value
     CLAUDE_PREAPPROVE_TRUST_WORKSPACE = data.coder_parameter.claude_trust_workspace.value
   }
@@ -116,7 +104,6 @@ resource "coder_agent" "main" {
     [ "$cloned" = true ]
   EOT
 
-  # VS Code Desktop is the agent's built-in button.
   display_apps {
     vscode                 = true
     vscode_insiders        = false
@@ -159,8 +146,7 @@ resource "coder_app" "opencode" {
   }
 }
 
-# The Coder template image, by tag and digest. Pulled once per digest. Kept on the host when a workspace is deleted,
-# because other workspaces use it too.
+# Kept on the host when a workspace is deleted: other workspaces use it too.
 resource "docker_image" "main" {
   # Renovate proposes digest bumps: its terraform manager reads a docker_image name only as a literal string, so
   # keep the reference here, not in a local or variable.
