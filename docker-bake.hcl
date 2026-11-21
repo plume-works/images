@@ -4,8 +4,9 @@
 # The "default" group lists every image. CI works on them parent first, in the order .github/scripts/images.sh
 # derives from each target's `contexts` parent link (`bake --print` sorts the group by name, so its order is not it).
 #
-# To add an image: create images/<name>/ with a Dockerfile and smoke.sh, add a target below, and append it
-# to the group. A child image starts with `ARG BASE_IMAGE` / `FROM ${BASE_IMAGE}` and its target sets
+# To add an image: create images/<name>/ with a Dockerfile, smoke.sh and a .dockerignore keeping smoke.sh out of
+# the build context, add a target below, and append it to the group. A child image starts with `ARG BASE_IMAGE` /
+# `FROM ${BASE_IMAGE}` and its target sets
 #   args     = { BASE_IMAGE = "parent" }
 #   contexts = { parent = "target:<parent-name>" }
 # so it is built on this commit's parent straight from the builder, never on a published tag.
