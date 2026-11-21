@@ -1,13 +1,10 @@
-# Core image: the toolchains every other image here is built on, also used directly as a CI job container.
-# The default user stays root (no USER line), because GitHub Actions job containers expect it.
+# No USER line: GitHub Actions job containers expect root.
 FROM ubuntu:26.04@sha256:d66b366dac61b575bee2aef07e9c26e8070096fbe84a3d4d3eb0da069b5d76db
 
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 
-# apt packages float within the Ubuntu release; everything else below is pinned. jq and btop are interactive conveniences (see the admission rule
-# below); jq also reads the Claude Code release manifest below. tmux is a requirement: the Coder template image
-# runs its agent services inside it (ADR 0015).
-# hadolint ignore=DL3008
+# jq and btop are interactive conveniences outside the admission rule below. tmux: the Coder template image runs
+# its agent services inside it (ADR 0015).
 RUN apt-get update \
  && apt-get install -y --no-install-recommends btop ca-certificates curl git gnupg jq sudo tmux unzip xz-utils \
  && rm -rf /var/lib/apt/lists/*
@@ -44,7 +41,7 @@ RUN for host in github.com gist.github.com; do \
 # only once, so anything installed there would freeze at that day's version and shadow newer images.
 # Admission rule: a build toolchain is added only when at least two plume-works repositories need it in CI.
 
-# Git LFS from the release tarball, pinned (Ubuntu's package floats); its filters are registered in /etc/gitconfig.
+# Git LFS from the release tarball, pinned (Ubuntu's package floats).
 # renovate: datasource=github-releases depName=git-lfs/git-lfs extractVersion=^v(?<version>.+)$
 ARG GIT_LFS_VERSION=3.8.1
 RUN a=$(dpkg --print-architecture); f="git-lfs-linux-$a-v${GIT_LFS_VERSION}.tar.gz"; d=$(mktemp -d) \
@@ -57,7 +54,6 @@ RUN a=$(dpkg --print-architecture); f="git-lfs-linux-$a-v${GIT_LFS_VERSION}.tar.
  && git lfs install --system --skip-repo \
  && rm -rf "$d"
 
-# hadolint ignore=DL3008
 RUN apt-get update \
  && apt-get install -y --no-install-recommends python3 python-is-python3 \
  && rm -rf /var/lib/apt/lists/*
@@ -136,7 +132,7 @@ RUN case "$(uname -m)" in x86_64) p=linux-x64 ;; aarch64) p=linux-arm64 ;; esac;
  && install -m0755 "$d/claude" /usr/local/bin/claude \
  && rm -rf "$d"
 
-# OpenCode 2: the release binary (its releases are immutable but publish no checksum file).
+# OpenCode releases publish no checksum file.
 # Must stay on 2.x (smoke.sh checks it); Renovate offers the highest version, and the anchored extractVersion
 # skips the repository's process-daemon-v* releases.
 # renovate: datasource=github-releases depName=anomalyco/opencode extractVersion=^v(?<version>.+)$
@@ -169,7 +165,6 @@ ARG DOCKER_VERSION=29.10.0
 ARG BUILDX_VERSION=0.39.1
 # renovate: datasource=deb depName=docker-compose-plugin extractVersion=^(?<version>[^-]+)-
 ARG COMPOSE_VERSION=5.8.0
-# hadolint ignore=DL3008
 RUN install -m0755 -d /etc/apt/keyrings \
  && curl -fsSL https://download.docker.com/linux/ubuntu/gpg -o /etc/apt/keyrings/docker.asc \
  && . /etc/os-release \

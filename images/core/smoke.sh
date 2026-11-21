@@ -1,9 +1,6 @@
 #!/usr/bin/env bash
-# Smoke test for the core image.
-#
-# Runs the checks inside the image the way a CI job container would: as root,
-# with no systemd. The Docker engine checks add only what a job needing an engine adds:
-# privileged mode and an anonymous volume at /var/lib/docker (hosted runners have no sysbox).
+# Runs the checks the way a CI job container would: as root, with no systemd. Engine checks add privileged mode
+# and a volume at /var/lib/docker (hosted runners have no sysbox).
 set -euo pipefail
 
 image="${1:?usage: $0 <image-ref>}"
@@ -17,21 +14,18 @@ pass() { echo "ok: $*"; }
 [ "$(id -u)" = 0 ] || fail "default user is $(id -un), not root"
 pass "default user is root"
 
-# Nothing is installed under a home directory: before anything has run, the homes hold only shell
-# start-up files. That includes agent settings, plugins, skills, MCP servers and credentials.
+# That includes agent settings, plugins, skills, MCP servers and credentials.
 for home in /root /home/dev; do
   extra=$(find "$home" -mindepth 1 -maxdepth 1 ! -name .bashrc ! -name .profile ! -name .bash_logout)
   [ -z "$extra" ] || fail "$home ships more than shell start-up files: $extra"
 done
 pass "the homes of root and dev hold only shell start-up files"
 
-# dev: UID 1000, bash login shell, passwordless sudo.
 [ "$(id -u dev 2>/dev/null)" = 1000 ] || fail "no user dev at UID 1000"
 [ "$(getent passwd dev | cut -d: -f7)" = /bin/bash ] || fail "dev's shell is not bash"
 [ "$(su dev -c 'sudo -n id -u')" = 0 ] || fail "dev has no passwordless sudo"
 pass "dev is UID 1000 with bash and passwordless sudo"
 
-# Each tool answers, as root and as dev, from a system-wide location (not under a home).
 as() { if [ "$1" = root ]; then bash -c "$2"; else su "$1" -c "$2"; fi; }
 for tool in git gh git-lfs uv uvx python python3 bun bunx cmake ninja fish jq tmux btop claude opencode; do
   for user in root dev; do
@@ -55,7 +49,6 @@ case "$(opencode --version)" in
   *) fail "opencode is $(opencode --version), not version 2" ;;
 esac
 
-# The Python is Ubuntu's, and a virtual environment dev makes with uv gets it too, not a per-user download.
 for py in python python3; do
   case "$(readlink -f "$(command -v $py)")" in
     /usr/bin/python3*) ;;
@@ -71,7 +64,6 @@ case "$venv_python" in
 esac
 pass "uv venv as dev uses Ubuntu's Python ($venv_python)"
 
-# No Node.js: Bun covers that need.
 for tool in node nodejs npm npx; do
   if command -v "$tool" >/dev/null; then fail "$tool is installed"; fi
 done
@@ -81,7 +73,6 @@ pass "Node.js is not installed"
 # (Capturing first, rather than piping into grep -q, keeps pipefail from tripping on a closed pipe.)
 says() { local pattern=$1 out; shift; out=$("$@" 2>&1) || :; grep -qE -- "$pattern" <<<"$out"; }
 
-# git gets a GitHub credential from the token in the environment, through the GitHub CLI, as root and as dev.
 # No network is needed: gh hands back the token it finds. Without a token git must fail, not hang on a prompt.
 fill='printf "protocol=https\nhost=github.com\n\n" | GIT_TERMINAL_PROMPT=0 timeout 20 git credential fill'
 for user in root dev; do
@@ -95,7 +86,6 @@ for user in root dev; do
 done
 pass "git obtains a credential from GH_TOKEN or GITHUB_TOKEN through gh, as root and as dev"
 
-# The agents are bare: no MCP servers, plugins or credentials, as root and as dev.
 # OpenCode 2's commands talk to a server: --standalone runs a private one for the command, rather than leaving a
 # per-user background service behind (whose fixed port root's and dev's would contend for).
 for user in root dev; do
@@ -125,8 +115,6 @@ says 'Updates are disabled' env -i PATH=/usr/local/bin:/usr/bin:/bin HOME=/root 
 pass "self-updating is off for claude and opencode, as root, as dev and in a fresh login"
 CHECKS
 
-# Docker engine: started on demand by start-docker, the way a CI job container
-# would run it: privileged, no systemd, and a volume at /var/lib/docker.
 docker run --rm -i --privileged -v /var/lib/docker "$image" bash -s <<'CHECKS'
 set -euo pipefail
 fail() { echo "FAIL: $*" >&2; exit 1; }
@@ -171,18 +159,14 @@ refuses() {
   }
 }
 
-# Privileged with no volume at /var/lib/docker leaves the engine's storage on the container's overlay filesystem,
-# where containers cannot start: start-docker must fail and say how to fix it.
 refuses "with /var/lib/docker on the container's overlay filesystem" 'mount a volume at /var/lib/docker' \
   --privileged "$image" start-docker
 echo "ok: start-docker refuses to run with its storage on the overlay filesystem, and says so"
 
-# Without --privileged (or sysbox) the engine cannot run: start-docker must say so, not wait out its timeout.
 refuses "in a container that is not privileged" 'run it with --privileged' -v /var/lib/docker "$image" start-docker
 echo "ok: start-docker refuses to run in a container that is not privileged, and says so"
 
-# A dockerd that exits at once (here: a broken daemon.json) fails start-docker at once, and it says so.
-# The outer timeout is well under START_DOCKER_TIMEOUT's 60 s, so waiting it out fails with no message.
+# A broken daemon.json makes dockerd exit at once. The outer timeout is well under START_DOCKER_TIMEOUT's 60 s, so waiting it out fails with no message.
 refuses "with a dockerd that exits at once" 'dockerd exited before the engine was ready' \
   --privileged -v /var/lib/docker "$image" sh -c 'mkdir -p /etc/docker && echo "{" >/etc/docker/daemon.json && exec timeout 20 start-docker'
 echo "ok: start-docker fails at once when dockerd exits, and says so"

@@ -1,6 +1,4 @@
-# Core systemd image: the core image with systemd as PID 1 and the Docker engine run as a service.
-# Everything about booting lives here, once (ADR 0001). The default user stays root (no USER line),
-# because systemd must run as root.
+# No USER line: systemd must run as root.
 # CI (../docker-bake.hcl) always builds on this commit's core image; the default serves plain local builds.
 ARG BASE_IMAGE=ghcr.io/plume-works/core:edge
 FROM ${BASE_IMAGE}
@@ -8,13 +6,10 @@ FROM ${BASE_IMAGE}
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 
 # dbus-user-session and libpam-systemd: what dev's per-user manager needs.
-# hadolint ignore=DL3008
 RUN apt-get update \
  && apt-get install -y --no-install-recommends systemd systemd-sysv dbus dbus-user-session libpam-systemd \
  && rm -rf /var/lib/apt/lists/*
 
-# journald never reads the kernel log. Under sysbox /dev/kmsg is not pollable and journald fails
-# at boot, leaving no unit with logs; under privileged mode it is the host's kernel log.
 COPY journald.conf /etc/systemd/journald.conf.d/10-container.conf
 
 COPY docker-prune.service docker-prune.timer /etc/systemd/system/

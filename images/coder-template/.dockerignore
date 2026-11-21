@@ -1,2 +1,1 @@
-# smoke.sh tests the built image; the build never reads it.
 smoke.sh

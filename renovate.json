@@ -1,6 +1,6 @@
 {
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
-  "description": "Every pinned version in this repository is updated only through a Renovate pull request, which builds, tests and publishes pr-N like any other, and merges by itself once its checks pass and the release has waited out its minimum age (docs/adr/0019-renovate-release-wait.md), with no hourly limit on new pull requests, so a pin bump never waits behind others. Apt packages float by design and are not tracked.",
+  "description": "Release wait: docs/adr/0019-renovate-release-wait.md. No hourly limit, so a pin bump never waits behind others.",
   "extends": [
     "config:recommended",
     "docker:pinDigests",
@@ -12,7 +12,7 @@
   "customManagers": [
     {
       "customType": "regex",
-      "description": "Versions pinned in any Dockerfile by an ARG <NAME>_VERSION (in a smoke script, a plain <NAME>_VERSION=) directly below a `# renovate: datasource=… depName=… [packageName=…] [versioning=…] [extractVersion=…]` comment",
+      "description": "<NAME>_VERSION pins below a `# renovate:` comment in Dockerfiles and smoke scripts",
       "managerFilePatterns": ["/(^|/)Dockerfile$/", "/(^|/)smoke\\.sh$/"],
       "matchStrings": [
         "# renovate: datasource=(?<datasource>[a-z-]+?) depName=(?<depName>[^\\s]+?)(?: packageName=(?<packageName>[^\\s]+?))?(?: versioning=(?<versioning>[^\\s]+?))?(?: extractVersion=(?<extractVersion>[^\\s]+?))?\\s+(?:ARG )?[A-Z0-9_]+?_VERSION=(?<currentValue>[^\\s]+)"
@@ -22,7 +22,7 @@
     },
     {
       "customType": "regex",
-      "description": "Versions pinned in the Coder template by a quoted attribute value (e.g. install_version = \"4.145.2\") directly below a `# renovate: datasource=… depName=… [extractVersion=…]` comment",
+      "description": "Quoted attribute pins below a `# renovate:` comment in the Coder template",
       "managerFilePatterns": ["/(^|/)[^/]+\\.tf$/"],
       "matchStrings": [
         "# renovate: datasource=(?<datasource>[a-z-]+?) depName=(?<depName>[^\\s]+?)(?: extractVersion=(?<extractVersion>[^\\s]+?))?\\s+[a-z_]+\\s*=\\s*\"(?<currentValue>[^\"]+)\""
@@ -51,7 +51,7 @@
       "enabled": false
     },
     {
-      "description": "Digests of our own images (.devcontainer.json, the Coder template): one grouped pull request as soon as edge moves, with no release wait (GHCR publishes no release timestamps, and CI already built and tested edge). Merging it does not publish again (images.yml ignores pushes that touch only these pins), so the bumps do not loop",
+      "description": "Digests of our own images (.devcontainer.json, the Coder template): one grouped pull request as soon as edge moves, with no release wait (GHCR publishes no release timestamps, and CI already built and tested edge).",
       "matchDatasources": ["docker"],
       "matchPackageNames": ["ghcr.io/plume-works/**"],
       "groupName": "plume-works images",

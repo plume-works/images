@@ -1,6 +1,4 @@
-# The services that need the Coder agent's environment (user secrets included). Nothing starts this target at
-# boot: the Coder template's startup script starts it, after handing its environment to this user manager
-# (ADR 0002).
+# Started only after the Coder startup script hands its environment, secrets included, to this user manager (ADR 0002).
 [Unit]
 Description=Agent services (started by the Coder agent, never at boot)
 Wants=opencode.service claude-pre-approval.service claude-remote-control.service

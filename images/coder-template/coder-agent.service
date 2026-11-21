@@ -1,7 +1,4 @@
-# The Coder agent, as dev. The Coder template uploads its two inputs before the container starts:
-#   /etc/coder/agent-init.sh  coder_agent.init_script: fetches the agent from the Coder server and runs it
-#   /etc/coder/agent-token    coder_agent.token, owned by dev, mode 0600
-# Without them (a plain `docker run`) the unit is skipped, not failed.
+# The Coder template uploads /etc/coder/agent-init.sh and /etc/coder/agent-token before the container starts.
 [Unit]
 Description=Coder agent
 Wants=network-online.target user@1000.service
@@ -22,7 +19,6 @@ Restart=always
 RestartSec=10
 TimeoutStopSec=90
 # Restarting the agent leaves the shells and sessions it started running.
-# (The agent services run under dev's user manager, not here, so they survive it either way.)
 KillMode=process
 OOMScoreAdjust=-900
 SyslogIdentifier=coder-agent

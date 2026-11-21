@@ -1,11 +1,5 @@
 #!/usr/bin/env bash
-# Smoke test for the Coder template image.
-#
-# Boots the image with its own entrypoint in privileged mode (hosted runners have no sysbox), first as a
-# plain container, then with the two files a Coder template uploads: a stand-in for the agent's init script
-# and a token file. The stand-in does what the real agent and the template's startup script do (ADR 0002):
-# hands its environment to dev's user manager and starts the agent-services target.
-# It does not repeat the core systemd image's checks.
+# Privileged mode: hosted runners have no sysbox. It does not repeat the core systemd image's checks.
 set -euo pipefail
 
 image="${1:?usage: $0 <image-ref>}"
@@ -20,8 +14,7 @@ dump_extra() {
 }
 as_dev() { docker exec -u dev -e XDG_RUNTIME_DIR=/run/user/1000 "$container" "$@"; }
 
-# Wait up to $1 seconds for a command to succeed, trying it every tenth of a second: often enough to catch a
-# pane that lives only briefly.
+# wait_for SECONDS COMMAND...: polls every tenth of a second, often enough to catch a pane that lives briefly.
 wait_for() {
   local end=$((SECONDS + $1))
   shift
@@ -36,7 +29,6 @@ wait_for() {
 boot
 pass "the image boots to a running state with no failed units, without the template's uploads"
 
-# The agent unit is enabled but skipped: without the init script there is nothing to run.
 [ "$(in_container systemctl is-enabled coder-agent.service)" = enabled ] || fail "the Coder agent unit is not enabled"
 ! in_container systemctl is-active --quiet coder-agent.service || fail "the Coder agent runs without an init script"
 for u in agent-services.target opencode.service claude-remote-control.service; do
@@ -50,7 +42,7 @@ token="smoke-agent-token-$RANDOM$RANDOM"
 var="smoke-imported-$RANDOM$RANDOM"
 password="smoke-password-$RANDOM$RANDOM"
 
-# A stand-in for coder_agent.init_script (a POSIX sh script). It records what the agent would see, then runs
+# A stand-in for coder_agent.init_script. It records what the agent would see, then runs
 # what the template's startup script runs: clone a repository (here: create one), then the hand-off.
 # The imported variables stand for Coder user secrets and the template's agent variables, with both Claude
 # pre-approval choices on. CLAUDE_CODE_OAUTH_TOKEN is a secret a user may well define for terminal use, and it
@@ -76,8 +68,7 @@ as_dev sh -c 'mkdir -p ~/dotfiles ~/.claude && echo "{\"smoke\": \"kept\"}" >~/d
   ln -sf dotfiles/claude.json ~/.claude.json && ln -sf ../dotfiles/settings.json ~/.claude/settings.json'
 
 docker stop -t 60 "$container" >/dev/null
-# Like the template's uploads: in place before the container starts, the token owned by dev and readable by
-# dev only. (Tar streams, so owner and mode are the template's, not this machine's.)
+# Tar streams, so owner and mode are the template's, not this machine's.
 tar -C "$work" -c --owner=0 --group=0 --mode=0755 agent-init.sh | docker cp -a - "$container:/etc/coder"
 tar -C "$work" -c --owner=1000 --group=1000 --mode=0600 agent-token | docker cp -a - "$container:/etc/coder"
 boot again
@@ -89,8 +80,6 @@ pass "the Coder agent runs as dev, reads its token from the uploaded file and re
 
 as_dev systemctl --user is-active --quiet agent-services.target || fail "agent-services.target is not active"
 
-# Claude pre-approval, both choices on: everything granted, the user's own setting kept.
-# claude_has FILE FILTER: FILTER holds in /home/dev/FILE.
 claude_has() { as_dev jq -e "$2" "/home/dev/$1" >/dev/null; }
 claude_has .claude.json '.hasCompletedOnboarding == true' || fail "Claude's onboarding is not marked completed"
 claude_has .claude.json '.remoteDialogSeen == true' || fail "remote control's consent is not granted"
@@ -106,7 +95,6 @@ claude_has dotfiles/claude.json '.smoke == "kept" and .hasCompletedOnboarding ==
   fail "the symlinked ~/.claude.json's target lacks the approvals or its own key"
 pass "with both Claude pre-approval choices on, onboarding, consent, trust and every project's MCP servers are granted"
 
-# Each agent service runs its app in its own tmux server, on a socket named after its unit (ADR 0015).
 # opencode_pid: the OpenCode server's PID, when it is the live process in the pane of socket opencode, and still
 # in opencode.service (so systemd supervises and stops it).
 opencode_pid() {
@@ -177,8 +165,6 @@ grep -q 'You must be logged in to use Remote Control' <<<"$rc_log" ||
 ! grep -q 'full-scope login token' <<<"$rc_log" || fail "remote control saw CLAUDE_CODE_OAUTH_TOKEN"
 pass "remote control keeps retrying until a sign-in exists, without the API-token variables that stop it"
 
-# The scrubber empties a prompt file written the way remote control writes one, in a session folder that did
-# not exist when it started, and leaves the session's other files alone (ADR 0018).
 as_dev systemctl --user is-active --quiet claude-bridge-prompt-scrub.service || fail "the prompt scrubber is not running"
 session=/home/dev/.claude/bridge-spawn/smoke-session
 as_dev sh -c "mkdir $session && echo cloud >$session/append-system-prompt.txt && echo '{}' >$session/mcp.json"
@@ -206,7 +192,6 @@ redraw_log=$(as_dev journalctl --user _SYSTEMD_USER_UNIT=smoke-redraw.service --
   fail "the journal does not hold exactly the app's last screen: $(head -n 20 <<<"$redraw_log")"
 pass "an agent service's journal holds only its app's last screen, once, and the app's exit status"
 
-# no_tmux NAME...: no tmux server answers on any of these sockets.
 no_tmux() { for n in "$@"; do ! as_dev tmux -L "$n" list-sessions >/dev/null 2>&1 || return 1; done; }
 no_tmux smoke-redraw || fail "the tmux server outlived its app"
 

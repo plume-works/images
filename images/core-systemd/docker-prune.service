@@ -1,4 +1,3 @@
-# Run weekly by docker-prune.timer.
 # `image prune --all` removes only images no container (running or stopped) uses. Under the containerd
 # image store its `until` filter is when the image was pulled or built here: Docker records no last-use time
 # for images, so an image whose last container was removed (say, run with --rm) goes once it is over a week
