@@ -107,12 +107,13 @@ opencode_pid() {
 }
 wait_for 60 opencode_pid || fail "the OpenCode server does not run in the pane of tmux socket opencode"
 pid=$(opencode_pid)
-# Remote control has no sign-in here, so it runs only briefly before each restart.
-rc_pane() {
-  as_dev tmux -L claude-remote-control display-message -p -t claude-remote-control '#{pane_start_command}' |
-    grep 'claude remote-control' >/dev/null
+# Remote control has no sign-in here, so its pane lives about a second before each restart: too briefly to catch
+# reliably. Its error reaches the journal only as the pane's last screen, which run-in-tmux reads from the socket.
+rc_screen() {
+  as_dev journalctl --user -u claude-remote-control.service --no-pager -q -o cat |
+    grep 'You must be logged in to use Remote Control' >/dev/null
 }
-wait_for 60 rc_pane || fail "remote control does not run in the pane of tmux socket claude-remote-control"
+wait_for 60 rc_screen || fail "remote control does not run in the pane of tmux socket claude-remote-control"
 pass "each agent service runs its app in the pane of a tmux socket named after its unit"
 
 as_dev cat "/proc/$pid/environ" | tr '\0' '\n' | grep -x "SMOKE_VAR=$var" >/dev/null ||
