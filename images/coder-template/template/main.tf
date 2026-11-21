@@ -169,7 +169,7 @@ resource "docker_image" "main" {
 }
 
 # The only state that persists: home. Never replaced or deleted by a template change; deleted with the workspace.
-# Nothing is mounted at the inner Docker engine's storage (ADR 0014): sysbox gives each container its own, removed
+# Nothing is mounted at the inner Docker engine's storage (ADR 0013): sysbox gives each container its own, removed
 # with it.
 resource "docker_volume" "home" {
   name = "coder-${data.coder_workspace.me.id}-home"

@@ -5,7 +5,7 @@ It is the parent of the [Coder template image](coder-template.md) and the
 [devcontainer base image](devcontainer-base.md); build on it with `FROM`, and to work in it use one of those two.
 
 Run it with its own entrypoint under sysbox, with nothing mounted at the inner engine's storage, or in privileged
-mode, with volumes there ([ADR 0014](../adr/0014-no-engine-storage-volumes.md)):
+mode, with volumes there ([ADR 0013](../adr/0013-no-engine-storage-volumes.md)):
 
 ```sh
 docker run -d --runtime=sysbox-runc ghcr.io/plume-works/core-systemd:edge@sha256:<digest>

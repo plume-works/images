@@ -51,4 +51,4 @@ come from the front matter of the template's README.
 - The Claude pre-approval choices are workspace-wide, because the workspace is the sandbox: only trust names the
   cloned repository; every project's MCP servers in the workspace are approved ([ADR 0016](../adr/0016-claude-pre-approval-on-by-default.md)).
 - One volume per workspace persists across rebuilds: `/home/dev`. Everything else is recreated at every start,
-  the Docker engine's storage included ([ADR 0014](../adr/0014-no-engine-storage-volumes.md)).
+  the Docker engine's storage included ([ADR 0013](../adr/0013-no-engine-storage-volumes.md)).

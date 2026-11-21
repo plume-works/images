@@ -13,7 +13,7 @@ snippets below; the image does not choose how it runs ([ADR 0001](../adr/0001-do
 Both mount a named volume for all of `/home/dev`, so agent sign-ins and shell history survive a rebuild. The home
 volume is yours to keep, drop or replace; a new one is filled from the image's `/home/dev`. Under sysbox, mount
 nothing at the Docker engine's storage: sysbox gives each container its own, and a volume there can take the
-host down ([ADR 0014](../adr/0014-no-engine-storage-volumes.md)), so images and build cache go with each rebuild. In
+host down ([ADR 0013](../adr/0013-no-engine-storage-volumes.md)), so images and build cache go with each rebuild. In
 privileged mode the engine needs volumes there; named ones keep its images and build cache across rebuilds.
 
 With sysbox:
