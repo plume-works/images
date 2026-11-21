@@ -1,5 +1,4 @@
 #!/usr/bin/env bash
-# Print, comma-separated, the pr-N tags of the given images whose pull request closed at least DAYS days ago.
 # Works from existing tags, not closed pull requests: cost does not grow with history, and a pr-N a late
 # publish put back is found too.
 set -euo pipefail
