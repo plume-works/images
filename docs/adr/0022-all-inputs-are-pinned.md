@@ -1,8 +1,8 @@
 # All inputs are pinned
 
 Every input to an image is pinned, and a pin changes only through a pull request that passes the tests. Ubuntu's
-packages come from a dated snapshot of its archive, set in the core image's apt config, and Renovate proposes a
-newer snapshot at most once a day. An input that floats cannot be traced: a cached build quietly keeps an old
+packages come from a dated snapshot of its archive, set in the core image's apt config, and Renovate proposes the
+latest snapshot at most once a day. An input that floats cannot be traced: a cached build quietly keeps an old
 version, and an uncached one gives new digests every time, so no build could be shown to be unchanged.
 
 ## Considered Options
