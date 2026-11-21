@@ -12,5 +12,5 @@ Importing the whole environment means a user creates a Coder secret, restarts th
 ## Consequences
 
 - A new or rotated secret takes effect on workspace restart; running services keep the environment they started with.
-- One exception: Claude remote control is kept from the Anthropic token variables that stop it (ADR 0003).
+- One exception: Claude remote control is kept from the Anthropic token variables that stop it (ADR 0017).
 - Anything that needs a Coder secret, including the repository clone, runs from the agent's startup script or from a service it starts, never from a unit started at boot.

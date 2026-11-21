@@ -21,7 +21,7 @@ StartLimitIntervalSec=0
 [Service]
 # Remote control refuses to start while an API key or a long-lived token is set, and the whole environment
 # is imported (ADR 0002), so a Coder secret meant for terminal use would stop it. Only these are kept back:
-# the one exception to ADR 0002's "every secret reaches the services" (ADR 0003).
+# the one exception to ADR 0002's "every secret reaches the services" (ADR 0017).
 UnsetEnvironment=ANTHROPIC_API_KEY ANTHROPIC_AUTH_TOKEN CLAUDE_CODE_OAUTH_TOKEN
 # In tmux, socket claude-remote-control (ADR 0015). `$$` reaches the shell as `$`.
 ExecStart=/usr/local/bin/run-in-tmux claude-remote-control /bin/sh -c 'cd "$${REPO_DIR:?not set: the Coder startup script imports it}" && exec /usr/local/bin/claude remote-control --spawn worktree --permission-mode auto'
