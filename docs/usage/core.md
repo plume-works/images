@@ -15,6 +15,10 @@ non-root user `dev` (UID 1000, passwordless sudo, in the `docker` group) exists 
 
 git authenticates to GitHub through the GitHub CLI wherever `GH_TOKEN` or `GITHUB_TOKEN` is set.
 
+apt installs from the same dated Ubuntu archive snapshot the image was built from, so `apt-get install` in a job
+gets the versions of that day; a newer image moves the snapshot. The snapshot is set in
+`/etc/apt/apt.conf.d/50snapshot`: a job that needs the live archive deletes that file before `apt-get update`.
+
 ## Docker in a CI job
 
 A job container does not run systemd, so `start-docker` starts the engine and returns once it is ready (calling it

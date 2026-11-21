@@ -9,13 +9,23 @@
   "automerge": true,
   "prHourlyLimit": 0,
   "minimumReleaseAge": "3 days",
+  "customDatasources": {
+    "ubuntu-snapshot": {
+      "description": "The Ubuntu archive snapshot the core image's apt uses (docs/adr/0022-all-inputs-are-pinned.md). The snapshot service lists no snapshots and takes any timestamp, so the latest is the moment the security pocket last changed, read from its InRelease Date line (a snapshot at that moment includes it). The suite is the codename of the core image's Ubuntu release: change it with that release",
+      "defaultRegistryUrlTemplate": "http://archive.ubuntu.com/ubuntu/dists/resolute-security/InRelease",
+      "format": "plain",
+      "transformTemplates": [
+        "($m := $match(releases[$substring(version, 0, 6) = \"Date: \"].version, /(\\d+) (\\w{3}) (\\d{4}) +(\\d+):(\\d{2}):(\\d{2})/).groups; {\"releases\": [{\"version\": $m[2] & $lookup({\"Jan\": \"01\", \"Feb\": \"02\", \"Mar\": \"03\", \"Apr\": \"04\", \"May\": \"05\", \"Jun\": \"06\", \"Jul\": \"07\", \"Aug\": \"08\", \"Sep\": \"09\", \"Oct\": \"10\", \"Nov\": \"11\", \"Dec\": \"12\"}, $m[1]) & $pad($m[0], -2, \"0\") & \"T\" & $pad($m[3], -2, \"0\") & $m[4] & $m[5] & \"Z\"}]})"
+      ]
+    }
+  },
   "customManagers": [
     {
       "customType": "regex",
       "description": "<NAME>_VERSION pins below a `# renovate:` comment in Dockerfiles and smoke scripts",
       "managerFilePatterns": ["/(^|/)Dockerfile$/", "/(^|/)smoke\\.sh$/"],
       "matchStrings": [
-        "# renovate: datasource=(?<datasource>[a-z-]+?) depName=(?<depName>[^\\s]+?)(?: packageName=(?<packageName>[^\\s]+?))?(?: versioning=(?<versioning>[^\\s]+?))?(?: extractVersion=(?<extractVersion>[^\\s]+?))?\\s+(?:ARG )?[A-Z0-9_]+?_VERSION=(?<currentValue>[^\\s]+)"
+        "# renovate: datasource=(?<datasource>[a-z.-]+?) depName=(?<depName>[^\\s]+?)(?: packageName=(?<packageName>[^\\s]+?))?(?: versioning=(?<versioning>[^\\s]+?))?(?: extractVersion=(?<extractVersion>[^\\s]+?))?\\s+(?:ARG )?[A-Z0-9_]+?_VERSION=(?<currentValue>[^\\s]+)"
       ],
       "versioningTemplate": "{{#if versioning}}{{{versioning}}}{{else}}semver-coerced{{/if}}",
       "extractVersionTemplate": "{{#if extractVersion}}{{{extractVersion}}}{{else}}^v?(?<version>.+)${{/if}}"
@@ -35,9 +45,15 @@
     {
       "description": "Docker's packages are looked up in the apt repository the core image installs them from, which publishes a release hours or days after GitHub does, so Renovate proposes only versions that install. The suite is the codename of the core image's Ubuntu release: change it with that release. The apt repository publishes no release timestamps, so these updates go ahead without the release wait rather than being held forever",
       "matchDatasources": ["deb"],
-      "matchPackageNames": ["docker-*"],
+      "matchPackageNames": ["docker-*", "containerd.io"],
       "registryUrls": ["https://download.docker.com/linux/ubuntu?suite=resolute&components=stable&binaryArch=amd64"],
       "minimumReleaseAgeBehaviour": "timestamp-optional"
+    },
+    {
+      "description": "The Ubuntu snapshot bumps with no release wait: it carries security fixes, and Ubuntu's updates have already passed its own -proposed testing. The archive changes several times a day, so it bumps only in an early-morning window (UTC), which keeps it to about one rebuild a day",
+      "matchDatasources": ["custom.ubuntu-snapshot"],
+      "minimumReleaseAge": null,
+      "schedule": ["* 0-3 * * *"]
     },
     {
       "description": "An x.y.0 release waits longer than the default, since those usually carry the most bugs",

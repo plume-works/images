@@ -89,7 +89,7 @@ $T fmt -check -diff && $T init -backend=false -input=false && $T validate
 
 Everything is pinned, and a pin changes only through a pull request that passes the same build, test and `pr-N`
 publish as any other, opened by [Renovate](https://docs.renovatebot.com/) ([`renovate.json`](renovate.json)).
-Apt packages, Git included, are the exception: they float within the Ubuntu release.
+Apt packages come from a dated snapshot of the Ubuntu archive ([ADR 0022](docs/adr/0022-all-inputs-are-pinned.md)).
 
 To pin a new tool in a Dockerfile, put an `ARG <NAME>_VERSION` (a plain `<NAME>_VERSION=` in a `smoke.sh`)
 directly below a `# renovate:` comment, with no `v` prefix on the value:
