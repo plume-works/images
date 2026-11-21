@@ -1,6 +1,6 @@
 {
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
-  "description": "Every pinned version in this repository is updated only through a Renovate pull request, which builds, tests and publishes pr-N like any other, and merges by itself once its checks pass, with no hourly limit on new pull requests, so a pin bump never waits behind others. Apt packages float by design and are not tracked.",
+  "description": "Every pinned version in this repository is updated only through a Renovate pull request, which builds, tests and publishes pr-N like any other, and merges by itself once its checks pass and the release has waited out its minimum age (docs/adr/0019-renovate-release-wait.md), with no hourly limit on new pull requests, so a pin bump never waits behind others. Apt packages float by design and are not tracked.",
   "extends": [
     "config:recommended",
     "docker:pinDigests",
@@ -8,6 +8,7 @@
   ],
   "automerge": true,
   "prHourlyLimit": 0,
+  "minimumReleaseAge": "3 days",
   "customManagers": [
     {
       "customType": "regex",
@@ -32,10 +33,16 @@
   ],
   "packageRules": [
     {
-      "description": "Docker's packages are looked up in the apt repository the core image installs them from, which publishes a release hours or days after GitHub does, so Renovate proposes only versions that install. The suite is the codename of the core image's Ubuntu release: change it with that release",
+      "description": "Docker's packages are looked up in the apt repository the core image installs them from, which publishes a release hours or days after GitHub does, so Renovate proposes only versions that install. The suite is the codename of the core image's Ubuntu release: change it with that release. The apt repository publishes no release timestamps, so these updates go ahead without the release wait rather than being held forever",
       "matchDatasources": ["deb"],
       "matchPackageNames": ["docker-*"],
-      "registryUrls": ["https://download.docker.com/linux/ubuntu?suite=resolute&components=stable&binaryArch=amd64"]
+      "registryUrls": ["https://download.docker.com/linux/ubuntu?suite=resolute&components=stable&binaryArch=amd64"],
+      "minimumReleaseAgeBehaviour": "timestamp-optional"
+    },
+    {
+      "description": "An x.y.0 release waits longer than the default, since those usually carry the most bugs",
+      "matchNewValue": "/^v?\\d+\\.\\d+\\.0$/",
+      "minimumReleaseAge": "10 days"
     },
     {
       "description": "Child Dockerfiles default BASE_IMAGE to our own image for plain local builds; CI always builds them on this commit's parent. Never pin or bump it.",
@@ -44,10 +51,11 @@
       "enabled": false
     },
     {
-      "description": "Digests of our own images (.devcontainer.json, the Coder template): one grouped pull request as soon as edge moves. Merging it does not publish again (images.yml ignores pushes that touch only these pins), so the bumps do not loop",
+      "description": "Digests of our own images (.devcontainer.json, the Coder template): one grouped pull request as soon as edge moves, with no release wait (GHCR publishes no release timestamps, and CI already built and tested edge). Merging it does not publish again (images.yml ignores pushes that touch only these pins), so the bumps do not loop",
       "matchDatasources": ["docker"],
       "matchPackageNames": ["ghcr.io/plume-works/**"],
-      "groupName": "plume-works images"
+      "groupName": "plume-works images",
+      "minimumReleaseAge": null
     }
   ]
 }
