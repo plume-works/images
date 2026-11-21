@@ -8,8 +8,9 @@
     "CLAUDE_CODE_SIMPLE_SYSTEM_PROMPT": "1"
   },
   "attribution": {
-    "commit": "",
-    "pr": ""
+    "commit": "- agent commit -",
+    "pr": "",
+    "sessionUrl": false
   },
   "includeGitInstructions": false,
   "permissions": {
