@@ -2,7 +2,7 @@
 """Empty the cloud-container prompt Claude remote control hands each session it spawns (ADR 0018).
 
 Remote control writes ~/.claude/bridge-spawn/<session>/append-system-prompt.txt, then starts the session with
---append-system-prompt-file and the file's SHA-256. The session reads the file about 90 ms later and drops it if
+--append-system-prompt-file and the file's SHA-256. The session reads the file after it starts, and drops it if
 the hash no longer matches. Emptying the file as soon as it is written therefore drops the whole block.
 
 Fails open: a file this misses is used as before. Tells systemd it is ready once its watches are in place.

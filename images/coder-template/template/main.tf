@@ -208,7 +208,7 @@ resource "docker_container" "workspace" {
   destroy_grace_seconds = 60
 
   # The only two things the template puts into the container; coder-agent.service reads them.
-  # A Coder access URL on localhost means the host, as in Coder's own Docker template.
+  # A Coder access URL on localhost means the host.
   upload {
     file        = "/etc/coder/agent-init.sh"
     content     = replace(coder_agent.main.init_script, "/localhost|127\\.0\\.0\\.1/", "host.docker.internal")
