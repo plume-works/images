@@ -1,6 +1,6 @@
 # Build, test and publish every image of this repository.
 #
-# Shape (each step is data-driven from docker-bake.hcl, so adding an image needs no change here; the list of
+# Shape (each step is data-driven from images/docker-bake.hcl, so adding an image needs no change here; the list of
 # images, parent first, comes from .github/scripts/images.sh):
 #   build-test (amd64), build-test (arm64)   one job per architecture, each on a native runner
 #     1. bake builds all images of this commit once, children on this commit's parent, and loads them; if
@@ -79,6 +79,7 @@ jobs:
       - name: Build every image of this commit, load it, and push it by digest if publishing
         env:
           PUSH: ${{ env.PUBLISH }}
+        working-directory: images
         run: docker buildx bake --metadata-file "$RUNNER_TEMP/meta.json"
 
       - name: Smoke-test every image, parent first

@@ -1,17 +1,19 @@
 # Every image of this repository, built from one commit.
 #
-# Target name == folder under images/ == GHCR package name (ghcr.io/plume-works/<name>).
+# Run from this folder (images/), where target contexts resolve.
+#
+# Target name == folder name == GHCR package name (ghcr.io/plume-works/<name>).
 # The "default" group lists every image. CI works on them parent first, in the order .github/scripts/images.sh
 # derives from each target's `contexts` parent link (`bake --print` sorts the group by name, so its order is not it).
 #
-# To add an image: create images/<name>/ with a Dockerfile, smoke.sh and a .dockerignore keeping smoke.sh out of
+# To add an image: create <name>/ with a Dockerfile, smoke.sh and a .dockerignore keeping smoke.sh out of
 # the build context, add a target below, and append it to the group. A child image starts with `ARG BASE_IMAGE` /
 # `FROM ${BASE_IMAGE}` and its target sets
 #   args     = { BASE_IMAGE = "parent" }
 #   contexts = { parent = "target:<parent-name>" }
 # so it is built on this commit's parent straight from the builder, never on a published tag.
 #
-# Local use: `docker buildx bake`, then `images/<name>/smoke.sh ghcr.io/plume-works/<name>:ci`.
+# Local use: `docker buildx bake`, then `<name>/smoke.sh ghcr.io/plume-works/<name>:ci`.
 
 variable "REGISTRY" { default = "ghcr.io/plume-works" }
 # CI sets PUSH=true when it publishes. The one build then also pushes each image by digest, untagged, alongside
@@ -48,13 +50,13 @@ target "_common" {
 
 target "core" {
   inherits = ["_common"]
-  context  = "images/core"
+  context  = "core"
   output   = out("core")
 }
 
 target "core-systemd" {
   inherits = ["_common"]
-  context  = "images/core-systemd"
+  context  = "core-systemd"
   args     = { BASE_IMAGE = "parent" }
   contexts = { parent = "target:core" }
   output   = out("core-systemd")
@@ -62,7 +64,7 @@ target "core-systemd" {
 
 target "coder-template" {
   inherits = ["_common"]
-  context  = "images/coder-template"
+  context  = "coder-template"
   args     = { BASE_IMAGE = "parent" }
   contexts = { parent = "target:core-systemd" }
   output   = out("coder-template")
@@ -70,7 +72,7 @@ target "coder-template" {
 
 target "devcontainer-base" {
   inherits = ["_common"]
-  context  = "images/devcontainer-base"
+  context  = "devcontainer-base"
   args     = { BASE_IMAGE = "parent" }
   contexts = { parent = "target:core-systemd" }
   output   = out("devcontainer-base")

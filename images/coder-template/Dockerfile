@@ -1,7 +1,7 @@
 # Coder template image: the core systemd image plus the Coder agent unit and the agent services, and nothing
 # else. The Coder template (templates/coder/) runs it directly as the workspace container, under sysbox.
 # The hand-off between the template and these units is described in ADR 0002 (docs/adr/).
-# CI (docker-bake.hcl) always builds on this commit's core systemd image; the default serves plain local builds.
+# CI (../docker-bake.hcl) always builds on this commit's core systemd image; the default serves plain local builds.
 ARG BASE_IMAGE=ghcr.io/plume-works/core-systemd:edge
 FROM ${BASE_IMAGE}
 

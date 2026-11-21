@@ -30,13 +30,13 @@ repository that needs it.
 This repository is developed inside its own devcontainer base image (`.devcontainer.json`, privileged-mode
 snippet), so the image gets continuous real use and its engine builds and tests the images.
 
-Each image lives in `images/<name>/` with its `Dockerfile` and `smoke.sh`; `docker-bake.hcl` lists them, and
+Each image lives in `images/<name>/` with its `Dockerfile` and `smoke.sh`; `images/docker-bake.hcl` lists them, and
 `.github/workflows/images.yml` builds, tests and publishes them all.
 
 ### Building and testing
 
 ```sh
-docker buildx bake
+(cd images && docker buildx bake)
 images/core/smoke.sh ghcr.io/plume-works/core:ci
 images/core-systemd/smoke.sh ghcr.io/plume-works/core-systemd:ci
 images/coder-template/smoke.sh ghcr.io/plume-works/coder-template:ci
