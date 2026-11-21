@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Empty the cloud-container prompt Claude remote control hands each session it spawns (ADR 0014).
+"""Empty the cloud-container prompt Claude remote control hands each session it spawns (ADR 0018).
 
 Remote control writes ~/.claude/bridge-spawn/<session>/append-system-prompt.txt, then starts the session with
 --append-system-prompt-file and the file's SHA-256. The session reads the file about 90 ms later and drops it if

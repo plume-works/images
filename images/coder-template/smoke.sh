@@ -178,7 +178,7 @@ grep -q 'You must be logged in to use Remote Control' <<<"$rc_log" ||
 pass "remote control keeps retrying until a sign-in exists, without the API-token variables that stop it"
 
 # The scrubber empties a prompt file written the way remote control writes one, in a session folder that did
-# not exist when it started, and leaves the session's other files alone (ADR 0014).
+# not exist when it started, and leaves the session's other files alone (ADR 0018).
 as_dev systemctl --user is-active --quiet claude-bridge-prompt-scrub.service || fail "the prompt scrubber is not running"
 session=/home/dev/.claude/bridge-spawn/smoke-session
 as_dev sh -c "mkdir $session && echo cloud >$session/append-system-prompt.txt && echo '{}' >$session/mcp.json"
