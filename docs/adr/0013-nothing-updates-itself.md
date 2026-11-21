@@ -7,5 +7,5 @@ core systemd image turns off the OS's periodic updates for the same reason.
 
 ## Consequences
 
-- Apt packages are the exception to pinning: they float within the Ubuntu release, so a rebuild can pick up
-  newer ones, but only through a build that passes the same tests.
+- Apt packages are pinned too, to a dated snapshot of the Ubuntu archive
+  ([ADR 0022](0022-all-inputs-are-pinned.md)).

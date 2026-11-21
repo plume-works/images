@@ -1,2 +1,2 @@
 ignored:
-  - DL3008 # apt packages float within the Ubuntu release by design; everything else is pinned
+  - DL3008 # apt packages are pinned by the Ubuntu archive snapshot (ADR 0022), not one by one

@@ -3,10 +3,18 @@ FROM ubuntu:26.04@sha256:d66b366dac61b575bee2aef07e9c26e8070096fbe84a3d4d3eb0da0
 
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 
+# Ubuntu's packages come from a dated snapshot of its archive (ADR 0022), set in apt's config so every later
+# `apt-get update`, here and in child images, uses it. The base image has no CA certificates yet, so this first
+# step skips TLS peer checks for the snapshot host; apt still checks the archive's signatures and hashes.
+# --error-on=any: apt otherwise ignores a failed index download and installs from what it already has.
+# renovate: datasource=custom.ubuntu-snapshot depName=ubuntu-snapshot versioning=regex:^(?<major>\d{8})T(?<minor>\d{6})Z$
+ARG UBUNTU_SNAPSHOT_VERSION=20261121T000000Z
 # jq and btop are interactive conveniences outside the admission rule below. tmux: the Coder template image runs
 # its agent services inside it (ADR 0015).
-RUN apt-get update \
- && apt-get install -y --no-install-recommends btop ca-certificates curl git gnupg jq sudo tmux unzip xz-utils \
+RUN echo "APT::Snapshot \"${UBUNTU_SNAPSHOT_VERSION}\";" > /etc/apt/apt.conf.d/50snapshot \
+ && no_ca=Acquire::https::snapshot.ubuntu.com::Verify-Peer=false \
+ && apt-get update --error-on=any -o "$no_ca" \
+ && apt-get install -y --no-install-recommends -o "$no_ca" btop ca-certificates curl git gnupg jq sudo tmux unzip xz-utils \
  && rm -rf /var/lib/apt/lists/*
 
 # The base image's user `ubuntu` holds UID 1000.
@@ -41,7 +49,7 @@ RUN for host in github.com gist.github.com; do \
 # only once, so anything installed there would freeze at that day's version and shadow newer images.
 # Admission rule: a build toolchain is added only when at least two plume-works repositories need it in CI.
 
-# Git LFS from the release tarball, pinned (Ubuntu's package floats).
+# Git LFS from the release tarball, newer than Ubuntu's.
 # renovate: datasource=github-releases depName=git-lfs/git-lfs extractVersion=^v(?<version>.+)$
 ARG GIT_LFS_VERSION=3.8.1
 RUN a=$(dpkg --print-architecture); f="git-lfs-linux-$a-v${GIT_LFS_VERSION}.tar.gz"; d=$(mktemp -d) \
@@ -54,7 +62,7 @@ RUN a=$(dpkg --print-architecture); f="git-lfs-linux-$a-v${GIT_LFS_VERSION}.tar.
  && git lfs install --system --skip-repo \
  && rm -rf "$d"
 
-RUN apt-get update \
+RUN apt-get update --error-on=any \
  && apt-get install -y --no-install-recommends python3 python-is-python3 \
  && rm -rf /var/lib/apt/lists/*
 # With no Python of its own, uv uses Ubuntu's. A user's own extra Pythons and tools go to their home.
@@ -98,7 +106,7 @@ RUN case "$(uname -m)" in x86_64) f=ninja-linux.zip ;; aarch64) f=ninja-linux-aa
  && unzip -q "$d/$f" -d /usr/local/bin \
  && rm -rf "$d"
 
-# Ubuntu's fish package floats. bash stays dev's shell.
+# fish from upstream, newer than Ubuntu's. bash stays dev's shell.
 # renovate: datasource=github-releases depName=fish-shell/fish-shell
 ARG FISH_VERSION=4.9.3
 RUN d=$(mktemp -d) \
@@ -157,7 +165,8 @@ RUN install -d /etc/claude-code /etc/environment.d \
  && printf '%s\n' DISABLE_AUTOUPDATER=1 DISABLE_UPDATES=1 OPENCODE_DISABLE_AUTOUPDATE=1 \
       | tee -a /etc/environment > /etc/environment.d/50-no-self-update.conf
 
-# Docker's apt repository keeps old versions, so these pin; containerd.io floats. The packages enable docker.service and containerd.service for systemd,
+# Docker's apt repository keeps old versions, so these pin. containerd.io pins its package revision too, since
+# Docker republishes it under new revisions. The packages enable docker.service and containerd.service for systemd,
 # which the core systemd image relies on; here, without systemd, start-docker runs the engine on demand.
 # renovate: datasource=deb depName=docker-ce extractVersion=^5:(?<version>[^-]+)-
 ARG DOCKER_VERSION=29.10.0
@@ -165,15 +174,17 @@ ARG DOCKER_VERSION=29.10.0
 ARG BUILDX_VERSION=0.39.1
 # renovate: datasource=deb depName=docker-compose-plugin extractVersion=^(?<version>[^-]+)-
 ARG COMPOSE_VERSION=5.8.0
+# renovate: datasource=deb depName=containerd.io versioning=deb extractVersion=^(?<version>[^~]+)~
+ARG CONTAINERD_VERSION=2.4.2-4
 RUN install -m0755 -d /etc/apt/keyrings \
  && curl -fsSL https://download.docker.com/linux/ubuntu/gpg -o /etc/apt/keyrings/docker.asc \
  && . /etc/os-release \
  && echo "deb [signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/ubuntu ${VERSION_CODENAME} stable" \
       > /etc/apt/sources.list.d/docker.list \
- && apt-get update \
+ && apt-get update --error-on=any \
  && apt-get install -y --no-install-recommends \
       "docker-ce=5:${DOCKER_VERSION}-*" "docker-ce-cli=5:${DOCKER_VERSION}-*" \
-      "docker-buildx-plugin=${BUILDX_VERSION}-*" "docker-compose-plugin=${COMPOSE_VERSION}-*" containerd.io \
+      "docker-buildx-plugin=${BUILDX_VERSION}-*" "docker-compose-plugin=${COMPOSE_VERSION}-*" "containerd.io=${CONTAINERD_VERSION}~*" \
  && rm -rf /var/lib/apt/lists/* \
  && usermod -aG docker dev
 COPY --chmod=0755 start-docker /usr/local/bin/start-docker

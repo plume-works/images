@@ -5,8 +5,8 @@ FROM ${BASE_IMAGE}
 
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 
-# dbus-user-session and libpam-systemd: what dev's per-user manager needs.
-RUN apt-get update \
+# dbus-user-session and libpam-systemd: what dev's per-user manager needs. From the core image's apt snapshot.
+RUN apt-get update --error-on=any \
  && apt-get install -y --no-install-recommends systemd systemd-sysv dbus dbus-user-session libpam-systemd \
  && rm -rf /var/lib/apt/lists/*
 
