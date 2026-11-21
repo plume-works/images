@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
-# Smoke test for the Coder template image. Usage: images/coder-template/smoke.sh <image-ref>
+# Smoke test for the Coder template image.
 #
 # Boots the image with its own entrypoint in privileged mode (hosted runners have no sysbox), first as a
 # plain container, then with the two files a Coder template uploads: a stand-in for the agent's init script
 # and a token file. The stand-in does what the real agent and the template's startup script do (ADR 0002):
 # hands its environment to dev's user manager and starts the agent-services target.
-# It does not repeat the core systemd image's checks. Stops at the first failed check.
+# It does not repeat the core systemd image's checks.
 set -euo pipefail
 
 image="${1:?usage: $0 <image-ref>}"

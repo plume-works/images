@@ -6,7 +6,6 @@
 # On a schedule, not when a pull request closes: a run still publishing when its pull request closes puts pr-N
 # back after an on-close cleanup, and only a later sweep finds it.
 # The image list comes from the bake file (.github/scripts/images.sh), so adding an image needs no change here.
-# Run it by hand with dry-run to see what it would delete.
 name: ghcr-cleanup
 
 on:
