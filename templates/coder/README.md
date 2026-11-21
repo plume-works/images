@@ -12,7 +12,7 @@ workspace fails to start.
 
 One container per workspace, from `ghcr.io/plume-works/coder-template` pinned by digest, with the repository you
 name cloned into `/home/dev/<repository>`. Source and documentation:
-[plume-works/images](https://github.com/plume-works/images), `images/coder-template/`.
+[plume-works/images](https://github.com/plume-works/images), `templates/coder/`, image in `images/coder-template/`.
 
 ## What you get
 

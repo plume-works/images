@@ -19,14 +19,14 @@ name: images
 
 on:
   pull_request:
+    paths:
+      - 'images/**'
+      - '.github/workflows/images.yml'
   push:
     branches: [main]
-    # A push that only moves the pins of our own images (Renovate's "plume-works images" pull request, merged as
-    # soon as edge moves) changes no image: publishing again would give edge new digests, and Renovate a new
-    # bump, without end. Pull requests still run, because their checks are required.
-    paths-ignore:
-      - .devcontainer.json
-      - images/coder-template/template/**
+    paths:
+      - 'images/**'
+      - '.github/workflows/images.yml'
   workflow_dispatch:
 
 permissions:

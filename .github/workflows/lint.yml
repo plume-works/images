@@ -58,12 +58,12 @@ jobs:
       - name: terraform fmt
         uses: docker://hashicorp/terraform:1.17.2@sha256:6e9c1e647c31a960dc9b59e13272f9111d90010c10b717f77ffb324767660475
         with:
-          args: -chdir=images/coder-template/template fmt -check -diff
+          args: -chdir=templates/coder fmt -check -diff
       - name: terraform init
         uses: docker://hashicorp/terraform:1.17.2@sha256:6e9c1e647c31a960dc9b59e13272f9111d90010c10b717f77ffb324767660475
         with:
-          args: -chdir=images/coder-template/template init -backend=false -input=false
+          args: -chdir=templates/coder init -backend=false -input=false
       - name: terraform validate
         uses: docker://hashicorp/terraform:1.17.2@sha256:6e9c1e647c31a960dc9b59e13272f9111d90010c10b717f77ffb324767660475
         with:
-          args: -chdir=images/coder-template/template validate
+          args: -chdir=templates/coder validate
