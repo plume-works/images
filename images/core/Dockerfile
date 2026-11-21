@@ -125,7 +125,7 @@ RUN d=$(mktemp -d) \
 # them, so the signer is checked: the last field of the VALIDSIG status line is the signing key's primary
 # fingerprint, whether the primary key or a subkey made the signature.
 # renovate: datasource=npm depName=@anthropic-ai/claude-code
-ARG CLAUDE_CODE_VERSION=2.1.329
+ARG CLAUDE_CODE_VERSION=2.1.330
 RUN case "$(uname -m)" in x86_64) p=linux-x64 ;; aarch64) p=linux-arm64 ;; esac; d=$(mktemp -d) \
  && fpr=31DDDE24DDFAB679F42D7BD2BAA929FF1A7ECACE \
  && base="https://downloads.claude.ai/claude-code-releases/${CLAUDE_CODE_VERSION}" \
