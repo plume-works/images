@@ -50,7 +50,7 @@
       "minimumReleaseAgeBehaviour": "timestamp-optional"
     },
     {
-      "description": "The Ubuntu snapshot bumps with no release wait: it carries security fixes, and Ubuntu's updates have already passed its own -proposed testing. The archive changes several times a day, so it bumps only in a daily window: at most one rebuild a day",
+      "description": "The Ubuntu snapshot bumps with no release wait: it carries security fixes, and Ubuntu's updates have already passed its own -proposed testing. The archive changes several times a day, so it bumps only in an early-morning window (UTC), which keeps it to about one rebuild a day",
       "matchDatasources": ["custom.ubuntu-snapshot"],
       "minimumReleaseAge": null,
       "schedule": ["* 0-3 * * *"]
