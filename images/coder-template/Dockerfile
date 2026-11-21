@@ -6,13 +6,12 @@ ARG BASE_IMAGE=ghcr.io/plume-works/core-systemd:edge
 FROM ${BASE_IMAGE}
 
 # The Coder agent runs as dev from boot, once the template has uploaded its init script and token to
-# /etc/coder (the directory is created here; the files are not).
+# /etc/coder.
 COPY coder-agent.service /etc/systemd/system/
 RUN install -d -m0755 /etc/coder \
  && systemctl enable coder-agent.service
 
-# The agent services, Claude pre-approval and the prompt scrubber: user units for dev's user manager, pulled in by
-# agent-services.target. Nothing enables them; only the Coder agent's startup script starts the target (ADR 0002).
+# Nothing enables these user units; only the Coder agent's startup script starts the target (ADR 0002).
 # Each agent service runs its app through run-in-tmux (ADR 0015).
 COPY agent-services.target opencode.service claude-pre-approval.service claude-remote-control.service \
      claude-bridge-prompt-scrub.service /etc/systemd/user/

@@ -20,7 +20,7 @@ variable "REGISTRY" { default = "ghcr.io/plume-works" }
 # loading it for the smoke tests: one build, two outputs, so the pushed bits are the tested bits by construction.
 # Nothing is tagged here; the publish job tags the digests only after every smoke test on both architectures passed.
 variable "PUSH" { default = false }
-# CI sets linux/amd64 or linux/arm64; empty means the builder's native platform.
+# CI sets linux/amd64 or linux/arm64.
 variable "PLATFORM" { default = "" }
 
 # The local :ci tag the smoke scripts use. Set as the docker output's name, not as `tags`: bake would add `tags`
@@ -30,7 +30,6 @@ function "img" {
   result = "${REGISTRY}/${name}:ci"
 }
 
-# Always load into the local engine for the smoke tests; with PUSH, also push the same build by digest.
 function "out" {
   params = [name]
   result = concat(
