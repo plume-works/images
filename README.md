@@ -60,7 +60,8 @@ and check:
 3. `git commit` shows your Coder full name (or your username, if the account has no full name) and email;
    `git push` works with only the `GITHUB_TOKEN` secret.
 4. A killed service restarts: `systemctl --user kill -s KILL opencode`, then within seconds it is active again
-   with a new PID, and the OpenCode button works (after `OPENCODE_PASSWORD`).
+   with a new PID, `tmux -L opencode attach -r` shows the server, and the OpenCode button works (after
+   `OPENCODE_PASSWORD`).
 5. VS Code Desktop and code-server open the repository.
 6. Home survives a rebuild: write a file in `~`, stop and start the workspace (or update it to a new template
    version), and the file is still there, while a `docker pull`ed image is gone

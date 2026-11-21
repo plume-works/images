@@ -34,11 +34,21 @@ come from the front matter of the template's README.
 
 ## Troubleshooting
 
-- Logs: `journalctl -u coder-agent` and `journalctl --user -u opencode -u claude-remote-control`.
+- Each agent service runs its app in its own tmux server, named after its unit
+  ([ADR 0015](../adr/0015-agent-services-run-inside-tmux.md)). As the workspace user, `ls /tmp/tmux-$(id -u)`
+  lists the tmux sockets, among them one per running agent service. To see where one is stuck:
+  `tmux -L opencode attach -r` or `tmux -L claude-remote-control attach -r` (read-only, so a stray keystroke cannot
+  reach the app; detach with `Ctrl-b d`). Attach without `-r` to answer a prompt the app waits on.
+- Logs: `journalctl -u coder-agent` and `journalctl --user -u opencode -u claude-remote-control`. The journal holds
+  none of an app's live output, only its last screen (with scrollback) each time it exited.
 - A new or rotated Coder secret reaches the services only on workspace restart
   ([ADR 0002](../adr/0002-coder-secrets-reach-services-through-systemd.md)).
 - Claude remote control never sees `ANTHROPIC_API_KEY`, `ANTHROPIC_AUTH_TOKEN` or `CLAUDE_CODE_OAUTH_TOKEN`, and
-  keeps retrying until the user has run `claude` in the repository, accepted the trust prompt and `/login`ed
-  ([ADR 0003](../adr/0003-remote-control-unit-exceptions.md)).
+  keeps retrying until the user has `/login`ed and the repository is trusted: by Claude pre-approval unless
+  switched off at creation, else by running `claude` in it
+  ([ADR 0017](../adr/0017-anthropic-tokens-kept-from-remote-control.md),
+  [ADR 0016](../adr/0016-claude-pre-approval-on-by-default.md)).
+- The Claude pre-approval choices are workspace-wide, because the workspace is the sandbox: only trust names the
+  cloned repository; every project's MCP servers in the workspace are approved ([ADR 0016](../adr/0016-claude-pre-approval-on-by-default.md)).
 - One volume per workspace persists across rebuilds: `/home/dev`. Everything else is recreated at every start,
   the Docker engine's storage included ([ADR 0014](../adr/0014-no-engine-storage-volumes.md)).

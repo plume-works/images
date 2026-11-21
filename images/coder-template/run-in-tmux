@@ -1,0 +1,38 @@
+#!/bin/sh
+# run-in-tmux NAME COMMAND...: runs an agent service's app inside its own tmux server (ADR 0015), on socket NAME
+# in tmux's default per-user directory, in a single pane. Each agent service unit prefixes its ExecStart with it.
+# Attaching to it: docs/usage/coder-template.md.
+#
+# It stays in the foreground for as long as the app runs, so systemd remains the only supervisor. When the app
+# exits, this prints the pane's last screen (with scrollback), ends the tmux server, no dead pane kept, and exits
+# with the app's exit status (128 + its signal, if one killed it).
+# Stopping the service stops the app and the tmux server with it: they all run in the service's cgroup.
+set -eu
+name=${1:?usage: run-in-tmux NAME COMMAND...}
+shift
+
+# tmux moves every pane it starts into a systemd scope of its own, out of the service's cgroup, through the user's
+# bus. The server gets no bus address, so it cannot; its panes, the app's included, get it back.
+t() { env -u DBUS_SESSION_BUS_ADDRESS -u XDG_RUNTIME_DIR tmux -L "$name" "$@"; }
+
+# Only the app's pane is watched, so a pane the user opens beside it neither ends the service nor gets reported.
+# It is kept, once dead, only until its last screen is read. Its options and hook are set in the same command list
+# that starts the app, before the server handles anything else, so even an app that exits at once is seen; and a
+# signal sent before anyone waits is kept for the first wait.
+pane=$(t start-server \
+  \; set-environment -g DBUS_SESSION_BUS_ADDRESS "$DBUS_SESSION_BUS_ADDRESS" \
+  \; set-environment -g XDG_RUNTIME_DIR "$XDG_RUNTIME_DIR" \
+  \; new-session -d -P -F '#{pane_id}' -s "$name" -- "$@" \
+  \; set -p -t "$name" remain-on-exit on \; set -p -t "$name" remain-on-exit-format '' \
+  \; set-hook -p -t "$name" pane-died "wait-for -S $name")
+t wait-for "$name"
+
+status=$(t display-message -p -t "$pane" '#{?pane_dead_signal,#{e|+:128,#{pane_dead_signal}},#{pane_dead_status}}')
+# Without the blank lines below the last output (the command substitution drops them).
+screen=$(t capture-pane -p -J -S - -t "$pane")
+t kill-server
+# journald finds a line's unit from its writer's PID, and only while the writer runs: this shell writes it (printf
+# is a builtin), then stays a moment.
+[ -z "$screen" ] || printf '%s\n' "$screen"
+sleep 1
+exit "$status"

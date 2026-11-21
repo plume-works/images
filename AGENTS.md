@@ -27,6 +27,7 @@ Uses the five default triage labels: `needs-triage`, `needs-info`, `ready-for-ag
 ### Domain docs
 
 Single-context: one `GLOSSARY.md` at the repo root and ADRs in `docs/adr/`. Record decisions and glossary terms with the `domain-modeling` skill.
+ADR is a Architecture DECISION RECORD, DO NOT PUT CODE IMPLEMENTATION DETAILS INTO IT EVER.
 
 Delete superseded ADRs in the same PR that introduces replacement. List old decision under "Considered options".
 

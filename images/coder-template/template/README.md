@@ -23,7 +23,9 @@ name cloned into `/home/dev/<repository>`. Source and documentation:
 - A Docker engine of your own inside the workspace.
 - Git commits under the full name (or, if it has none, the username) and email of your Coder account.
 
-Both agent services are supervised by systemd and restarted whenever they stop. Logs:
+Both agent services are supervised by systemd and restarted whenever they stop. Each runs in its own tmux
+server, named after it: `tmux -L opencode attach -r` (or `-L claude-remote-control`) shows its screen, read-only;
+without `-r` you can answer a prompt it waits on. The journal holds only each app's last screen when it exited:
 `journalctl --user -u opencode -u claude-remote-control`, and `journalctl -u coder-agent` for the agent.
 
 ## Coder secrets
@@ -34,14 +36,27 @@ when you restart the workspace. Useful ones:
 - `GITHUB_TOKEN`: `git clone`, `git push` and `gh` use it with no setup. Needed to clone a private repository.
 - `OPENCODE_PASSWORD`: the password OpenCode's web UI asks for (user `opencode`), on top of your Coder sign-in.
   Without it, OpenCode makes up a new one at every start; find it with
-  `journalctl --user -u opencode | grep password`.
+  `tmux -L opencode capture-pane -p -S - | grep password`.
 - Do not use `ANTHROPIC_API_KEY`, `ANTHROPIC_AUTH_TOKEN` or `CLAUDE_CODE_OAUTH_TOKEN` for Claude remote control:
   it needs a claude.ai subscription sign-in, and they are kept away from it.
 
+## Claude pre-approval
+
+Two workspace-wide choices when you create the workspace, both on by default and fixed for its life: the
+workspace is the sandbox. Switch them off only for really untrusted code; then Claude asks you as usual. Off only
+means not granted: nothing already granted is revoked. Claude's onboarding welcome is skipped either way.
+
+- **Claude remote control**: grants remote control's one-time consent, so it never waits on that prompt.
+- **Claude trust workspace**: trusts the cloned repository, so remote control and Claude sessions start in it
+  without a prompt, and approves the project MCP servers of every project in the workspace.
+
+Remote control sessions run in Claude's auto permission mode.
+
 ## First-time setup
 
-Run `claude` in the repository, accept the trust prompt, and `/login` with your claude.ai subscription. Remote
-control starts on its own within 15 seconds. You do this once: sign-ins live in your home directory.
+Run `claude` in the repository and `/login` with your claude.ai subscription (accept the trust prompt if you
+switched **Claude trust workspace** off). Remote control starts on its own within 15 seconds. You do this once:
+sign-ins live in your home directory.
 
 ## What survives
 
