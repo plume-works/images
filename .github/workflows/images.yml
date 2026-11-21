@@ -158,8 +158,6 @@ jobs:
               "$REGISTRY/$img@$(jq -r --arg i "$img" '.[$i]' "$RUNNER_TEMP/digests/arm64.json")"
           done
 
-  # The one required check: a skipped matrix job reports no check under its expanded name, so the build-test
-  # checks cannot be required themselves.
   finished:
     name: CI finished
     needs: [paths-filter, build, publish]
