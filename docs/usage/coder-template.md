@@ -19,7 +19,15 @@ This page is for the administrator of the Coder host.
 
 ## Pushing the template
 
-Nothing pushes it automatically. From a clean checkout:
+Nothing pushes it automatically. 
+
+See https://coder.com/docs/install/cli/ on how to install coder cli. TLDR; for linux/macos
+
+```bash
+curl -fsSL https://coder.com/install.sh | sh
+```
+
+From a clean checkout:
 
 ```sh
 coder login https://coder.example.com
