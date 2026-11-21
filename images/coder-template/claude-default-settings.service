@@ -8,5 +8,6 @@ Before=claude-pre-approval.service claude-remote-control.service
 Type=oneshot
 RemainAfterExit=yes
 ExecStartPre=/bin/mkdir -p %h/.claude
-# cp, not install: it writes through a symlinked file (a dotfiles checkout's, say) instead of replacing the link.
-ExecStart=/bin/cp /usr/local/share/claude-code/default-settings.json %h/.claude/settings.json
+# Writes the link's target, so that a symlinked file (a dotfiles checkout's, say) stays a link; resolved first,
+# because cp refuses to write through a link whose target does not exist yet.
+ExecStart=/bin/sh -c 'exec cp /usr/local/share/claude-code/default-settings.json "$$(readlink -f %h/.claude/settings.json)"'

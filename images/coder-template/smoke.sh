@@ -61,10 +61,9 @@ exec sleep infinity
 EOF
 printf '%s\n' "$token" >"$work/agent-token"
 
-# A ~/.claude.json and a ~/.claude/settings.json (with a setting of the user's own) that link into a dotfiles
-# checkout, which must stay links.
+# A ~/.claude.json and a ~/.claude/settings.json that link into a dotfiles checkout, which must stay links. The
+# checkout tracks no settings.json, so that link dangles.
 as_dev sh -c 'mkdir -p ~/dotfiles ~/.claude && echo "{\"smoke\": \"kept\"}" >~/dotfiles/claude.json &&
-  echo "{\"model\": \"smoke\"}" >~/dotfiles/settings.json &&
   ln -sf dotfiles/claude.json ~/.claude.json && ln -sf ../dotfiles/settings.json ~/.claude/settings.json'
 
 docker stop -t 60 "$container" >/dev/null
@@ -91,7 +90,7 @@ claude_has .claude/settings.json '.enableAllProjectMcpServers == true' ||
 # shellcheck disable=SC2016 # jq's own $d
 as_dev jq -e --slurpfile d /usr/local/share/claude-code/default-settings.json \
   'del(.enableAllProjectMcpServers) == $d[0]' /home/dev/dotfiles/settings.json >/dev/null ||
-  fail "the Claude default settings are not written over the symlinked ~/.claude/settings.json's target"
+  fail "the Claude default settings are not written to the dangling symlinked ~/.claude/settings.json's target"
 [ "$(as_dev readlink /home/dev/.claude.json)" = dotfiles/claude.json ] || fail "the symlinked ~/.claude.json is no longer a link"
 [ "$(as_dev readlink /home/dev/.claude/settings.json)" = ../dotfiles/settings.json ] ||
   fail "the symlinked ~/.claude/settings.json is no longer a link"
@@ -216,6 +215,6 @@ claude_has .claude/settings.json 'has("enableAllProjectMcpServers") | not' ||
 pass "with both Claude pre-approval choices off, only onboarding is granted"
 as_dev cmp -s /usr/local/share/claude-code/default-settings.json /home/dev/.claude/settings.json ||
   fail "a fresh home's ~/.claude/settings.json is not the Claude default settings"
-pass "the Claude default settings are written over a fresh home's or a symlinked ~/.claude/settings.json"
+pass "the Claude default settings are written over a fresh home's or a dangling symlinked ~/.claude/settings.json"
 
 echo "coder-template smoke test passed: $image"
