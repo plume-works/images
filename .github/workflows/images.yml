@@ -18,14 +18,15 @@
 name: images
 
 on:
+  # Pull requests always run: their checks are required, and a check that never starts blocks the merge.
   pull_request:
-    paths:
-      - 'images/**'
-      - '.github/workflows/images.yml'
   push:
     branches: [main]
+    # Only a change to an image publishes again; Renovate's pin bumps of our own images (.devcontainer.json,
+    # templates/coder/) would otherwise loop.
     paths:
       - 'images/**'
+      - '.github/scripts/images.sh'
       - '.github/workflows/images.yml'
   workflow_dispatch:
 
