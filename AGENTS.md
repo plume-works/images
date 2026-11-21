@@ -36,3 +36,8 @@ Delete superseded ADRs in the same PR that introduces replacement. List old deci
 ## Reviews
 
 Log every finding a reviewer dismissed, and end the task with a report of them for a human to review.
+
+## PR
+
+NEVER PUT DIFFS into PR body, description, comments.
+NEVER LIST FILES into PR body, description, comments.
