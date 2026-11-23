@@ -20,7 +20,7 @@ docker run -d --privileged -v /var/lib/docker -v /var/lib/containerd ghcr.io/plu
 
   | Setting | Default | Removes |
   | --- | --- | --- |
-  | `PRUNE_STOPPED_CONTAINERS` | `168h` | containers stopped longer ago than the age |
+  | `PRUNE_STOPPED_CONTAINERS` | `168h` | containers stopped longer ago than the age; time the inner engine was down does not count |
   | `PRUNE_ANONYMOUS_VOLUMES` | `168h` | anonymous volumes no container uses, created longer ago than the age |
   | `PRUNE_NAMED_VOLUMES` | `off` | named volumes no container uses, created longer ago than the age |
   | `PRUNE_IMAGES` | `168h` | images no container uses, pulled or built longer ago than the age |
@@ -37,6 +37,7 @@ docker run -d --privileged -v /var/lib/docker -v /var/lib/containerd ghcr.io/plu
   Environment=PRUNE_NAMED_VOLUMES=168h
   ```
 
-  The schedule is `docker-prune.timer`'s; change it with a drop-in there.
+  If one kind cannot be removed, the others still are, and `docker-prune.service` then fails. The schedule is
+  `docker-prune.timer`'s; change it with a drop-in there.
 - Stop it with more than the default 10 seconds (`docker stop -t 60`), so the inner engine can stop its own
   containers.

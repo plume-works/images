@@ -15,5 +15,7 @@ age, and an image that builds on core systemd, or a user at run time, can change
 ## Consequences
 
 - A stopped container is kept a week by default, so a short-lived container can be inspected after it ends.
+- Time the inner engine is down does not count toward a stopped container's age, so the first cleanup after a
+  long outage keeps the containers the shutdown stopped.
 - A user who keeps work in a stopped container or an anonymous volume loses it after a week, unless they change
   the setting.
