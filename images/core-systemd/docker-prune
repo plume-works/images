@@ -14,12 +14,14 @@ seconds() {
   esac
 }
 
-# older_than AGE: reads "<name> <timestamp>" lines, prints the names whose timestamp is older than AGE.
+# older_than AGE [FLOOR]: reads "<name> <timestamp>" lines, prints the names whose timestamp, or FLOOR (epoch
+# seconds) when that is later, is older than AGE.
 older_than() {
-  local cutoff name stamp
+  local cutoff floor="${2:-0}" name stamp
   cutoff=$(($(date +%s) - $(seconds "$1")))
   while read -r name stamp; do
-    [ "$(date -d "$stamp" +%s)" -lt "$cutoff" ] && echo "$name"
+    stamp=$(date -d "$stamp" +%s) || return
+    [ "$((stamp > floor ? stamp : floor))" -lt "$cutoff" ] && echo "$name"
   done
   return 0
 }
@@ -28,12 +30,15 @@ for setting in PRUNE_STOPPED_CONTAINERS PRUNE_ANONYMOUS_VOLUMES PRUNE_NAMED_VOLU
   [ "${!setting:?$setting is not set}" = off ] || seconds "${!setting}" >/dev/null
 done
 
+# The engine stops its containers when it shuts down, and their FinishedAt is then the shutdown: time the
+# engine was down must not count, or the first run after a long outage removes every one of them.
 prune_containers() {
-  local age="$PRUNE_STOPPED_CONTAINERS" ids
+  local age="$PRUNE_STOPPED_CONTAINERS" started ids
   [ "$age" != off ] || return 0
+  started=$(date -d "$(systemctl show docker.service -p ActiveEnterTimestamp --value)" +%s) || return
   mapfile -t ids < <(docker ps -aq --no-trunc --filter status=exited --filter status=dead)
   [ "${#ids[@]}" -gt 0 ] || return 0
-  docker inspect -f '{{.Id}} {{.State.FinishedAt}}' "${ids[@]}" | older_than "$age" | xargs -r docker rm
+  docker inspect -f '{{.Id}} {{.State.FinishedAt}}' "${ids[@]}" | older_than "$age" "$started" | xargs -r docker rm
 }
 
 prune_volumes() {

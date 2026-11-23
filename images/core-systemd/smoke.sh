@@ -131,8 +131,15 @@ code=$(docker inspect -f '{{.State.ExitCode}}' "$container")
 [ "$code" = 130 ] || fail "the container exited with $code, not 130 (systemd's halt in a container)"
 pass "docker stop shuts systemd down cleanly"
 
+# Long enough that `running`, stopped by the shutdown, is older than the age set after boot.
+sleep 30
 boot again
 in_container docker info >/dev/null 2>&1 || fail "the inner engine did not come back on the same storage"
+# 20s: less than the time since the shutdown, more than the time since the inner engine started.
+settings 20s
+in_container systemctl start docker-prune.service || fail "the Docker cleanup failed after the restart"
+in_container docker inspect running >/dev/null 2>&1 || fail "the cleanup counted the time the engine was down"
+pass "the cleanup does not count the time the inner engine was down as a container's stop time"
 [ "$(in_container docker inspect -f '{{.State.ExitCode}}' running)" = 137 ] || fail "the inner engine did not stop its containers"
 in_container docker start running >/dev/null || fail "a container stopped by the shutdown does not start again"
 pass "the inner engine stopped its containers on shutdown and starts again on the same volumes"
