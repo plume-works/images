@@ -28,35 +28,41 @@ for setting in PRUNE_STOPPED_CONTAINERS PRUNE_ANONYMOUS_VOLUMES PRUNE_NAMED_VOLU
   [ "${!setting:?$setting is not set}" = off ] || seconds "${!setting}" >/dev/null
 done
 
-# A stopped container keeps its volumes and image in use, so containers go first.
-age="$PRUNE_STOPPED_CONTAINERS"
-if [ "$age" != off ]; then
+prune_containers() {
+  local age="$PRUNE_STOPPED_CONTAINERS" ids
+  [ "$age" != off ] || return 0
   mapfile -t ids < <(docker ps -aq --no-trunc --filter status=exited --filter status=dead)
-  if [ "${#ids[@]}" -gt 0 ]; then
-    docker inspect -f '{{.Id}} {{.State.FinishedAt}}' "${ids[@]}" | older_than "$age" | xargs -r docker rm
-  fi
-fi
+  [ "${#ids[@]}" -gt 0 ] || return 0
+  docker inspect -f '{{.Id}} {{.State.FinishedAt}}' "${ids[@]}" | older_than "$age" | xargs -r docker rm
+}
 
-mapfile -t anonymous < <(docker volume ls -q --filter dangling=true --filter label=com.docker.volume.anonymous)
-mapfile -t named < <(docker volume ls -q --filter dangling=true | grep -vxF -f <(printf '%s\n' "${anonymous[@]}") || true)
 prune_volumes() {
   local age="$1"
   shift
   [ "$age" != off ] && [ "$#" -gt 0 ] || return 0
   docker volume inspect -f '{{.Name}} {{.CreatedAt}}' "$@" | older_than "$age" | xargs -r docker volume rm
 }
-prune_volumes "$PRUNE_ANONYMOUS_VOLUMES" "${anonymous[@]}"
-prune_volumes "$PRUNE_NAMED_VOLUMES" "${named[@]}"
 
 # Under the containerd image store `until` is when the image was pulled or built here: Docker records no
 # last-use time, so an image whose last container is gone is removed once it is older than the age.
-age="$PRUNE_IMAGES"
-if [ "$age" != off ]; then
-  docker image prune --all --force --filter "until=$age"
-fi
+prune_images() { [ "$PRUNE_IMAGES" = off ] || docker image prune --all --force --filter "until=$PRUNE_IMAGES"; }
 
 # No --all: that also clears helper images.
-age="$PRUNE_BUILD_CACHE"
-if [ "$age" != off ]; then
-  docker builder prune --force --filter "until=$age"
-fi
+prune_build_cache() {
+  [ "$PRUNE_BUILD_CACHE" = off ] || docker builder prune --force --filter "until=$PRUNE_BUILD_CACHE"
+}
+
+# Called from `||`, a kind runs without set -e: its status is its last command's, so each kind ends in the
+# step whose failure counts.
+failed=0
+warn() { echo "docker-prune: removing $1 failed" >&2; failed=1; }
+
+# A stopped container keeps its volumes and image in use, so containers go first.
+prune_containers || warn "stopped containers"
+mapfile -t anonymous < <(docker volume ls -q --filter dangling=true --filter label=com.docker.volume.anonymous)
+mapfile -t named < <(docker volume ls -q --filter dangling=true | grep -vxF -f <(printf '%s\n' "${anonymous[@]}") || true)
+prune_volumes "$PRUNE_ANONYMOUS_VOLUMES" "${anonymous[@]}" || warn "anonymous volumes"
+prune_volumes "$PRUNE_NAMED_VOLUMES" "${named[@]}" || warn "named volumes"
+prune_images || warn images
+prune_build_cache || warn "build cache"
+exit "$failed"

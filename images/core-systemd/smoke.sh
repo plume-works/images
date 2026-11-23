@@ -89,6 +89,21 @@ pass "the cleanup with every kind off removes nothing"
 
 # Shrink every age, named volumes' included, to a second, so everything here is "old".
 settings 1s
+# systemd's PATH puts /usr/local/bin before /usr/bin, so this docker shadows the real one in the cleanup.
+docker exec -i "$container" sh -c 'cat >/usr/local/bin/docker && chmod +x /usr/local/bin/docker' <<'WRAPPER'
+#!/bin/sh
+[ "$1" = rm ] && exit 1
+exec /usr/bin/docker "$@"
+WRAPPER
+! in_container systemctl start docker-prune.service 2>/dev/null || fail "the cleanup succeeded although a container removal failed"
+in_container docker inspect stopped >/dev/null 2>&1 || fail "the cleanup removed a stopped container although docker rm failed"
+! in_container docker volume inspect named-volume >/dev/null 2>&1 || fail "a failed container removal kept an unused named volume"
+! in_container docker image inspect hello-world >/dev/null 2>&1 || fail "a failed container removal kept an unused image"
+[ "$(private_cache)" -eq 0 ] || fail "a failed container removal kept unused build cache"
+pass "a kind that fails fails the cleanup, and the kinds after it still run"
+in_container rm /usr/local/bin/docker
+in_container systemctl reset-failed docker-prune.service
+
 in_container systemctl start docker-prune.service || fail "the Docker cleanup failed"
 ! in_container docker inspect stopped >/dev/null 2>&1 || fail "the cleanup kept a stopped container"
 ! in_container docker volume inspect "$anonymous" >/dev/null 2>&1 || fail "the cleanup kept an unused anonymous volume"
