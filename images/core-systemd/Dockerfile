@@ -12,6 +12,7 @@ RUN apt-get update --error-on=any \
 
 COPY journald.conf /etc/systemd/journald.conf.d/10-container.conf
 
+COPY docker-prune /usr/local/bin/
 COPY docker-prune.service docker-prune.timer /etc/systemd/system/
 
 # Units that cannot work in a container: kernel module loading, kernel debug and config mounts

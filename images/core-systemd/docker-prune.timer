@@ -1,11 +1,11 @@
 [Unit]
-Description=Weekly removal of unused Docker images and build cache
+Description=Daily removal of stopped containers, unused volumes, images and build cache
 
 [Timer]
-OnCalendar=weekly
+OnCalendar=daily
 # Catch up on a run missed while the container was stopped.
 Persistent=true
-RandomizedDelaySec=1h
+RandomizedDelaySec=10min
 
 [Install]
 WantedBy=timers.target

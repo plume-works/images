@@ -1,0 +1,73 @@
+#!/usr/bin/env bash
+# Each PRUNE_* setting is an age (a Go duration in s, m or h, as Docker's `until` filter takes) or `off`.
+# Docker records no stop time and no volume age to filter on, so those kinds compare `docker inspect` times.
+set -euo pipefail
+
+seconds() {
+  local n="${1%[smh]}"
+  [[ "$n" =~ ^[0-9]+$ ]] || { echo "docker-prune: '$1' is not an age like 168h, 30m or 10s, nor off" >&2; exit 2; }
+  case "$1" in
+    *s) echo "$n" ;;
+    *m) echo $((n * 60)) ;;
+    *h) echo $((n * 3600)) ;;
+    *) echo "docker-prune: '$1' has no unit (s, m or h)" >&2; exit 2 ;;
+  esac
+}
+
+# older_than AGE [FLOOR]: reads "<name> <timestamp>" lines, prints the names whose timestamp, or FLOOR (epoch
+# seconds) when that is later, is older than AGE.
+older_than() {
+  local cutoff floor="${2:-0}" name stamp
+  cutoff=$(($(date +%s) - $(seconds "$1")))
+  while read -r name stamp; do
+    stamp=$(date -d "$stamp" +%s) || return
+    [ "$((stamp > floor ? stamp : floor))" -lt "$cutoff" ] && echo "$name"
+  done
+  return 0
+}
+
+for setting in PRUNE_STOPPED_CONTAINERS PRUNE_ANONYMOUS_VOLUMES PRUNE_NAMED_VOLUMES PRUNE_IMAGES PRUNE_BUILD_CACHE; do
+  [ "${!setting:?$setting is not set}" = off ] || seconds "${!setting}" >/dev/null
+done
+
+# The engine stops its containers when it shuts down, and their FinishedAt is then the shutdown: time the
+# engine was down must not count, or the first run after a long outage removes every one of them.
+prune_containers() {
+  local age="$PRUNE_STOPPED_CONTAINERS" started ids
+  [ "$age" != off ] || return 0
+  started=$(date -d "$(systemctl show docker.service -p ActiveEnterTimestamp --value)" +%s) || return
+  mapfile -t ids < <(docker ps -aq --no-trunc --filter status=exited --filter status=dead)
+  [ "${#ids[@]}" -gt 0 ] || return 0
+  docker inspect -f '{{.Id}} {{.State.FinishedAt}}' "${ids[@]}" | older_than "$age" "$started" | xargs -r docker rm
+}
+
+prune_volumes() {
+  local age="$1"
+  shift
+  [ "$age" != off ] && [ "$#" -gt 0 ] || return 0
+  docker volume inspect -f '{{.Name}} {{.CreatedAt}}' "$@" | older_than "$age" | xargs -r docker volume rm
+}
+
+# Under the containerd image store `until` is when the image was pulled or built here: Docker records no
+# last-use time, so an image whose last container is gone is removed once it is older than the age.
+prune_images() { [ "$PRUNE_IMAGES" = off ] || docker image prune --all --force --filter "until=$PRUNE_IMAGES"; }
+
+# No --all: that also clears helper images.
+prune_build_cache() {
+  [ "$PRUNE_BUILD_CACHE" = off ] || docker builder prune --force --filter "until=$PRUNE_BUILD_CACHE"
+}
+
+# Called from `||`, a kind runs without set -e: its status is its last command's, so each kind ends in the
+# step whose failure counts.
+failed=0
+warn() { echo "docker-prune: removing $1 failed" >&2; failed=1; }
+
+# A stopped container keeps its volumes and image in use, so containers go first.
+prune_containers || warn "stopped containers"
+mapfile -t anonymous < <(docker volume ls -q --filter dangling=true --filter label=com.docker.volume.anonymous)
+mapfile -t named < <(docker volume ls -q --filter dangling=true | grep -vxF -f <(printf '%s\n' "${anonymous[@]}") || true)
+prune_volumes "$PRUNE_ANONYMOUS_VOLUMES" "${anonymous[@]}" || warn "anonymous volumes"
+prune_volumes "$PRUNE_NAMED_VOLUMES" "${named[@]}" || warn "named volumes"
+prune_images || warn images
+prune_build_cache || warn "build cache"
+exit "$failed"
