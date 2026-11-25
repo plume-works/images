@@ -1,4 +1,6 @@
 # Started only after the Coder startup script hands its environment, secrets included, to this user manager (ADR 0002).
+# Each Claude setup step is its own unit, only ordered against the others, never required by them: one that fails
+# stops nothing else and reports its own status.
 [Unit]
 Description=Agent services (started by the Coder agent, never at boot)
-Wants=opencode.service claude-setup.service claude-remote-control.service
+Wants=opencode.service claude-default-settings.service claude-pre-approval.service claude-repo-plugins.service claude-remote-control.service

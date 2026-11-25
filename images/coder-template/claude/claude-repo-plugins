@@ -1,32 +1,64 @@
-#!/bin/sh
+#!/usr/bin/env python3
 # enabledPlugins in a repository's .claude/settings.json does not install a plugin, and no session here answers
 # the prompt that would. It runs at each start: the Claude default settings then replace the user settings, which
 # drops what an install declares there, though the installed plugins stay on disk.
-set -eu
-[ "${CLAUDE_INSTALL_REPO_PLUGINS:-false}" = true ] || exit 0
-cd "${REPO_DIR:?not set: the Coder startup script imports it}"
-settings=.claude/settings.json
-[ -f "$settings" ] || exit 0
+import json
+import os
+import subprocess
+import sys
+from pathlib import Path
 
-failed=0
-warn() {
-  echo "warning: could not $1" >&2
-  failed=1
-}
-
-# The repository's own marketplaces are used only through a trust prompt, so each is added here.
-# A source of another kind is left out: the install of its plugins then warns.
-for source in $(jq -r '.extraKnownMarketplaces // {} | to_entries[] | .value.source
-  | if .source == "github" then .repo elif .source == "git" or .source == "url" then .url
-    elif .source == "directory" or .source == "file" then .path else empty end' "$settings"); do
-  claude plugin marketplace add "$source" || warn "add the marketplace $source"
-done
 # Only an interactive session adds Claude Code's own marketplace, and a repository need not declare it.
-if jq -e '.enabledPlugins // {} | keys | any(endswith("@claude-plugins-official"))' "$settings" >/dev/null; then
-  claude plugin marketplace add anthropics/claude-plugins-official || warn "add Claude Code's own marketplace"
-fi
+OFFICIAL = 'claude-plugins-official'
+OFFICIAL_SOURCE = 'anthropics/claude-plugins-official'
 
-for plugin in $(jq -r '.enabledPlugins // {} | to_entries[] | select(.value == true) | .key' "$settings"); do
-  claude plugin install "$plugin" --scope user || warn "install the plugin $plugin"
-done
-exit "$failed"
+
+def marketplace_source(source: dict) -> str | None:
+    kind = source.get('source')
+    if kind in ('directory', 'file'):
+        return source['path']
+    if kind == 'url':
+        return source['url']
+    if kind not in ('github', 'git'):
+        return None
+    location = source['repo'] if kind == 'github' else source['url']
+    return f'{location}#{source["ref"]}' if source.get('ref') else location
+
+
+def main() -> int:
+    if os.environ.get('CLAUDE_INSTALL_REPO_PLUGINS', 'false') != 'true':
+        return 0
+    repo = os.environ.get('REPO_DIR')
+    if not repo:
+        sys.exit('REPO_DIR is not set: the Coder startup script imports it')
+    settings_file = Path(repo, '.claude', 'settings.json')
+    if not settings_file.is_file():
+        return 0
+    settings = json.loads(settings_file.read_text())
+    enabled = [plugin for plugin, on in (settings.get('enabledPlugins') or {}).items() if on is True]
+
+    failures = []
+
+    def claude_plugin(*args: str, what: str) -> None:
+        # A directory marketplace's path is relative to the repository.
+        if subprocess.run(['claude', 'plugin', *args], cwd=repo).returncode != 0:
+            failures.append(what)
+
+    for name, entry in (settings.get('extraKnownMarketplaces') or {}).items():
+        source = marketplace_source(entry.get('source') or {})
+        if source is None:
+            failures.append(f'add the marketplace {name}: its kind of source is not supported here')
+        else:
+            claude_plugin('marketplace', 'add', source, what=f'add the marketplace {name}')
+    if any(plugin.endswith(f'@{OFFICIAL}') for plugin in enabled):
+        claude_plugin('marketplace', 'add', OFFICIAL_SOURCE, what=f'add the marketplace {OFFICIAL}')
+    for plugin in enabled:
+        claude_plugin('install', plugin, '--scope', 'user', what=f'install the plugin {plugin}')
+
+    for failure in failures:
+        print(f'error: could not {failure}', file=sys.stderr)
+    return 1 if failures else 0
+
+
+if __name__ == '__main__':
+    sys.exit(main())

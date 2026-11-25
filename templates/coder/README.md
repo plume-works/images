@@ -55,8 +55,8 @@ Remote control sessions run in Claude's auto permission mode.
 
 **Auto-install enabled Claude plugins from repo**, on by default and changeable at any restart: at each start,
 every Claude plugin the repository's `.claude/settings.json` enables is installed for you, with the marketplaces
-it declares. Claude Code would otherwise only switch them on, never install them, so remote control sessions
-would run without them. Switch it off for really untrusted code; off installs nothing new and removes nothing.
+it declares, so remote control sessions have them too. Switch it off for really untrusted code; off installs
+nothing new and removes nothing.
 
 ## First-time setup
 

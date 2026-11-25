@@ -10,7 +10,8 @@ work=$(mktemp -d "${TMPDIR:-/tmp}/coder-template-smoke.XXXXXX")
 
 cleanup_extra() { rm -rf "${work:-}"; }
 dump_extra() {
-  as_dev systemctl --user status --no-pager agent-services.target opencode.service claude-remote-control.service
+  as_dev systemctl --user status --no-pager agent-services.target opencode.service claude-default-settings.service \
+    claude-pre-approval.service claude-repo-plugins.service claude-remote-control.service
 }
 as_dev() { docker exec -u dev -e XDG_RUNTIME_DIR=/run/user/1000 "$container" "$@"; }
 
@@ -67,13 +68,14 @@ as_dev sh -c 'mkdir -p ~/dotfiles ~/.claude && echo "{\"smoke\": \"kept\"}" >~/d
   ln -sf dotfiles/claude.json ~/.claude.json && ln -sf ../dotfiles/settings.json ~/.claude/settings.json'
 
 # The repository enables one plugin, and leaves one off, from a marketplace it declares and holds itself, so no
-# network is needed.
-mkdir -p "$work/repo/.claude" "$work/repo/market/.claude-plugin" "$work/repo/market/smoke/.claude-plugin"
+# network is needed. The space in the marketplace's path must survive.
+market="$work/repo/my market"
+mkdir -p "$work/repo/.claude" "$market/.claude-plugin" "$market/smoke/.claude-plugin"
 echo '{"name": "smoke-market", "owner": {"name": "smoke"},
   "plugins": [{"name": "smoke", "source": "./smoke"}, {"name": "off", "source": "./smoke"}]}' \
-  >"$work/repo/market/.claude-plugin/marketplace.json"
-echo '{"name": "smoke", "version": "1.0.0"}' >"$work/repo/market/smoke/.claude-plugin/plugin.json"
-echo '{"extraKnownMarketplaces": {"smoke-market": {"source": {"source": "directory", "path": "./market"}}},
+  >"$market/.claude-plugin/marketplace.json"
+echo '{"name": "smoke", "version": "1.0.0"}' >"$market/smoke/.claude-plugin/plugin.json"
+echo '{"extraKnownMarketplaces": {"smoke-market": {"source": {"source": "directory", "path": "./my market"}}},
   "enabledPlugins": {"smoke@smoke-market": true, "off@smoke-market": false}}' >"$work/repo/.claude/settings.json"
 tar -C "$work" -c --owner=1000 --group=1000 repo | docker cp -a - "$container:/home/dev"
 
@@ -113,7 +115,7 @@ pass "with both Claude pre-approval choices on, onboarding, consent, trust and e
 plugins=.claude/plugins/installed_plugins.json
 claude_has "$plugins" '.plugins | has("smoke@smoke-market") and (has("off@smoke-market") | not)' ||
   fail "the plugin the repository enables is not installed, or the one it leaves off is"
-as_dev systemctl --user is-active --quiet claude-setup.service || fail "Claude setup failed"
+as_dev systemctl --user is-active --quiet claude-repo-plugins.service || fail "installing the repository's plugins failed"
 pass "with the repository plugins choice on, the plugins the repository enables are installed"
 
 # opencode_pid: the OpenCode server's PID, when it is the live process in the pane of socket opencode, and still
@@ -237,5 +239,24 @@ pass "with the repository plugins choice off, no plugin is installed"
 as_dev cmp -s /usr/local/share/claude-code/default-settings.json /home/dev/.claude/settings.json ||
   fail "a fresh home's ~/.claude/settings.json is not the Claude default settings"
 pass "the Claude default settings are written over a fresh home's or a dangling symlinked ~/.claude/settings.json"
+
+# A plugin that cannot be installed: its step fails on its own, and the steps around it still do their work.
+as_dev systemctl --user stop agent-services.target
+# shellcheck disable=SC2016 # a script for the container's shell
+as_dev sh -c 's=/home/dev/repo/.claude/settings.json && jq ".enabledPlugins[\"missing@nowhere\"] = true" $s >$s.new &&
+  mv $s.new $s'
+as_dev systemctl --user set-environment CLAUDE_PREAPPROVE_REMOTE_CONTROL=true CLAUDE_INSTALL_REPO_PLUGINS=true
+as_dev systemctl --user start agent-services.target
+as_dev systemctl --user is-failed --quiet claude-repo-plugins.service ||
+  fail "installing the repository's plugins does not fail on a plugin that cannot be installed"
+as_dev journalctl --user -u claude-repo-plugins.service --no-pager -q -o cat |
+  grep -qx 'error: could not install the plugin missing@nowhere' || fail "the failed plugin is not named in the journal"
+claude_has "$plugins" '.plugins | has("smoke@smoke-market")' || fail "a failed plugin stopped the others' installs"
+for u in claude-default-settings.service claude-pre-approval.service; do
+  as_dev systemctl --user is-active --quiet "$u" || fail "$u did not run beside a failed plugin install"
+done
+claude_has .claude.json '.remoteDialogSeen == true' || fail "a failed plugin install stopped Claude pre-approval"
+! as_dev systemctl --user is-failed --quiet claude-remote-control.service || fail "remote control failed"
+pass "a plugin that cannot be installed fails only its own step, which names it, and leaves the others to work"
 
 echo "coder-template smoke test passed: $image"
