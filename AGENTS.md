@@ -14,6 +14,10 @@ YAGNI, KISS, DRY.
 
 A comment says why: a constraint, gotcha or rejected alternative the code cannot show. Never restate what the code, a step name or another comment already says. No file headers narrating the file.
 
+## Scripts
+
+Write scripts in Python 3 with the standard library only: the images' Python has no other packages. Shell stays for one-line commands in Dockerfiles, units and the Coder template, and for the `smoke.sh` tests.
+
 ## Local temporary files
 
 Use gitignored .tmp in the repo root for your temporary files, so you can clean them up once done.
