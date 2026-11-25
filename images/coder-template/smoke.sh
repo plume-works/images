@@ -54,7 +54,7 @@ set -eu
 git init -q /home/dev/repo
 git -C /home/dev/repo -c user.name=smoke -c user.email=smoke@example.com commit -q --allow-empty -m init
 export REPO_DIR=/home/dev/repo SMOKE_VAR=$var OPENCODE_PASSWORD=$password CLAUDE_CODE_OAUTH_TOKEN=smoke-not-a-token
-export CLAUDE_PREAPPROVE_REMOTE_CONTROL=true CLAUDE_PREAPPROVE_TRUST_WORKSPACE=true
+export CLAUDE_PREAPPROVE_REMOTE_CONTROL=true CLAUDE_PREAPPROVE_TRUST_WORKSPACE=true CLAUDE_INSTALL_REPO_PLUGINS=true
 bash -c 'systemctl --user import-environment \$(compgen -e) && systemctl --user start agent-services.target'
 echo started >>/home/dev/agent-saw
 exec sleep infinity
@@ -65,6 +65,17 @@ printf '%s\n' "$token" >"$work/agent-token"
 # checkout tracks no settings.json, so that link dangles.
 as_dev sh -c 'mkdir -p ~/dotfiles ~/.claude && echo "{\"smoke\": \"kept\"}" >~/dotfiles/claude.json &&
   ln -sf dotfiles/claude.json ~/.claude.json && ln -sf ../dotfiles/settings.json ~/.claude/settings.json'
+
+# The repository enables one plugin, and leaves one off, from a marketplace it declares and holds itself, so no
+# network is needed.
+mkdir -p "$work/repo/.claude" "$work/repo/market/.claude-plugin" "$work/repo/market/smoke/.claude-plugin"
+echo '{"name": "smoke-market", "owner": {"name": "smoke"},
+  "plugins": [{"name": "smoke", "source": "./smoke"}, {"name": "off", "source": "./smoke"}]}' \
+  >"$work/repo/market/.claude-plugin/marketplace.json"
+echo '{"name": "smoke", "version": "1.0.0"}' >"$work/repo/market/smoke/.claude-plugin/plugin.json"
+echo '{"extraKnownMarketplaces": {"smoke-market": {"source": {"source": "directory", "path": "./market"}}},
+  "enabledPlugins": {"smoke@smoke-market": true, "off@smoke-market": false}}' >"$work/repo/.claude/settings.json"
+tar -C "$work" -c --owner=1000 --group=1000 repo | docker cp -a - "$container:/home/dev"
 
 docker stop -t 60 "$container" >/dev/null
 # Tar streams, so owner and mode are the template's, not this machine's.
@@ -89,7 +100,8 @@ claude_has .claude/settings.json '.enableAllProjectMcpServers == true' ||
   fail "project MCP servers are not approved for the whole workspace"
 # shellcheck disable=SC2016 # jq's own $d
 as_dev jq -e --slurpfile d /usr/local/share/claude-code/default-settings.json \
-  'del(.enableAllProjectMcpServers) == $d[0]' /home/dev/dotfiles/settings.json >/dev/null ||
+  'del(.enableAllProjectMcpServers, .extraKnownMarketplaces, .enabledPlugins["smoke@smoke-market"]) == $d[0]' \
+  /home/dev/dotfiles/settings.json >/dev/null ||
   fail "the Claude default settings are not written to the dangling symlinked ~/.claude/settings.json's target"
 [ "$(as_dev readlink /home/dev/.claude.json)" = dotfiles/claude.json ] || fail "the symlinked ~/.claude.json is no longer a link"
 [ "$(as_dev readlink /home/dev/.claude/settings.json)" = ../dotfiles/settings.json ] ||
@@ -97,6 +109,12 @@ as_dev jq -e --slurpfile d /usr/local/share/claude-code/default-settings.json \
 claude_has dotfiles/claude.json '.smoke == "kept" and .hasCompletedOnboarding == true' ||
   fail "the symlinked ~/.claude.json's target lacks the approvals or its own key"
 pass "with both Claude pre-approval choices on, onboarding, consent, trust and every project's MCP servers are granted"
+
+plugins=.claude/plugins/installed_plugins.json
+claude_has "$plugins" '.plugins | has("smoke@smoke-market") and (has("off@smoke-market") | not)' ||
+  fail "the plugin the repository enables is not installed, or the one it leaves off is"
+as_dev systemctl --user is-active --quiet claude-repo-plugins.service || fail "installing the repository's plugins failed"
+pass "with the repository plugins choice on, the plugins the repository enables are installed"
 
 # opencode_pid: the OpenCode server's PID, when it is the live process in the pane of socket opencode, and still
 # in opencode.service (so systemd supervises and stops it).
@@ -205,7 +223,8 @@ as_dev systemctl --user stop agent-services.target
 no_tmux opencode claude-remote-control || fail "a tmux server outlived its stopped agent service"
 pass "an agent service's tmux server ends with its app, or when the service stops"
 as_dev rm -rf /home/dev/.claude.json /home/dev/.claude
-as_dev systemctl --user set-environment CLAUDE_PREAPPROVE_REMOTE_CONTROL=false CLAUDE_PREAPPROVE_TRUST_WORKSPACE=false
+as_dev systemctl --user set-environment CLAUDE_PREAPPROVE_REMOTE_CONTROL=false CLAUDE_PREAPPROVE_TRUST_WORKSPACE=false \
+  CLAUDE_INSTALL_REPO_PLUGINS=false
 as_dev systemctl --user start agent-services.target
 claude_has .claude.json '.hasCompletedOnboarding == true' || fail "Claude's onboarding is not marked completed with both choices off"
 claude_has .claude.json '.remoteDialogSeen != true' || fail "remote control's consent is granted although switched off"
@@ -213,6 +232,8 @@ claude_has .claude.json '.projects["/home/dev/repo"].hasTrustDialogAccepted != t
 claude_has .claude/settings.json 'has("enableAllProjectMcpServers") | not' ||
   fail "project MCP servers are approved although switched off"
 pass "with both Claude pre-approval choices off, only onboarding is granted"
+! as_dev test -e "/home/dev/$plugins" || fail "plugins are installed although the repository plugins choice is off"
+pass "with the repository plugins choice off, no plugin is installed"
 as_dev cmp -s /usr/local/share/claude-code/default-settings.json /home/dev/.claude/settings.json ||
   fail "a fresh home's ~/.claude/settings.json is not the Claude default settings"
 pass "the Claude default settings are written over a fresh home's or a dangling symlinked ~/.claude/settings.json"

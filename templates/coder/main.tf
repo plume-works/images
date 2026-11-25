@@ -67,6 +67,16 @@ data "coder_parameter" "claude_trust_workspace" {
   mutable      = false
 }
 
+# Acted on at each start (claude-repo-plugins.service); off installs nothing new and removes nothing.
+data "coder_parameter" "claude_install_repo_plugins" {
+  name         = "claude_install_repo_plugins"
+  display_name = "Auto-install enabled Claude plugins from repo"
+  description  = "At each start, install for you every Claude plugin the repository's .claude/settings.json enables, with the marketplaces it declares. Switch off for really untrusted code."
+  type         = "bool"
+  default      = "true"
+  mutable      = true
+}
+
 resource "coder_agent" "main" {
   arch = data.coder_provisioner.me.arch
   os   = "linux"
@@ -83,6 +93,7 @@ resource "coder_agent" "main" {
     GIT_COMMITTER_EMAIL               = local.git_email
     CLAUDE_PREAPPROVE_REMOTE_CONTROL  = data.coder_parameter.claude_remote_control.value
     CLAUDE_PREAPPROVE_TRUST_WORKSPACE = data.coder_parameter.claude_trust_workspace.value
+    CLAUDE_INSTALL_REPO_PLUGINS       = data.coder_parameter.claude_install_repo_plugins.value
   }
 
   # Runs as dev in bash (compgen is a bash builtin). Coder secrets are in its environment, so the clone can use

@@ -56,6 +56,9 @@ come from the front matter of the template's README.
   switched off at creation, else by running `claude` in it
   ([ADR 0017](../adr/0017-anthropic-tokens-kept-from-remote-control.md),
   [ADR 0016](../adr/0016-claude-pre-approval-on-by-default.md)).
+- A Claude plugin the repository enables but that is missing: `journalctl --user -u claude-repo-plugins` says
+  which marketplace or plugin could not be installed at the last start (a private marketplace needs a
+  `GITHUB_TOKEN` Coder secret).
 - The Claude pre-approval choices are workspace-wide, because the workspace is the sandbox: only trust names the
   cloned repository; every project's MCP servers in the workspace are approved ([ADR 0016](../adr/0016-claude-pre-approval-on-by-default.md)).
 - Claude default settings (`images/coder-template/claude-default-settings.json`) are written over
