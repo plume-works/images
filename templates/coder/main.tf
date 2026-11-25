@@ -48,6 +48,16 @@ data "coder_parameter" "repo_url" {
   icon         = "/icon/git.svg"
 }
 
+data "coder_parameter" "repo_branch" {
+  name         = "repo_branch"
+  display_name = "Repository branch"
+  description  = "Branch to check out when the repository is cloned on first start. Empty means the repository's default branch."
+  type         = "string"
+  default      = ""
+  mutable      = false
+  icon         = "/icon/git.svg"
+}
+
 # Claude pre-approval (ADR 0016): the two choices only. The image acts on them (claude-setup.service).
 data "coder_parameter" "claude_remote_control" {
   name         = "claude_remote_control"
@@ -86,6 +96,7 @@ resource "coder_agent" "main" {
   # every agent service.
   env = {
     REPO_URL                          = data.coder_parameter.repo_url.value
+    REPO_BRANCH                       = data.coder_parameter.repo_branch.value
     REPO_DIR                          = local.repo_dir
     GIT_AUTHOR_NAME                   = local.git_name
     GIT_AUTHOR_EMAIL                  = local.git_email
@@ -105,9 +116,9 @@ resource "coder_agent" "main" {
   startup_script          = <<-EOT
     set -eu
     cloned=true
-    if [ ! -d "$REPO_DIR/.git" ] && ! git clone "$REPO_URL" "$REPO_DIR"; then
+    if [ ! -d "$REPO_DIR/.git" ] && ! git clone $${REPO_BRANCH:+--branch "$REPO_BRANCH"} "$REPO_URL" "$REPO_DIR"; then
       cloned=false
-      echo "ERROR: could not clone $REPO_URL into $REPO_DIR (see git's message above)." >&2
+      echo "ERROR: could not clone $REPO_URL$${REPO_BRANCH:+ at branch $REPO_BRANCH} into $REPO_DIR (see git's message above)." >&2
       echo "ERROR: starting the agent services anyway; clone the repository from a terminal." >&2
     fi
     systemctl --user import-environment $(compgen -e)
