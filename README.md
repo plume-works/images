@@ -24,7 +24,7 @@ future image, but the four images above should not grow features in anticipation
 
 **Admission rule for the core image:** a build toolchain is added only when at least two plume-works repositories
 need it in CI. Interactive conveniences are added at the maintainer's discretion. Anything else belongs in the
-repository that needs it.
+repository that needs it, in its `mise.toml`.
 
 ## Developing this repository
 
