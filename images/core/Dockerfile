@@ -169,7 +169,7 @@ RUN install -d /etc/claude-code /etc/environment.d \
 # Docker republishes it under new revisions. The packages enable docker.service and containerd.service for systemd,
 # which the core systemd image relies on; here, without systemd, start-docker runs the engine on demand.
 # renovate: datasource=deb depName=docker-ce extractVersion=^5:(?<version>[^-]+)-
-ARG DOCKER_VERSION=29.10.0
+ARG DOCKER_VERSION=29.10.1
 # renovate: datasource=deb depName=docker-buildx-plugin extractVersion=^(?<version>[^-]+)-
 ARG BUILDX_VERSION=0.39.1
 # renovate: datasource=deb depName=docker-compose-plugin extractVersion=^(?<version>[^-]+)-
