@@ -8,7 +8,7 @@ Research done 23–24 November 2026 in an `agent-devcontainer` session, after th
 
 Once `agent-devcontainer` was moved onto the devcontainer base image, it no longer had a way to run on Coder:
 
-- `agentdev-runtime coder start` had been removed on purpose (agentdev ADR-0107). It used to start OpenCode and
+- `agentdev-runtime coder start` had been removed on purpose (agentdev ADR-0107, devcontainer image on plume devcontainer base). It used to start OpenCode and
   Claude remote control inside an agentdev dev container that Coder ran, and it was where setup that needed Coder
   secrets ran.
 - In this repository, agent services exist only in the Coder template image, and the devcontainer base image is
@@ -28,7 +28,7 @@ common case, but system-level ones (apt packages, root services) are needed too.
    repository's ADRs, listing every way a repository could bring tools, plugins and services, and what each would
    cost the template.
 3. **Comparison of mise and pyinfra**, as the user-level and system-level candidates for a repository's own setup,
-   against ADRs 0012, 0013, 0014 and 0022. Desk only; nothing was run.
+   against ADR 0012 (Nothing under a home directory), ADR 0013 (Nothing updates itself), ADR 0014 (No volumes at the Docker engine's storage under sysbox) and ADR 0022 (All inputs are pinned). Desk only; nothing was run.
 4. **Spikes on the real Coder deployment** for the three ways to keep installs across restarts. Each was a scratch
    template and workspace. Each was checked with a root-owned file in `/opt` and an apt-installed package, plus an
    image pulled into the inner Docker engine for shape 2, then restarted and stopped/started. The scratch templates,
@@ -59,8 +59,8 @@ agent services. Nothing runs anything from the repository after the clone.
 | Tools | Lockfile-driven and project-local (`uv sync`, `bun install`, pre-commit's own environments) | No, but something must run it | Pinned. Nothing goes on `PATH` from home. Covers only what ships on PyPI or npm. |
 | Tools | Containers on the workspace's own engine (`docker run`, compose, pre-commit `docker_image`) | No | Pinned by digest. Slower. Files are owned by the container's user. |
 | Tools | A repository image built `FROM` the Coder template image | Yes: the template must accept an image | Heavy. One template version per image. |
-| Tools | A version manager (mise, devbox, nix) | Yes: it goes into the image | Conflicts with ADR 0012 unless set up carefully. |
-| Plugins | Committed in the repository (`.claude/skills`, `.claude/agents`, `.mcp.json`, `opencode.json`) | No | Native to both agents. ADR 0016 already approves the MCP servers. |
+| Tools | A version manager (mise, devbox, nix) | Yes: it goes into the image | Conflicts with ADR 0012 (Nothing under a home directory) unless set up carefully. |
+| Plugins | Committed in the repository (`.claude/skills`, `.claude/agents`, `.mcp.json`, `opencode.json`) | No | Native to both agents. ADR 0016 (Claude pre-approval on by default) already approves the MCP servers. |
 | Plugins | Project-scope `.claude/settings.json` with `extraKnownMarketplaces` and `enabledPlugins` | No | Claude default settings overwrite only the user-scope file. Not verified: whether the plugins install without a prompt on a first run or under remote control. |
 | Plugins | Workspace-wide, through Claude default settings | Yes | The bloat this repository's policy rejects. |
 | Services | A compose file in the repository, on the workspace's engine | No, but something must start it | Natural home for databases and the like. |
@@ -81,14 +81,14 @@ They solve different problems and don't compete.
 | Is | A per-repository tool version manager, with environment variables and tasks | Infrastructure as code in Python, in Ansible's class |
 | Installs | Language runtimes and CLI binaries (GitHub releases, aqua with checksums, npm, pipx, cargo) | Anything: apt packages, files in `/etc`, systemd units, users |
 | Runs as | The workspace user | Root, through sudo |
-| After a restart | Kept, in home | Lost (ADR 0014: only home survives), so it runs again at every start |
+| After a restart | Kept, in home | Lost, since only home survives (ADR 0014, No volumes at the Docker engine's storage under sysbox), so it runs again at every start |
 | Services | No, only tasks | Yes |
 | Trust | `mise trust` for each repository config | None: it is code that runs |
 
-- mise is in direct tension with ADR 0012 (nothing under home on `PATH`). It works by putting per-user installs on
+- mise is in direct tension with ADR 0012 (Nothing under a home directory): nothing under home goes on `PATH`. It works by putting per-user installs on
   `PATH`. With versions pinned in the repository, the shadowing is intended rather than stale, but that is still a
   decision to make.
-- pyinfra is in tension with ADRs 0013 and 0022: it changes the system at every boot, and is only as pinned as its
+- pyinfra is in tension with ADR 0013 (Nothing updates itself) and ADR 0022 (All inputs are pinned): it changes the system at every boot, and is only as pinned as its
   script.
 - Not checked: how mature `mise.lock` is for checksums across backends, and whether each of agentdev's linters can
   be fetched by mise.
@@ -134,12 +134,12 @@ from committed inner engine storage in shape 2.
 
 ## Relation to existing decisions
 
-- **ADR 0014** says a restart loses the inner engine's storage, because each start replaces the container. Shapes 1
+- **ADR 0014 (No volumes at the Docker engine's storage under sysbox)** says a restart loses the inner engine's storage, because each start replaces the container. Shapes 1
   and 2 keep that storage without any volume, so they avoid the failure that ADR describes, but they would change its
-  consequence. Adopting either needs ADR 0014 revisited.
-- **ADRs 0013 and 0022** (an image's content is what was built and tested; all inputs pinned): shapes 1 and 2 keep
+  consequence. Adopting either needs ADR 0014 (No volumes at the Docker engine's storage under sysbox) revisited.
+- **ADR 0013 (Nothing updates itself) and ADR 0022 (All inputs are pinned)**: shapes 1 and 2 keep
   state that was never built or tested. Shape 3 is compatible if the repository's Dockerfile pins its inputs.
-- **ADR 0012** (nothing under home on `PATH`): in tension with mise, as above.
+- **ADR 0012 (Nothing under a home directory)**: in tension with mise, as above.
 
 ## Open questions left by the research
 
