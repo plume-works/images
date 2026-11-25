@@ -22,6 +22,10 @@ Write scripts in Python 3 with the standard library only: the images' Python has
 
 Use gitignored .tmp in the repo root for your temporary files, so you can clean them up once done.
 
+## Credentials in tests
+
+Delete a copied credential, and whatever holds it, as soon as the check finishes: a copied OAuth sign-in can renew and invalidate the original.
+
 ## Agent skills
 
 ### Issue tracker
