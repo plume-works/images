@@ -48,7 +48,7 @@ data "coder_parameter" "repo_url" {
   icon         = "/icon/git.svg"
 }
 
-# Claude pre-approval (ADR 0016): the two choices only. The image acts on them (claude-pre-approval.service).
+# Claude pre-approval (ADR 0016): the two choices only. The image acts on them (claude-setup.service).
 data "coder_parameter" "claude_remote_control" {
   name         = "claude_remote_control"
   display_name = "Claude remote control"
@@ -67,7 +67,7 @@ data "coder_parameter" "claude_trust_workspace" {
   mutable      = false
 }
 
-# Acted on at each start (claude-repo-plugins.service); off installs nothing new and removes nothing.
+# Acted on at each start (claude-setup.service); off installs nothing new and removes nothing.
 data "coder_parameter" "claude_install_repo_plugins" {
   name         = "claude_install_repo_plugins"
   display_name = "Auto-install enabled Claude plugins from repo"

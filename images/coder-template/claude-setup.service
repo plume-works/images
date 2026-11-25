@@ -1,0 +1,18 @@
+# Its own unit, not remote control's, so it does not run again on remote control's restarts.
+[Unit]
+Description=Claude setup (default settings, pre-approval, the repository's plugins)
+PartOf=agent-services.target
+Before=claude-remote-control.service
+
+[Service]
+Type=oneshot
+# Active until the target stops, so it runs again only at its next start.
+RemainAfterExit=yes
+ExecStartPre=/bin/mkdir -p %h/.claude
+# Writes the link's target, so that a symlinked file (a dotfiles checkout's, say) stays a link; resolved first,
+# because cp refuses to write through a link whose target does not exist yet.
+ExecStart=/bin/sh -c 'exec cp /usr/local/share/claude-code/default-settings.json "$$(readlink -f %h/.claude/settings.json)"'
+# In this order: each adds to the user settings the step before it wrote. The plugin installs are last, so that
+# their failure skips nothing.
+ExecStart=/usr/local/bin/claude-pre-approval
+ExecStart=/usr/local/bin/claude-repo-plugins

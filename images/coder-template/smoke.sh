@@ -113,7 +113,7 @@ pass "with both Claude pre-approval choices on, onboarding, consent, trust and e
 plugins=.claude/plugins/installed_plugins.json
 claude_has "$plugins" '.plugins | has("smoke@smoke-market") and (has("off@smoke-market") | not)' ||
   fail "the plugin the repository enables is not installed, or the one it leaves off is"
-as_dev systemctl --user is-active --quiet claude-repo-plugins.service || fail "installing the repository's plugins failed"
+as_dev systemctl --user is-active --quiet claude-setup.service || fail "Claude setup failed"
 pass "with the repository plugins choice on, the plugins the repository enables are installed"
 
 # opencode_pid: the OpenCode server's PID, when it is the live process in the pane of socket opencode, and still
