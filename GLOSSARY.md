@@ -10,7 +10,7 @@ _Avoid_: Tools image, base image, CI image
 
 **mise.toml**:
 The file in which a repository lists the tools its work needs that the core image does not carry, for the image's mise to install into the user's home.
-_Avoid_: Tool manifest, `.tool-versions`
+_Avoid_: Tool manifest, `.tool-versions`, a mise configuration
 
 **Core systemd image**:
 The core image with systemd as its main process and the Docker engine run as a service, the shared parent of the Coder template image and the devcontainer base image.
