@@ -8,7 +8,7 @@ SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 # step skips TLS peer checks for the snapshot host; apt still checks the archive's signatures and hashes.
 # --error-on=any: apt otherwise ignores a failed index download and installs from what it already has.
 # renovate: datasource=custom.ubuntu-snapshot depName=ubuntu-snapshot versioning=regex:^(?<major>\d{8})T(?<minor>\d{6})Z$
-ARG UBUNTU_SNAPSHOT_VERSION=20261122T124248Z
+ARG UBUNTU_SNAPSHOT_VERSION=20261124T175114Z
 # jq and btop are interactive conveniences outside the admission rule below. tmux: the Coder template image runs
 # its agent services inside it (ADR 0015).
 RUN echo "APT::Snapshot \"${UBUNTU_SNAPSHOT_VERSION}\";" > /etc/apt/apt.conf.d/50snapshot \
@@ -169,7 +169,7 @@ RUN install -d /etc/claude-code /etc/environment.d \
 # Docker republishes it under new revisions. The packages enable docker.service and containerd.service for systemd,
 # which the core systemd image relies on; here, without systemd, start-docker runs the engine on demand.
 # renovate: datasource=deb depName=docker-ce extractVersion=^5:(?<version>[^-]+)-
-ARG DOCKER_VERSION=29.10.0
+ARG DOCKER_VERSION=29.10.1
 # renovate: datasource=deb depName=docker-buildx-plugin extractVersion=^(?<version>[^-]+)-
 ARG BUILDX_VERSION=0.39.1
 # renovate: datasource=deb depName=docker-compose-plugin extractVersion=^(?<version>[^-]+)-
