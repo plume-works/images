@@ -115,6 +115,23 @@ RUN d=$(mktemp -d) \
  && echo /usr/local/bin/fish >> /etc/shells \
  && rm -rf "$d"
 
+# mise, outside the admission rule: it is how a repository brings the tools the rule keeps out (ADR 0024).
+# The image never activates it, so what a user installs with it stays in their home and off PATH (ADR 0012).
+# mise refuses self-update while /usr/local/lib/mise/.disable-self-update exists beside its binary (ADR 0013),
+# and the setting stops it advising an update it cannot do.
+# renovate: datasource=github-releases depName=jdx/mise extractVersion=^v(?<version>.+)$
+ARG MISE_VERSION=2026.11.14
+RUN case "$(uname -m)" in x86_64) p=x64 ;; aarch64) p=arm64 ;; esac; f="mise-v${MISE_VERSION}-linux-$p-musl"; d=$(mktemp -d) \
+ && base="https://github.com/jdx/mise/releases/download/v${MISE_VERSION}" \
+ && curl -fsSL "$base/$f" -o "$d/$f" \
+ && sum=$(curl -fsSL "$base/SHASUMS256.txt" | grep " \./$f\$" | cut -d' ' -f1) \
+ && echo "${sum:?no checksum for $f}  $d/$f" | sha256sum -c - \
+ && install -m0755 "$d/$f" /usr/local/bin/mise \
+ && install -d /usr/local/lib/mise /etc/mise \
+ && touch /usr/local/lib/mise/.disable-self-update \
+ && printf '[settings]\ndisable_update_warning = true\n' > /etc/mise/config.toml \
+ && rm -rf "$d"
+
 # --- Agent CLIs -------------------------------------------------------------------------------------------
 # Installed bare: no settings, plugins, skills, MCP servers or credentials. Turning self-updating off is part
 # of installing them, not configuration.
