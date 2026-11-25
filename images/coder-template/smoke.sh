@@ -68,14 +68,14 @@ as_dev sh -c 'mkdir -p ~/dotfiles ~/.claude && echo "{\"smoke\": \"kept\"}" >~/d
   ln -sf dotfiles/claude.json ~/.claude.json && ln -sf ../dotfiles/settings.json ~/.claude/settings.json'
 
 # The repository enables one plugin, and leaves one off, from a marketplace it declares and holds itself, so no
-# network is needed. The space in the marketplace's path must survive.
+# network is needed. Its path, with no ./ and with a space, must still be read as the repository's directory.
 market="$work/repo/my market"
 mkdir -p "$work/repo/.claude" "$market/.claude-plugin" "$market/smoke/.claude-plugin"
 echo '{"name": "smoke-market", "owner": {"name": "smoke"},
   "plugins": [{"name": "smoke", "source": "./smoke"}, {"name": "off", "source": "./smoke"}]}' \
   >"$market/.claude-plugin/marketplace.json"
 echo '{"name": "smoke", "version": "1.0.0"}' >"$market/smoke/.claude-plugin/plugin.json"
-echo '{"extraKnownMarketplaces": {"smoke-market": {"source": {"source": "directory", "path": "./my market"}}},
+echo '{"extraKnownMarketplaces": {"smoke-market": {"source": {"source": "directory", "path": "my market"}}},
   "enabledPlugins": {"smoke@smoke-market": true, "off@smoke-market": false}}' >"$work/repo/.claude/settings.json"
 tar -C "$work" -c --owner=1000 --group=1000 repo | docker cp -a - "$container:/home/dev"
 

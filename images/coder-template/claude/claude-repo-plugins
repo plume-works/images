@@ -15,7 +15,7 @@ OFFICIAL_SOURCE = 'anthropics/claude-plugins-official'
 LOCATION_FIELD = {'directory': 'path', 'file': 'path', 'url': 'url', 'github': 'repo', 'git': 'url'}
 
 
-def marketplace_source(source: object) -> str:
+def marketplace_source(source: object, repo: str) -> str:
     """The argument `claude plugin marketplace add` takes; ValueError says why there is none."""
     if not isinstance(source, dict):
         raise ValueError('it has no source')
@@ -26,6 +26,13 @@ def marketplace_source(source: object) -> str:
     location = source.get(field)
     if not isinstance(location, str) or not location:
         raise ValueError(f'its {kind} source has no {field}')
+    if field == 'path':
+        # The command takes a path only when it starts with ./, ../, / or ~ (tools/market would be that GitHub
+        # repository), and the settings' path is relative to the repository.
+        return str(Path(repo, Path(location).expanduser()))
+    for unsupported in ('path', 'sparsePaths'):
+        if unsupported in source:
+            raise ValueError(f'its {kind} source has {unsupported}, which the command cannot take')
     ref = source.get('ref') if kind in ('github', 'git') else None
     if ref is not None and not isinstance(ref, str):
         raise ValueError(f'its {kind} source has a ref that is not a string')
@@ -49,7 +56,7 @@ def main() -> int:
         return 0
     try:
         settings = json.loads(settings_file.read_text())
-    except (OSError, ValueError) as e:
+    except (OSError, ValueError, RecursionError) as e:
         error(f'read {settings_file}: {e}')
         return 1
     if not isinstance(settings, dict):
@@ -60,7 +67,9 @@ def main() -> int:
 
     def section(key: str) -> dict:
         nonlocal failed
-        value = settings.get(key) or {}
+        value = settings.get(key)
+        if value is None:
+            return {}
         if isinstance(value, dict):
             return value
         error(f'read {key} in {settings_file}: it is not a JSON object')
@@ -70,8 +79,7 @@ def main() -> int:
     def claude_plugin(*args: str, what: str) -> None:
         nonlocal failed
         try:
-            # A directory marketplace's path is relative to the repository.
-            ok = subprocess.run(['claude', 'plugin', *args], cwd=repo).returncode == 0
+            ok = subprocess.run(['claude', 'plugin', *args]).returncode == 0
         except OSError as e:
             error(f'{what}: {e}')
             failed = True
@@ -83,7 +91,7 @@ def main() -> int:
     enabled = [plugin for plugin, on in section('enabledPlugins').items() if on is True]
     for name, entry in section('extraKnownMarketplaces').items():
         try:
-            source = marketplace_source(entry.get('source') if isinstance(entry, dict) else None)
+            source = marketplace_source(entry.get('source') if isinstance(entry, dict) else None, repo)
         except ValueError as e:
             error(f'add the marketplace {name}: {e}')
             failed = True
