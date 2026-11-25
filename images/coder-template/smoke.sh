@@ -245,10 +245,12 @@ as_dev cmp -s /usr/local/share/claude-code/default-settings.json /home/dev/.clau
   fail "a fresh home's ~/.claude/settings.json is not the Claude default settings"
 pass "the Claude default settings are written over a fresh home's or a dangling symlinked ~/.claude/settings.json"
 
-# A plugin that cannot be installed: its step fails on its own, and the steps around it still do their work.
+# A plugin that cannot be installed, and a marketplace whose settings are malformed: the step fails on its own,
+# naming both, and the steps around it still do their work.
 as_dev systemctl --user stop agent-services.target
 # shellcheck disable=SC2016 # a script for the container's shell
-as_dev sh -c 's=/home/dev/repo/.claude/settings.json && jq ".enabledPlugins[\"missing@nowhere\"] = true" $s >$s.new &&
+as_dev sh -c 's=/home/dev/repo/.claude/settings.json &&
+  jq ".enabledPlugins[\"missing@nowhere\"] = true | .extraKnownMarketplaces.broken.source.source = \"github\"" $s >$s.new &&
   mv $s.new $s'
 as_dev systemctl --user set-environment CLAUDE_PREAPPROVE_REMOTE_CONTROL=true CLAUDE_INSTALL_REPO_PLUGINS=true
 as_dev systemctl --user start agent-services.target
@@ -256,12 +258,15 @@ as_dev systemctl --user is-failed --quiet claude-repo-plugins.service ||
   fail "installing the repository's plugins does not fail on a plugin that cannot be installed"
 as_dev journalctl --user -u claude-repo-plugins.service --no-pager -q -o cat |
   grep -qx 'error: could not install the plugin missing@nowhere' || fail "the failed plugin is not named in the journal"
+as_dev journalctl --user -u claude-repo-plugins.service --no-pager -q -o cat |
+  grep -qx 'error: could not add the marketplace broken: its github source has no repo' ||
+  fail "the malformed marketplace is not named in the journal"
 claude_has "$plugins" '.plugins | has("smoke@smoke-market")' || fail "a failed plugin stopped the others' installs"
 for u in claude-default-settings.service claude-pre-approval.service; do
   as_dev systemctl --user is-active --quiet "$u" || fail "$u did not run beside a failed plugin install"
 done
 claude_has .claude.json '.remoteDialogSeen == true' || fail "a failed plugin install stopped Claude pre-approval"
 ! as_dev systemctl --user is-failed --quiet claude-remote-control.service || fail "remote control failed"
-pass "a plugin that cannot be installed fails only its own step, which names it, and leaves the others to work"
+pass "a plugin that cannot be installed, or a malformed marketplace, fails only its own step, which names it, and leaves the others to work"
 
 echo "coder-template smoke test passed: $image"

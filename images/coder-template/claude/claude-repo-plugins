@@ -12,17 +12,29 @@ from pathlib import Path
 OFFICIAL = 'claude-plugins-official'
 OFFICIAL_SOURCE = 'anthropics/claude-plugins-official'
 
+LOCATION_FIELD = {'directory': 'path', 'file': 'path', 'url': 'url', 'github': 'repo', 'git': 'url'}
 
-def marketplace_source(source: dict) -> str | None:
+
+def marketplace_source(source: object) -> str:
+    """The argument `claude plugin marketplace add` takes; ValueError says why there is none."""
+    if not isinstance(source, dict):
+        raise ValueError('it has no source')
     kind = source.get('source')
-    if kind in ('directory', 'file'):
-        return source['path']
-    if kind == 'url':
-        return source['url']
-    if kind not in ('github', 'git'):
-        return None
-    location = source['repo'] if kind == 'github' else source['url']
-    return f'{location}#{source["ref"]}' if source.get('ref') else location
+    field = LOCATION_FIELD.get(kind) if isinstance(kind, str) else None
+    if field is None:
+        raise ValueError(f'its kind of source, {kind!r}, is not supported here')
+    location = source.get(field)
+    if not isinstance(location, str) or not location:
+        raise ValueError(f'its {kind} source has no {field}')
+    ref = source.get('ref') if kind in ('github', 'git') else None
+    if ref is not None and not isinstance(ref, str):
+        raise ValueError(f'its {kind} source has a ref that is not a string')
+    return f'{location}#{ref}' if ref else location
+
+
+def error(message: str) -> None:
+    # Printed at once, not at the end: the unit's start timeout kills the script mid-run.
+    print(f'error: could not {message}', file=sys.stderr, flush=True)
 
 
 def main() -> int:
@@ -30,34 +42,58 @@ def main() -> int:
         return 0
     repo = os.environ.get('REPO_DIR')
     if not repo:
-        sys.exit('REPO_DIR is not set: the Coder startup script imports it')
+        error('find the repository: REPO_DIR is not set, and the Coder startup script imports it')
+        return 1
     settings_file = Path(repo, '.claude', 'settings.json')
     if not settings_file.is_file():
         return 0
-    settings = json.loads(settings_file.read_text())
-    enabled = [plugin for plugin, on in (settings.get('enabledPlugins') or {}).items() if on is True]
+    try:
+        settings = json.loads(settings_file.read_text())
+    except (OSError, ValueError) as e:
+        error(f'read {settings_file}: {e}')
+        return 1
+    if not isinstance(settings, dict):
+        error(f'read {settings_file}: it is not a JSON object')
+        return 1
 
-    failures = []
+    failed = False
+
+    def section(key: str) -> dict:
+        nonlocal failed
+        value = settings.get(key) or {}
+        if isinstance(value, dict):
+            return value
+        error(f'read {key} in {settings_file}: it is not a JSON object')
+        failed = True
+        return {}
 
     def claude_plugin(*args: str, what: str) -> None:
-        # A directory marketplace's path is relative to the repository.
-        if subprocess.run(['claude', 'plugin', *args], cwd=repo).returncode != 0:
-            failures.append(what)
+        nonlocal failed
+        try:
+            # A directory marketplace's path is relative to the repository.
+            ok = subprocess.run(['claude', 'plugin', *args], cwd=repo).returncode == 0
+        except OSError as e:
+            error(f'{what}: {e}')
+            failed = True
+            return
+        if not ok:
+            error(what)
+            failed = True
 
-    for name, entry in (settings.get('extraKnownMarketplaces') or {}).items():
-        source = marketplace_source(entry.get('source') or {})
-        if source is None:
-            failures.append(f'add the marketplace {name}: its kind of source is not supported here')
-        else:
-            claude_plugin('marketplace', 'add', source, what=f'add the marketplace {name}')
+    enabled = [plugin for plugin, on in section('enabledPlugins').items() if on is True]
+    for name, entry in section('extraKnownMarketplaces').items():
+        try:
+            source = marketplace_source(entry.get('source') if isinstance(entry, dict) else None)
+        except ValueError as e:
+            error(f'add the marketplace {name}: {e}')
+            failed = True
+            continue
+        claude_plugin('marketplace', 'add', source, what=f'add the marketplace {name}')
     if any(plugin.endswith(f'@{OFFICIAL}') for plugin in enabled):
         claude_plugin('marketplace', 'add', OFFICIAL_SOURCE, what=f'add the marketplace {OFFICIAL}')
     for plugin in enabled:
         claude_plugin('install', plugin, '--scope', 'user', what=f'install the plugin {plugin}')
-
-    for failure in failures:
-        print(f'error: could not {failure}', file=sys.stderr)
-    return 1 if failures else 0
+    return 1 if failed else 0
 
 
 if __name__ == '__main__':
