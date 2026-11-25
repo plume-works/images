@@ -117,6 +117,11 @@ claude_has "$plugins" '.plugins | has("smoke@smoke-market") and (has("off@smoke-
   fail "the plugin the repository enables is not installed, or the one it leaves off is"
 as_dev systemctl --user is-active --quiet claude-repo-plugins.service || fail "installing the repository's plugins failed"
 pass "with the repository plugins choice on, the plugins the repository enables are installed"
+# As at every workspace restart: the user settings are written over, and the marketplace and plugin are already there.
+as_dev systemctl --user restart claude-default-settings.service claude-pre-approval.service claude-repo-plugins.service ||
+  fail "installing the repository's plugins fails when they are already installed"
+claude_has "$plugins" '.plugins | has("smoke@smoke-market")' || fail "a restart lost the installed plugin"
+pass "a restart installs the repository's plugins again over the ones already there"
 
 # opencode_pid: the OpenCode server's PID, when it is the live process in the pane of socket opencode, and still
 # in opencode.service (so systemd supervises and stops it).

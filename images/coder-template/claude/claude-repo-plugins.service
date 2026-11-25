@@ -9,4 +9,7 @@ Before=claude-remote-control.service
 [Service]
 Type=oneshot
 RemainAfterExit=yes
+# The workspace's start and remote control wait on it, and a oneshot has no start timeout of its own: a stalled
+# download would hold them up for as long as it stalls.
+TimeoutStartSec=2min
 ExecStart=/usr/local/bin/claude-repo-plugins
