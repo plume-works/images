@@ -39,8 +39,11 @@ data "coder_provisioner" "me" {}
 data "coder_workspace" "me" {}
 data "coder_workspace_owner" "me" {}
 
+# `order` keeps the form in this file's order, each dependent choice under the one it depends on; without it the
+# form sorts by name.
 data "coder_parameter" "repo_url" {
   name         = "repo_url"
+  order        = 1
   display_name = "Repository URL"
   description  = "Git URL of the repository to clone into /home/dev on first start, for example https://github.com/plume-works/images.git. A private repository needs a GITHUB_TOKEN Coder secret."
   type         = "string"
@@ -48,9 +51,21 @@ data "coder_parameter" "repo_url" {
   icon         = "/icon/git.svg"
 }
 
+data "coder_parameter" "repo_branch" {
+  name         = "repo_branch"
+  order        = 2
+  display_name = "Repository branch"
+  description  = "Branch to check out when the repository is cloned on first start. Empty means the repository's default branch."
+  type         = "string"
+  default      = ""
+  mutable      = false
+  icon         = "/icon/git.svg"
+}
+
 # Claude pre-approval (ADR 0016): the two choices only. The image acts on them (claude-pre-approval.service).
 data "coder_parameter" "claude_remote_control" {
   name         = "claude_remote_control"
+  order        = 3
   display_name = "Claude remote control"
   description  = "Workspace-wide (the workspace is the sandbox): grant Claude remote control's one-time consent, so it never waits on that prompt."
   type         = "bool"
@@ -60,11 +75,25 @@ data "coder_parameter" "claude_remote_control" {
 
 data "coder_parameter" "claude_trust_workspace" {
   name         = "claude_trust_workspace"
+  order        = 4
   display_name = "Claude trust workspace"
   description  = "Workspace-wide (the workspace is the sandbox): trust the cloned repository in Claude, and approve every project's MCP servers. Switch off for really untrusted code."
   type         = "bool"
   default      = "true"
   mutable      = false
+}
+
+# Acted on at each start (claude-repo-plugins.service); off installs nothing new and removes nothing. Offered only
+# while the repository is trusted: installing its plugins grants more than trusting it.
+data "coder_parameter" "claude_install_repo_plugins" {
+  count        = tobool(data.coder_parameter.claude_trust_workspace.value) ? 1 : 0
+  name         = "claude_install_repo_plugins"
+  order        = 5
+  display_name = "Auto-install enabled Claude plugins from repo"
+  description  = "At each start, install for you every Claude plugin the repository's .claude/settings.json enables, with the marketplaces it declares."
+  type         = "bool"
+  default      = "true"
+  mutable      = true
 }
 
 resource "coder_agent" "main" {
@@ -76,6 +105,7 @@ resource "coder_agent" "main" {
   # every agent service.
   env = {
     REPO_URL                          = data.coder_parameter.repo_url.value
+    REPO_BRANCH                       = data.coder_parameter.repo_branch.value
     REPO_DIR                          = local.repo_dir
     GIT_AUTHOR_NAME                   = local.git_name
     GIT_AUTHOR_EMAIL                  = local.git_email
@@ -83,6 +113,8 @@ resource "coder_agent" "main" {
     GIT_COMMITTER_EMAIL               = local.git_email
     CLAUDE_PREAPPROVE_REMOTE_CONTROL  = data.coder_parameter.claude_remote_control.value
     CLAUDE_PREAPPROVE_TRUST_WORKSPACE = data.coder_parameter.claude_trust_workspace.value
+    # Off with trust off, whatever an older build or the command line set it to.
+    CLAUDE_INSTALL_REPO_PLUGINS = try(data.coder_parameter.claude_install_repo_plugins[0].value, "false")
   }
 
   # Runs as dev in bash (compgen is a bash builtin). Coder secrets are in its environment, so the clone can use
@@ -94,9 +126,9 @@ resource "coder_agent" "main" {
   startup_script          = <<-EOT
     set -eu
     cloned=true
-    if [ ! -d "$REPO_DIR/.git" ] && ! git clone "$REPO_URL" "$REPO_DIR"; then
+    if [ ! -d "$REPO_DIR/.git" ] && ! git clone $${REPO_BRANCH:+--branch "$REPO_BRANCH"} "$REPO_URL" "$REPO_DIR"; then
       cloned=false
-      echo "ERROR: could not clone $REPO_URL into $REPO_DIR (see git's message above)." >&2
+      echo "ERROR: could not clone $REPO_URL$${REPO_BRANCH:+ at branch $REPO_BRANCH} into $REPO_DIR (see git's message above)." >&2
       echo "ERROR: starting the agent services anyway; clone the repository from a terminal." >&2
     fi
     systemctl --user import-environment $(compgen -e)
@@ -150,7 +182,7 @@ resource "coder_app" "opencode" {
 resource "docker_image" "main" {
   # Renovate proposes digest bumps: its terraform manager reads a docker_image name only as a literal string, so
   # keep the reference here, not in a local or variable.
-  name         = "ghcr.io/plume-works/coder-template:edge@sha256:5d3d6dba9ef91486aab12218035ca704c373adaa97d401c611ef003f6ec01e51"
+  name         = "ghcr.io/plume-works/coder-template:edge@sha256:58b25f5a73098706ae3c480db2daadb53c864d416aab34f095afcf503cb41854"
   keep_locally = true
 }
 

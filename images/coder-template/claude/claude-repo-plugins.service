@@ -1,0 +1,15 @@
+[Unit]
+Description=Claude plugins the cloned repository enables (the Coder template's choice)
+PartOf=agent-services.target
+# Its installs add to the user settings the Claude default settings write, and remote control's sessions must
+# start with the plugins in place.
+After=claude-default-settings.service claude-pre-approval.service
+Before=claude-remote-control.service
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+# The workspace's start and remote control wait on it, and a oneshot has no start timeout of its own: a stalled
+# download would hold them up for as long as it stalls.
+TimeoutStartSec=2min
+ExecStart=/usr/local/bin/claude-repo-plugins

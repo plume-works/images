@@ -161,7 +161,7 @@ RUN case "$(uname -m)" in x86_64) p=linux-x64 ;; aarch64) p=linux-arm64 ;; esac;
 # Must stay on 2.x (smoke.sh checks it); Renovate offers the highest version, and the anchored extractVersion
 # skips the repository's process-daemon-v* releases.
 # renovate: datasource=github-releases depName=anomalyco/opencode extractVersion=^v(?<version>.+)$
-ARG OPENCODE_VERSION=2.3.2
+ARG OPENCODE_VERSION=2.4.1
 RUN case "$(uname -m)" in x86_64) p=linux-x64 ;; aarch64) p=linux-arm64 ;; esac; d=$(mktemp -d) \
  && curl -fsSL "https://github.com/anomalyco/opencode/releases/download/v${OPENCODE_VERSION}/opencode-$p.tar.gz" -o "$d/opencode.tgz" \
  && tar -xzf "$d/opencode.tgz" -C "$d" \

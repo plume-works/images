@@ -1,13 +1,14 @@
 // Do not add the docker-in-docker Feature: the image runs its own Docker engine under systemd.
 {
 	"name": "images",
-	"image": "ghcr.io/plume-works/devcontainer-base:edge@sha256:410d3ebb215e38ef436602c34c933d6dbf1382dcf0d31f9ebb964058ba42f2d2",
+	"image": "ghcr.io/plume-works/devcontainer-base:edge@sha256:449c26c94d2cdd35e56f2d9afa88e05d7ed426b8bae589e7e5798b954251f93f",
 	"privileged": true,
 	"mounts": [
 		"source=dc-${devcontainerId}-docker,target=/var/lib/docker,type=volume",
 		"source=dc-${devcontainerId}-containerd,target=/var/lib/containerd,type=volume",
 		"source=dc-${devcontainerId}-home,target=/home/dev,type=volume"
 	],
+	"postCreateCommand": "uv run pre-commit install",
 
 	// The image's metadata already sets the remote user (dev) and installs the Claude Code extension.
 	"customizations": {

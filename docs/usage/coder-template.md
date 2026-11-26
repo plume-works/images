@@ -19,7 +19,7 @@ This page is for the administrator of the Coder host.
 
 ## Pushing the template
 
-Nothing pushes it automatically. 
+Nothing pushes it automatically.
 
 See https://coder.com/docs/install/cli/ on how to install coder cli. TLDR; for linux/macos
 
@@ -56,9 +56,12 @@ come from the front matter of the template's README.
   switched off at creation, else by running `claude` in it
   ([ADR 0017](../adr/0017-anthropic-tokens-kept-from-remote-control.md),
   [ADR 0016](../adr/0016-claude-pre-approval-on-by-default.md)).
+- A Claude plugin the repository enables but that is missing: `journalctl --user -u claude-repo-plugins` says
+  which marketplace or plugin could not be installed at the last start (a private marketplace needs a
+  `GITHUB_TOKEN` Coder secret).
 - The Claude pre-approval choices are workspace-wide, because the workspace is the sandbox: only trust names the
   cloned repository; every project's MCP servers in the workspace are approved ([ADR 0016](../adr/0016-claude-pre-approval-on-by-default.md)).
-- Claude default settings (`images/coder-template/claude-default-settings.json`) are written over
+- Claude default settings (`images/coder-template/claude/claude-default-settings.json`) are written over
   `~/.claude/settings.json` at every workspace start, so a change made there lasts only until the next start;
   `~/.claude.json` and project settings are untouched.
 - One volume per workspace persists across rebuilds: `/home/dev`. Everything else is recreated at every start,
