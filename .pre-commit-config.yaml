@@ -1,0 +1,82 @@
+default_install_hook_types: [pre-commit, pre-merge-commit, pre-push]
+default_stages: [pre-commit, pre-merge-commit, pre-push, manual]
+
+# Hook tools come from uv.lock rather than pre-commit's own environments, so Renovate bumps them with the rest.
+repos:
+  - repo: local
+    hooks:
+      - id: end-of-file-fixer
+        name: fix end of files
+        entry: uv run end-of-file-fixer
+        language: system
+        types: [text]
+
+      - id: trailing-whitespace
+        name: trim trailing whitespace
+        entry: uv run trailing-whitespace-fixer
+        language: system
+        types: [text]
+
+      - id: check-merge-conflict
+        name: check for merge conflicts
+        entry: uv run check-merge-conflict
+        language: system
+        types: [text]
+
+      - id: mixed-line-ending
+        name: mixed line ending
+        entry: uv run mixed-line-ending
+        language: system
+        types: [text]
+        args: [--fix=lf]
+
+      # Changes go into the default branch only through pull requests.
+      - id: no-commit-to-branch
+        name: don't commit to branch
+        entry: uv run no-commit-to-branch
+        language: system
+        pass_filenames: false
+        always_run: true
+        args: [--branch, main]
+
+      - id: ruff-check
+        name: ruff check
+        entry: uv run ruff check --fix --force-exclude
+        language: system
+        types: [python]
+
+      - id: ruff-format
+        name: ruff format
+        entry: uv run ruff format --force-exclude
+        language: system
+        types: [python]
+
+      - id: shellcheck
+        name: shellcheck
+        entry: uv run shellcheck --external-sources
+        language: system
+        types: [shell]
+
+      - id: hadolint
+        name: hadolint
+        entry: uv run hadolint --failure-threshold info
+        language: system
+        types: [dockerfile]
+
+      - id: actionlint
+        name: actionlint
+        entry: uv run actionlint
+        language: system
+        files: ^\.github/workflows/.+\.ya?ml$
+
+      # validate needs init, and both work only on the whole module.
+      - id: terraform
+        name: terraform fmt and validate
+        entry: >-
+          -e HOME=/tmp --entrypoint sh
+          hashicorp/terraform:1.17.2@sha256:6e9c1e647c31a960dc9b59e13272f9111d90010c10b717f77ffb324767660475
+          -c 'cd templates/coder && terraform fmt && terraform init -backend=false -input=false >/dev/null
+          && terraform validate'
+        language: docker_image
+        files: ^templates/coder/
+        pass_filenames: false

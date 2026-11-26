@@ -8,6 +8,7 @@
 		"source=dc-${devcontainerId}-containerd,target=/var/lib/containerd,type=volume",
 		"source=dc-${devcontainerId}-home,target=/home/dev,type=volume"
 	],
+	"postCreateCommand": "uv run pre-commit install",
 
 	// The image's metadata already sets the remote user (dev) and installs the Claude Code extension.
 	"customizations": {

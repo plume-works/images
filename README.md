@@ -74,15 +74,14 @@ and check:
 
 ### Linting
 
-`.github/workflows/lint.yml` runs hadolint, shellcheck, actionlint and Terraform `fmt`/`validate` on every pull
-request; any finding fails it. Locally, from the repository root:
+[pre-commit](https://pre-commit.com/) runs every linter, hadolint, shellcheck, actionlint, ruff and Terraform
+`fmt`/`validate` among them, from `.pre-commit-config.yaml`; `.github/workflows/lint.yml` runs it on every pull request,
+and any finding fails it. The tools are pinned in `uv.lock`. The dev container installs the git hooks; elsewhere, or to
+run them all by hand:
 
 ```sh
-docker run --rm -i -v "$PWD/.hadolint.yaml:/.config/hadolint.yaml" hadolint/hadolint:v2.15.1 < images/core/Dockerfile
-docker run --rm -v "$PWD:/mnt" -w /mnt --entrypoint sh koalaman/shellcheck-alpine:v0.11.0 .github/scripts/shellcheck-all.sh
-docker run --rm -v "$PWD:/repo" -w /repo rhysd/actionlint:1.7.12
-T="docker run --rm -u $(id -u):$(id -g) -e HOME=/tmp -v $PWD:/w -w /w hashicorp/terraform:1.17.2 -chdir=templates/coder"
-$T fmt -check -diff && $T init -backend=false -input=false && $T validate
+uv run pre-commit install
+uv run pre-commit run --all-files
 ```
 
 ### How versions are updated
