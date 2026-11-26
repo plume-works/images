@@ -19,7 +19,7 @@ This page is for the administrator of the Coder host.
 
 ## Pushing the template
 
-Nothing pushes it automatically. 
+Nothing pushes it automatically.
 
 See https://coder.com/docs/install/cli/ on how to install coder cli. TLDR; for linux/macos
 

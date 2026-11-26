@@ -7,20 +7,21 @@ the hash no longer matches. Emptying the file as soon as it is written therefore
 
 Fails open: a file this misses is used as before. Tells systemd it is ready once its watches are in place.
 """
+
 import ctypes
 import os
 import socket
 import struct
 
-ROOT = os.path.expanduser("~/.claude/bridge-spawn")  # remote control ignores CLAUDE_CONFIG_DIR here
-NAME = "append-system-prompt.txt"
+ROOT = os.path.expanduser('~/.claude/bridge-spawn')  # remote control ignores CLAUDE_CONFIG_DIR here
+NAME = 'append-system-prompt.txt'
 IN_CLOSE_WRITE, IN_MOVED_TO, IN_CREATE, IN_IGNORED = 0x8, 0x80, 0x100, 0x8000
 IN_ONLYDIR, IN_ISDIR = 0x01000000, 0x40000000
 
 libc = ctypes.CDLL(None, use_errno=True)
 inotify = libc.inotify_init1(os.O_CLOEXEC)
 if inotify < 0:
-    raise OSError(ctypes.get_errno(), "inotify_init1")
+    raise OSError(ctypes.get_errno(), 'inotify_init1')
 dirs = {}
 
 
@@ -47,25 +48,25 @@ def add_session(path):
 
 os.makedirs(ROOT, exist_ok=True)
 if not watch(ROOT, IN_CREATE | IN_MOVED_TO):
-    raise OSError(ctypes.get_errno(), f"inotify_add_watch {ROOT}")
+    raise OSError(ctypes.get_errno(), f'inotify_add_watch {ROOT}')
 for entry in os.scandir(ROOT):
     if entry.is_dir(follow_symlinks=False):
         add_session(entry.path)
 
-if address := os.environ.get("NOTIFY_SOCKET"):
+if address := os.environ.get('NOTIFY_SOCKET'):
     with socket.socket(socket.AF_UNIX, socket.SOCK_DGRAM) as s:
-        s.sendto(b"READY=1", "\0" + address[1:] if address.startswith("@") else address)
+        s.sendto(b'READY=1', '\0' + address[1:] if address.startswith('@') else address)
 
 while True:
     buf = os.read(inotify, 65536)
     i = 0
     while i < len(buf):
-        wd, mask, _, size = struct.unpack_from("iIII", buf, i)
-        name = os.fsdecode(buf[i + 16 : i + 16 + size].rstrip(b"\0"))
+        wd, mask, _, size = struct.unpack_from('iIII', buf, i)
+        name = os.fsdecode(buf[i + 16 : i + 16 + size].rstrip(b'\0'))
         i += 16 + size
         if mask & IN_IGNORED:
             if dirs.pop(wd, None) == ROOT:
-                raise SystemExit(f"{ROOT} went away")  # systemd restarts us, which recreates it
+                raise SystemExit(f'{ROOT} went away')  # systemd restarts us, which recreates it
         elif dirs.get(wd) == ROOT:
             if mask & IN_ISDIR:
                 add_session(os.path.join(ROOT, name))
