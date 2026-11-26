@@ -61,7 +61,7 @@ def main() -> int:
         return 0
     try:
         todo = steps(Path(os.environ['REPO_DIR']))
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001
         report("read the repository's Claude settings", e)
         return 1
     failed = False
@@ -69,7 +69,7 @@ def main() -> int:
     for what, step in todo:
         try:
             step()
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001
             report(what, e)
             failed = True
     return int(failed)

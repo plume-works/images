@@ -21,9 +21,7 @@ package = false
 line-length = 120
 
 [tool.ruff.lint]
-extend-select = ["B", "I", "UP", "W"]
-# Scripts report a failed step and carry on with the rest (AGENTS.md), whatever it raised.
-ignore = ["BLE001"]
+extend-select = ["B", "BLE", "I", "UP", "W"]
 
 [tool.ruff.format]
 quote-style = "single"
