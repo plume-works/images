@@ -27,7 +27,7 @@ pass "the homes of root and dev hold only shell start-up files"
 pass "dev is UID 1000 with bash and passwordless sudo"
 
 as() { if [ "$1" = root ]; then bash -c "$2"; else su "$1" -c "$2"; fi; }
-for tool in git gh git-lfs uv uvx python python3 bun bunx cmake ninja fish jq tmux btop claude opencode; do
+for tool in git gh git-lfs uv uvx python python3 bun bunx cmake ninja fish mise jq tmux btop claude opencode; do
   for user in root dev; do
     path=$(as "$user" "command -v $tool") || fail "$tool is not on $user's PATH"
     case "$(readlink -f "$path")" in
@@ -113,6 +113,16 @@ done
 says 'Updates are disabled' env -i PATH=/usr/local/bin:/usr/bin:/bin HOME=/root claude update \
   || fail "claude update is not refused with an empty environment"
 pass "self-updating is off for claude and opencode, as root, as dev and in a fresh login"
+
+for how in "as root" "as dev" "su -l dev -c"; do
+  says 'cannot update' $how 'timeout 60 mise self-update --yes' || fail "mise self-update is not refused ($how)"
+  # An interactive shell, since that is where start-up files would activate mise.
+  path=$($how 'bash -ic "echo \$PATH" 2>/dev/null') || fail "no interactive shell ($how)"
+  case "$path" in
+    "" | *mise*) fail "PATH in an interactive shell is '$path' ($how)" ;;
+  esac
+done
+pass "mise refuses to update itself and puts nothing on PATH, as root, as dev and in a fresh login"
 CHECKS
 
 docker run --rm -i --privileged -v /var/lib/docker "$image" bash -s <<'CHECKS'

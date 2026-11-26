@@ -6,12 +6,18 @@
 ## What is in it
 
 - Ubuntu's Python (`python`, `python3`) and `uv`, Bun (there is no Node.js), CMake, Ninja, Git, Git LFS, GitHub CLI, fish, jq, tmux and btop.
+- [mise](https://mise.jdx.dev/), for the tools a repository needs that the image does not carry.
 - The Claude Code and OpenCode command-line tools, installed bare: no settings, plugins, skills, MCP servers or
   credentials, and they never update themselves.
 - The Docker engine, CLI, Buildx and Compose.
 
 Every tool is installed system-wide, so it works wherever a CI system points `HOME`. The default user is root; a
 non-root user `dev` (UID 1000, passwordless sudo, in the `docker` group) exists for interactive use.
+
+mise is installed but not activated ([ADR 0024](../adr/0024-mise-for-tools-the-image-does-not-carry.md)). A
+repository lists its extra tools in its `mise.toml`, and `mise install` puts them in the user's home. They stay off
+`PATH` until the user activates mise (`mise activate` in a shell's start-up file) or runs them with `mise exec`, as
+a CI job does. mise does not update itself; a newer image brings a newer mise.
 
 git authenticates to GitHub through the GitHub CLI wherever `GH_TOKEN` or `GITHUB_TOKEN` is set.
 
