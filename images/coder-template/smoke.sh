@@ -245,21 +245,22 @@ as_dev cmp -s /usr/local/share/claude-code/default-settings.json /home/dev/.clau
   fail "a fresh home's ~/.claude/settings.json is not the Claude default settings"
 pass "the Claude default settings are written over a fresh home's or a dangling symlinked ~/.claude/settings.json"
 
-# A plugin that cannot be installed, and a marketplace whose settings are malformed: the step fails on its own,
-# naming both, and the steps around it still do their work.
+# A plugin that cannot be installed, and a marketplace whose settings are malformed, each put first: the step fails
+# on its own, naming both, carries on past them, and the steps around it still do their work.
 as_dev systemctl --user stop agent-services.target
 # shellcheck disable=SC2016 # a script for the container's shell
 as_dev sh -c 's=/home/dev/repo/.claude/settings.json &&
-  jq ".enabledPlugins[\"missing@nowhere\"] = true | .extraKnownMarketplaces.broken.source.source = \"github\"" $s >$s.new &&
+  jq ".extraKnownMarketplaces = {broken: {source: {source: \"github\"}}} + .extraKnownMarketplaces |
+    .enabledPlugins = {\"missing@nowhere\": true} + .enabledPlugins" $s >$s.new &&
   mv $s.new $s'
 as_dev systemctl --user set-environment CLAUDE_PREAPPROVE_REMOTE_CONTROL=true CLAUDE_INSTALL_REPO_PLUGINS=true
 as_dev systemctl --user start agent-services.target
 as_dev systemctl --user is-failed --quiet claude-repo-plugins.service ||
   fail "installing the repository's plugins does not fail on a plugin that cannot be installed"
 as_dev journalctl --user -u claude-repo-plugins.service --no-pager -q -o cat |
-  grep -qx 'error: could not install the plugin missing@nowhere' || fail "the failed plugin is not named in the journal"
+  grep -q '^error: could not install the plugin missing@nowhere: ' || fail "the failed plugin is not named in the journal"
 as_dev journalctl --user -u claude-repo-plugins.service --no-pager -q -o cat |
-  grep -qx 'error: could not add the marketplace broken: its github source has no repo' ||
+  grep -q "^error: could not add the marketplace broken: KeyError: 'repo'$" ||
   fail "the malformed marketplace is not named in the journal"
 claude_has "$plugins" '.plugins | has("smoke@smoke-market")' || fail "a failed plugin stopped the others' installs"
 for u in claude-default-settings.service claude-pre-approval.service; do

@@ -6,102 +6,73 @@ import json
 import os
 import subprocess
 import sys
+from functools import partial
 from pathlib import Path
 
 # Only an interactive session adds Claude Code's own marketplace, and a repository need not declare it.
 OFFICIAL = 'claude-plugins-official'
 OFFICIAL_SOURCE = 'anthropics/claude-plugins-official'
 
-LOCATION_FIELD = {'directory': 'path', 'file': 'path', 'url': 'url', 'github': 'repo', 'git': 'url'}
+LOCATION_FIELD = {'github': 'repo', 'git': 'url', 'url': 'url'}
 
 
-def marketplace_source(source: object, repo: str) -> str:
-    """The argument `claude plugin marketplace add` takes; ValueError says why there is none."""
-    if not isinstance(source, dict):
-        raise ValueError('it has no source')
-    kind = source.get('source')
-    field = LOCATION_FIELD.get(kind) if isinstance(kind, str) else None
-    if field is None:
-        raise ValueError(f'its kind of source, {kind!r}, is not supported here')
-    location = source.get(field)
-    if not isinstance(location, str) or not location:
-        raise ValueError(f'its {kind} source has no {field}')
-    if field == 'path':
+def claude_plugin(*args: str) -> None:
+    subprocess.run(['claude', 'plugin', *args], check=True)
+
+
+def add_marketplace(entry: dict, repo: Path) -> None:
+    source = entry['source']
+    kind = source['source']
+    if kind in ('directory', 'file'):
         # The command takes a path only when it starts with ./, ../, / or ~ (tools/market would be that GitHub
         # repository), and the settings' path is relative to the repository.
-        return str(Path(repo, Path(location).expanduser()))
-    for unsupported in ('path', 'sparsePaths'):
-        if unsupported in source:
-            raise ValueError(f'its {kind} source has {unsupported}, which the command cannot take')
-    ref = source.get('ref') if kind in ('github', 'git') else None
-    if ref is not None and not isinstance(ref, str):
-        raise ValueError(f'its {kind} source has a ref that is not a string')
-    return f'{location}#{ref}' if ref else location
+        location = str(repo / Path(source['path']).expanduser())
+    else:
+        location = source[LOCATION_FIELD[kind]]
+        if ref := source.get('ref'):
+            location += f'#{ref}'
+    claude_plugin('marketplace', 'add', location)
 
 
-def error(message: str) -> None:
+def steps(repo: Path) -> list:
+    settings_file = repo / '.claude' / 'settings.json'
+    settings = json.loads(settings_file.read_text()) if settings_file.is_file() else {}
+    enabled = [plugin for plugin, on in settings.get('enabledPlugins', {}).items() if on is True]
+    todo = [
+        (f'add the marketplace {name}', partial(add_marketplace, entry, repo))
+        for name, entry in settings.get('extraKnownMarketplaces', {}).items()
+    ]
+    if any(plugin.endswith(f'@{OFFICIAL}') for plugin in enabled):
+        todo.append((f'add the marketplace {OFFICIAL}', partial(claude_plugin, 'marketplace', 'add', OFFICIAL_SOURCE)))
+    todo += [
+        (f'install the plugin {plugin}', partial(claude_plugin, 'install', plugin, '--scope', 'user'))
+        for plugin in enabled
+    ]
+    return todo
+
+
+def report(what: str, e: Exception) -> None:
     # Printed at once, not at the end: the unit's start timeout kills the script mid-run.
-    print(f'error: could not {message}', file=sys.stderr, flush=True)
+    print(f'error: could not {what}: {type(e).__name__}: {e}', file=sys.stderr, flush=True)
 
 
 def main() -> int:
-    if os.environ.get('CLAUDE_INSTALL_REPO_PLUGINS', 'false') != 'true':
-        return 0
-    repo = os.environ.get('REPO_DIR')
-    if not repo:
-        error('find the repository: REPO_DIR is not set, and the Coder startup script imports it')
-        return 1
-    settings_file = Path(repo, '.claude', 'settings.json')
-    if not settings_file.is_file():
+    if os.environ.get('CLAUDE_INSTALL_REPO_PLUGINS') != 'true':
         return 0
     try:
-        settings = json.loads(settings_file.read_text())
-    except (OSError, ValueError, RecursionError) as e:
-        error(f'read {settings_file}: {e}')
+        todo = steps(Path(os.environ['REPO_DIR']))
+    except Exception as e:
+        report("read the repository's Claude settings", e)
         return 1
-    if not isinstance(settings, dict):
-        error(f'read {settings_file}: it is not a JSON object')
-        return 1
-
     failed = False
-
-    def section(key: str) -> dict:
-        nonlocal failed
-        value = settings.get(key)
-        if value is None:
-            return {}
-        if isinstance(value, dict):
-            return value
-        error(f'read {key} in {settings_file}: it is not a JSON object')
-        failed = True
-        return {}
-
-    def claude_plugin(*args: str, what: str) -> None:
-        nonlocal failed
+    # One catch-all per step, so that a bad entry or a failed install leaves the rest to run.
+    for what, step in todo:
         try:
-            ok = subprocess.run(['claude', 'plugin', *args]).returncode == 0
-        except OSError as e:
-            error(f'{what}: {e}')
+            step()
+        except Exception as e:
+            report(what, e)
             failed = True
-            return
-        if not ok:
-            error(what)
-            failed = True
-
-    enabled = [plugin for plugin, on in section('enabledPlugins').items() if on is True]
-    for name, entry in section('extraKnownMarketplaces').items():
-        try:
-            source = marketplace_source(entry.get('source') if isinstance(entry, dict) else None, repo)
-        except ValueError as e:
-            error(f'add the marketplace {name}: {e}')
-            failed = True
-            continue
-        claude_plugin('marketplace', 'add', source, what=f'add the marketplace {name}')
-    if any(plugin.endswith(f'@{OFFICIAL}') for plugin in enabled):
-        claude_plugin('marketplace', 'add', OFFICIAL_SOURCE, what=f'add the marketplace {OFFICIAL}')
-    for plugin in enabled:
-        claude_plugin('install', plugin, '--scope', 'user', what=f'install the plugin {plugin}')
-    return 1 if failed else 0
+    return int(failed)
 
 
 if __name__ == '__main__':
