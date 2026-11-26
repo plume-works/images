@@ -76,8 +76,8 @@ and check:
 
 [pre-commit](https://pre-commit.com/) runs every linter, hadolint, shellcheck, actionlint, ruff and Terraform
 `fmt`/`validate` among them, from `.pre-commit-config.yaml`; `.github/workflows/lint.yml` runs it on every pull request,
-and any finding fails it. The tools are pinned in `uv.lock`. The dev container installs the git hooks; elsewhere, or to
-run them all by hand:
+and any finding fails it. The Python-packaged tools are pinned in `uv.lock`, the Terraform image in
+`.pre-commit-config.yaml`. The dev container installs the git hooks; elsewhere, or to run them all by hand:
 
 ```sh
 uv run pre-commit install
