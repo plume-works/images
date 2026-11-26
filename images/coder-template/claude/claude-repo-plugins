@@ -37,10 +37,10 @@ def add_marketplace(entry: dict, repo: Path) -> None:
 def steps(repo: Path) -> list:
     settings_file = repo / '.claude' / 'settings.json'
     settings = json.loads(settings_file.read_text()) if settings_file.is_file() else {}
-    enabled = [plugin for plugin, on in settings.get('enabledPlugins', {}).items() if on is True]
+    enabled = [plugin for plugin, on in (settings.get('enabledPlugins') or {}).items() if on is True]
     todo = [
         (f'add the marketplace {name}', partial(add_marketplace, entry, repo))
-        for name, entry in settings.get('extraKnownMarketplaces', {}).items()
+        for name, entry in (settings.get('extraKnownMarketplaces') or {}).items()
     ]
     if any(plugin.endswith(f'@{OFFICIAL}') for plugin in enabled):
         todo.append((f'add the marketplace {OFFICIAL}', partial(claude_plugin, 'marketplace', 'add', OFFICIAL_SOURCE)))

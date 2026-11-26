@@ -270,4 +270,10 @@ claude_has .claude.json '.remoteDialogSeen == true' || fail "a failed plugin ins
 ! as_dev systemctl --user is-failed --quiet claude-remote-control.service || fail "remote control failed"
 pass "a plugin that cannot be installed, or a malformed marketplace, fails only its own step, which names it, and leaves the others to work"
 
+# shellcheck disable=SC2016 # a script for the container's shell
+as_dev sh -c 's=/home/dev/repo/.claude/settings.json &&
+  jq "del(.extraKnownMarketplaces.broken) | .enabledPlugins = null" $s >$s.new && mv $s.new $s'
+as_dev systemctl --user restart claude-repo-plugins.service || fail "a null enabledPlugins fails the plugin step"
+pass "a null settings section counts as empty"
+
 echo "coder-template smoke test passed: $image"
