@@ -190,7 +190,7 @@ ARG DOCKER_VERSION=29.10.1
 # renovate: datasource=deb depName=docker-buildx-plugin extractVersion=^(?<version>[^-]+)-
 ARG BUILDX_VERSION=0.39.1
 # renovate: datasource=deb depName=docker-compose-plugin extractVersion=^(?<version>[^-]+)-
-ARG COMPOSE_VERSION=5.8.0
+ARG COMPOSE_VERSION=5.8.1
 # renovate: datasource=deb depName=containerd.io versioning=deb extractVersion=^(?<version>[^~]+)~
 ARG CONTAINERD_VERSION=2.4.2-4
 RUN install -m0755 -d /etc/apt/keyrings \
