@@ -34,7 +34,16 @@
   "disableArtifact": true,
   "enabledPlugins": {
     "context7@claude-plugins-official": true,
-    "mattpocock-skills@claude-plugins-official": true
+    "mattpocock-skills@claude-plugins-official": true,
+    "agentdev@agent-devcontainer": true
+  },
+  "extraKnownMarketplaces": {
+    "agent-devcontainer": {
+      "source": {
+        "source": "github",
+        "repo": "plume-works/agent-devcontainer"
+      }
+    }
   },
   "autoMemoryEnabled": false
 }

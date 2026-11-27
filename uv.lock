@@ -3,10 +3,37 @@ revision = 5
 requires-python = ">=3.14"
 
 [[package]]
-name = "actionlint-py"
-version = "1.7.12.25"
+name = "actionlint-kjanat"
+version = "1.17.1"
 source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/33/75/36ee89db39bb3620d1e46fe1f6ec77d6000d30ff45345699e51b4c850e83/actionlint_py-1.7.12.25.tar.gz", hash = "sha256:83f83be4cd317c79b15cbb7022787513a6994f00bfb2dd8da02fa4e62b4f640d", size = 12438, upload-time = "2026-09-22T16:24:42.477Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/22/81/e9f1ca954778c1dced63f1062da2e652b1f7598b6aa8e3fb5be9930f6a03/actionlint_kjanat-1.17.1-1-py3-none-macosx_13_0_arm64.whl", hash = "sha256:e3916fbc822c88edf9f7378a4483c924299c8f668e9b38fb71afae3319c9c684", size = 2503035, upload-time = "2026-11-09T13:23:03.28Z" },
+    { url = "https://files.pythonhosted.org/packages/9b/a3/75ef18263f0484b444cd0f543de9b47886c998986767b108eaf8bed97e9d/actionlint_kjanat-1.17.1-1-py3-none-macosx_13_0_x86_64.whl", hash = "sha256:4a233719178e76436b5af858493750e07f1b4dc744c4ba66318b323dce506e9f", size = 2744822, upload-time = "2026-11-09T13:23:05.107Z" },
+    { url = "https://files.pythonhosted.org/packages/58/97/8e00bd8823d5424d66dacd0123e525231b68c51a01f3c076f433f5fe3213/actionlint_kjanat-1.17.1-1-py3-none-manylinux_2_17_aarch64.whl", hash = "sha256:69aa98119ac830160a13044ced78467828b476b57f4671fcf2108a6065292ca4", size = 2432268, upload-time = "2026-11-09T13:23:06.866Z" },
+    { url = "https://files.pythonhosted.org/packages/99/e5/d9800aca8d50acdb0dccf59126008cabbd1bc3e472b15fdbb6d9f92a3587/actionlint_kjanat-1.17.1-1-py3-none-manylinux_2_17_armv7l.whl", hash = "sha256:36bf04ff0a74e91fcfed64e04c12ddb3471e1275dbebcc43d671d10eac0f6ad4", size = 2573643, upload-time = "2026-11-09T13:23:08.728Z" },
+    { url = "https://files.pythonhosted.org/packages/e1/2d/620513c9a9fe7d5ea3992a11b9fbcb5f22f61b2ded446564f2e46779bc41/actionlint_kjanat-1.17.1-1-py3-none-manylinux_2_17_i686.whl", hash = "sha256:bfa7cbd6d1fcfae72f95f4f0bfe075d40e2ff3a944578396eac017f02c155be3", size = 2533911, upload-time = "2026-11-09T13:23:10.154Z" },
+    { url = "https://files.pythonhosted.org/packages/34/6a/dd0bf94a26f591a458647c2b0388eaa3011daa4ce94ff922e0fca9d8a7c2/actionlint_kjanat-1.17.1-1-py3-none-manylinux_2_17_x86_64.whl", hash = "sha256:3483edd99806e10ce2abf25efd73fb6546be66b1682cb28a8777541b6b17fb32", size = 2732715, upload-time = "2026-11-09T13:23:12.106Z" },
+    { url = "https://files.pythonhosted.org/packages/1b/59/2a30fd637e1f17b667716599ac5e8170a6edaad3b3c0f3998adca0517eb1/actionlint_kjanat-1.17.1-1-py3-none-musllinux_1_1_aarch64.whl", hash = "sha256:9b7d953b4d15269f61a3b8475777d55d2b3890f36c69f3e7a01463022c81799e", size = 2432268, upload-time = "2026-11-09T13:23:13.579Z" },
+    { url = "https://files.pythonhosted.org/packages/61/57/0131da230c531d055a7068b308dc4826706c7e594cf033c297428c04c9ca/actionlint_kjanat-1.17.1-1-py3-none-musllinux_1_1_armv7l.whl", hash = "sha256:6633783fd83644dda59ba24aa3a5aa4780f041fb66ba4d7da62c67b97946b26f", size = 2573641, upload-time = "2026-11-09T13:23:15.182Z" },
+    { url = "https://files.pythonhosted.org/packages/ab/32/cb8d81ffaed47e56260f5a67bb0fe5a0395a3add64fd2ab98e1d120bc83e/actionlint_kjanat-1.17.1-1-py3-none-musllinux_1_1_i686.whl", hash = "sha256:4abdd66a41bdb799205eb247f83d5c1df226493c5420ca8f6f7b4d6f2bdf7118", size = 2533912, upload-time = "2026-11-09T13:23:16.951Z" },
+    { url = "https://files.pythonhosted.org/packages/67/78/99647a53976700a405dc618ffa1a3b810dbfd393331f4fb8053a5c107360/actionlint_kjanat-1.17.1-1-py3-none-musllinux_1_1_x86_64.whl", hash = "sha256:e9320ea76ff912e84d8ffcbbdbb64f87b692623ef98038e1316885e34ff44ce9", size = 2732713, upload-time = "2026-11-09T13:23:18.782Z" },
+    { url = "https://files.pythonhosted.org/packages/84/7b/71054558542d13d5dda78004d9b471260b231dde73007ecbec923ceaa26b/actionlint_kjanat-1.17.1-1-py3-none-win32.whl", hash = "sha256:0d42e19bcd618b8213abcea599c4d1eff6cfcdefc1f281ce7978e30b179ab213", size = 2719431, upload-time = "2026-11-09T13:23:20.409Z" },
+    { url = "https://files.pythonhosted.org/packages/9a/c9/e9caf9d8247731924a827441e76f0654dded15b4b61b6fbc19e8582c6cb4/actionlint_kjanat-1.17.1-1-py3-none-win_amd64.whl", hash = "sha256:5a04c8d3a22ffdcf3998a6092ae6c0b316fbd03617481081356e8fd89d858886", size = 2855880, upload-time = "2026-11-09T13:23:22.126Z" },
+    { url = "https://files.pythonhosted.org/packages/06/21/a13c0fe69935093bf85ce2273427b9147c49f9e8b402d11c346b59b3ad82/actionlint_kjanat-1.17.1-1-py3-none-win_arm64.whl", hash = "sha256:62d9e606e1042827b29ece21c5c11a39442c0c52a0fbc8b9304810a9dce61c22", size = 2522992, upload-time = "2026-11-09T13:23:23.64Z" },
+    { url = "https://files.pythonhosted.org/packages/06/7e/0a9a0bbc8a3605c22729a7f9439109c6bfe0a4e1d074dad0f80a30ef020b/actionlint_kjanat-1.17.1-py3-none-macosx_13_0_arm64.whl", hash = "sha256:c9c5ce1a13ad09b4d0fc70e85601ddfa67633e27290f63dba106f54cfd5c6b12", size = 2503024, upload-time = "2026-11-09T13:08:45.838Z" },
+    { url = "https://files.pythonhosted.org/packages/f2/36/420fdc4a33b6d0da58f1590652e755e971c9cec9a5219afbfb8671ae24ab/actionlint_kjanat-1.17.1-py3-none-macosx_13_0_x86_64.whl", hash = "sha256:5df8d4064a04b01529b5fdb9a9b1c9e9f700cfa30fa659441d4c3f5ca12dbacb", size = 2744811, upload-time = "2026-11-09T13:08:47.559Z" },
+    { url = "https://files.pythonhosted.org/packages/5f/e7/5571c7ee9d77d8f4a87fe0c454fd6a30669e90dea741b48778fe9d09d312/actionlint_kjanat-1.17.1-py3-none-manylinux_2_17_aarch64.whl", hash = "sha256:580278800d68d27b646cfc613462a959b4db8adcd914bfe0b8ebc440377b07be", size = 2432261, upload-time = "2026-11-09T13:08:49.263Z" },
+    { url = "https://files.pythonhosted.org/packages/04/38/3baaf31b703a182afcd35e8ab62cd92cd685e3c715accb65a98e42793b51/actionlint_kjanat-1.17.1-py3-none-manylinux_2_17_armv7l.whl", hash = "sha256:f846f84a2c51c986044eb9b6847f3f972c32fa5c2e31a631bee8c0764d1731ab", size = 2573633, upload-time = "2026-11-09T13:08:51.456Z" },
+    { url = "https://files.pythonhosted.org/packages/c3/85/99cacc0568eefa40a47a7e3df35dcf3cd4f9d3c1f82e5f197e73e66c0d66/actionlint_kjanat-1.17.1-py3-none-manylinux_2_17_i686.whl", hash = "sha256:1bb74b58a15db04fe8fd79184f0aaf2170e269efddf7f1e7c20da18568c9583e", size = 2533906, upload-time = "2026-11-09T13:08:53.173Z" },
+    { url = "https://files.pythonhosted.org/packages/6a/17/8aab93bce0a077caf52d1dd4c52c74dcc6e2d4f087ac2818700ca6eb352e/actionlint_kjanat-1.17.1-py3-none-manylinux_2_17_x86_64.whl", hash = "sha256:73785b55fbef1530ba666fc6ea3b3f47867e56163d4969ca3fbfa30404f46ccb", size = 2732707, upload-time = "2026-11-09T13:08:54.901Z" },
+    { url = "https://files.pythonhosted.org/packages/77/7b/8ff584f2fde8b69b471d5b12c408ba6026ec519c3b76e53682145af1b581/actionlint_kjanat-1.17.1-py3-none-musllinux_1_1_aarch64.whl", hash = "sha256:90f2913174dd53ab58cd9b5560e20fbf1ce938b7269fe336ed20aaabef13b6f4", size = 2432260, upload-time = "2026-11-09T13:08:56.369Z" },
+    { url = "https://files.pythonhosted.org/packages/f8/6c/322304a8745ec80562c7907989f42bbf75d2eb52be09f8abfca970aab051/actionlint_kjanat-1.17.1-py3-none-musllinux_1_1_armv7l.whl", hash = "sha256:75acbd7c0e9ccc3fc01e66612a17855b615968803add24146ca21d5622ee282b", size = 2573632, upload-time = "2026-11-09T13:08:58.069Z" },
+    { url = "https://files.pythonhosted.org/packages/33/93/989775c12cc593d3b5dd471236339aca26dd5b02942db8e7d18fa7d7c524/actionlint_kjanat-1.17.1-py3-none-musllinux_1_1_i686.whl", hash = "sha256:417e476556c19394089ce0df265962e0c6ea6c8510daf774c92c4cb0543a53d2", size = 2533903, upload-time = "2026-11-09T13:08:59.527Z" },
+    { url = "https://files.pythonhosted.org/packages/1f/8e/464ff7e3c84134f6476f556f85e1a2248ad4219ce0cd85be821656bb191c/actionlint_kjanat-1.17.1-py3-none-musllinux_1_1_x86_64.whl", hash = "sha256:7cc02eca9416247b307e7bdbed2c8e4831d7aac64a34371ad313c82e7365e197", size = 2732704, upload-time = "2026-11-09T13:09:00.891Z" },
+    { url = "https://files.pythonhosted.org/packages/00/57/d371454273174e67d3fceacbb2e8b4cef8c0e13e19272160bb61a4175a9f/actionlint_kjanat-1.17.1-py3-none-win32.whl", hash = "sha256:73f2eb4a75b7859127fd720af0efc63996282cdc1831186959d28683a2e278a2", size = 2719423, upload-time = "2026-11-09T13:09:02.393Z" },
+    { url = "https://files.pythonhosted.org/packages/be/d3/37aa6203e26f522b9cc7ca62a74644525418dccd23beeb61dc0353e5c2e9/actionlint_kjanat-1.17.1-py3-none-win_amd64.whl", hash = "sha256:81814320cd46b32bb8673cdb792f3dd2de1df3599340a569f346b70cb0c384e1", size = 2855876, upload-time = "2026-11-09T13:09:03.755Z" },
+    { url = "https://files.pythonhosted.org/packages/7a/54/6a9dd59d1e676653315fb214156ddd501934eafa59257980b4efa10b9460/actionlint_kjanat-1.17.1-py3-none-win_arm64.whl", hash = "sha256:566bbb1acb4447d3542d5765034de39cfd6095d5003fc06d53a661f209222378", size = 2522985, upload-time = "2026-11-09T13:09:05.759Z" },
+]
 
 [[package]]
 name = "cfgv"
@@ -64,7 +91,7 @@ source = { virtual = "." }
 
 [package.dev-dependencies]
 dev = [
-    { name = "actionlint-py" },
+    { name = "actionlint-kjanat" },
     { name = "hadolint-py" },
     { name = "pre-commit" },
     { name = "pre-commit-hooks" },
@@ -76,7 +103,7 @@ dev = [
 
 [package.metadata.requires-dev]
 dev = [
-    { name = "actionlint-py", specifier = "==1.7.12.25" },
+    { name = "actionlint-kjanat", specifier = "==1.17.1" },
     { name = "hadolint-py", specifier = "==2.15.1.3" },
     { name = "pre-commit", specifier = "==4.7.0" },
     { name = "pre-commit-hooks", specifier = "==6.0.0" },

@@ -11,7 +11,7 @@ under the `sysbox-runc` runtime with systemd as PID 1; there is no privileged fa
 workspace fails to start.
 
 One container per workspace, from `ghcr.io/plume-works/coder-template` pinned by digest, with the repository you
-name cloned into `/home/dev/<repository>`. Source and documentation:
+name cloned into `/home/dev/<repository>`, at the branch you name or else its default branch. Source and documentation:
 [plume-works/images](https://github.com/plume-works/images), `templates/coder/`, image in `images/coder-template/`.
 
 ## What you get
@@ -51,6 +51,13 @@ means not granted: nothing already granted is revoked. Claude's onboarding welco
 
 Remote control sessions run in Claude's auto permission mode.
 
+## Claude plugins from the repository
+
+**Auto-install enabled Claude plugins from repo**, on by default and changeable at any restart: at each start,
+every Claude plugin the repository's `.claude/settings.json` enables is installed for you, with the marketplaces
+it declares, so remote control sessions have them too. It is offered only with **Claude trust workspace** on;
+with trust off, nothing is installed. Off installs nothing new and removes nothing.
+
 ## First-time setup
 
 Run `claude` in the repository and `/login` with your claude.ai subscription (accept the trust prompt if you
@@ -62,6 +69,6 @@ sign-ins live in your home directory.
 Your home directory (the checkout, agent sign-ins, shell history) persists for the life of the workspace.
 Everything else comes fresh from the image at every start, the Docker engine's images, containers, volumes and
 build cache included ([why](https://github.com/plume-works/images/blob/main/docs/adr/0014-no-engine-storage-volumes.md)).
-The repository is cloned only if `/home/dev/<repository>` has no checkout yet; the URL cannot be changed later.
+The repository is cloned only if `/home/dev/<repository>` has no checkout yet; the URL and branch cannot be changed later.
 If the clone fails (a private repository without `GITHUB_TOKEN`, say), the workspace still starts and the startup
 script's log says why; clone it into `/home/dev/<repository>` from a terminal and the agent services pick it up.
