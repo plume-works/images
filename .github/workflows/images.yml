@@ -34,7 +34,7 @@ jobs:
       pass: ${{ steps.filter.outputs.pass }}
     steps:
       - id: filter
-        uses: anton-matosov/actions/paths-filter@17af57d38e82bd8b73fc764101c4b94563c4d39e # v1.0.0
+        uses: anton-matosov/actions/paths-filter@73e15d296bbe58ac1fe04f0bc201c3001d669e19 # v1.0.0
         with:
           force: ${{ github.event_name == 'workflow_dispatch' }}
           filters: |
@@ -151,6 +151,6 @@ jobs:
     permissions: {}
     timeout-minutes: 10
     steps:
-      - uses: anton-matosov/actions/ci-finished@17af57d38e82bd8b73fc764101c4b94563c4d39e # v1.0.0
+      - uses: anton-matosov/actions/ci-finished@73e15d296bbe58ac1fe04f0bc201c3001d669e19 # v1.0.0
         with:
           needs: ${{ toJSON(needs) }}
