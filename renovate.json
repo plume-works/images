@@ -68,6 +68,12 @@
       "minimumReleaseAge": null
     },
     {
+      "description": "Terraform modules from the Coder registry bump with no release wait: the registry publishes no release timestamps, so the wait would hold every update forever, silently",
+      "matchDatasources": ["terraform-module"],
+      "matchPackageNames": ["registry.coder.com/**"],
+      "minimumReleaseAge": null
+    },
+    {
       "description": "Child Dockerfiles default BASE_IMAGE to our own image for plain local builds; CI always builds them on this commit's parent. Never pin or bump it.",
       "matchManagers": ["dockerfile"],
       "matchPackageNames": ["ghcr.io/plume-works/**"],
