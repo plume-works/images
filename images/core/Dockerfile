@@ -8,7 +8,7 @@ SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 # step skips TLS peer checks for the snapshot host; apt still checks the archive's signatures and hashes.
 # --error-on=any: apt otherwise ignores a failed index download and installs from what it already has.
 # renovate: datasource=custom.ubuntu-snapshot depName=ubuntu-snapshot versioning=regex:^(?<major>\d{8})T(?<minor>\d{6})Z$
-ARG UBUNTU_SNAPSHOT_VERSION=20261127T010250Z
+ARG UBUNTU_SNAPSHOT_VERSION=20261127T043626Z
 # jq and btop are interactive conveniences outside the admission rule below. tmux: the Coder template image runs
 # its agent services inside it (ADR 0015).
 RUN echo "APT::Snapshot \"${UBUNTU_SNAPSHOT_VERSION}\";" > /etc/apt/apt.conf.d/50snapshot \
@@ -67,7 +67,7 @@ RUN apt-get update --error-on=any \
  && rm -rf /var/lib/apt/lists/*
 # With no Python of its own, uv uses Ubuntu's. A user's own extra Pythons and tools go to their home.
 # renovate: datasource=github-releases depName=astral-sh/uv
-ARG UV_VERSION=0.13.9
+ARG UV_VERSION=0.13.10
 RUN t="$(uname -m)-unknown-linux-gnu"; d=$(mktemp -d) \
  && u="https://github.com/astral-sh/uv/releases/download/${UV_VERSION}/uv-$t.tar.gz" \
  && curl -fsSL "$u" -o "$d/uv.tgz" \
