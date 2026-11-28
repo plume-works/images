@@ -8,7 +8,7 @@ SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 # step skips TLS peer checks for the snapshot host; apt still checks the archive's signatures and hashes.
 # --error-on=any: apt otherwise ignores a failed index download and installs from what it already has.
 # renovate: datasource=custom.ubuntu-snapshot depName=ubuntu-snapshot versioning=regex:^(?<major>\d{8})T(?<minor>\d{6})Z$
-ARG UBUNTU_SNAPSHOT_VERSION=20261127T010250Z
+ARG UBUNTU_SNAPSHOT_VERSION=20261127T043626Z
 # jq and btop are interactive conveniences outside the admission rule below. tmux: the Coder template image runs
 # its agent services inside it (ADR 0015).
 RUN echo "APT::Snapshot \"${UBUNTU_SNAPSHOT_VERSION}\";" > /etc/apt/apt.conf.d/50snapshot \
