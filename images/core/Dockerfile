@@ -67,7 +67,7 @@ RUN apt-get update --error-on=any \
  && rm -rf /var/lib/apt/lists/*
 # With no Python of its own, uv uses Ubuntu's. A user's own extra Pythons and tools go to their home.
 # renovate: datasource=github-releases depName=astral-sh/uv
-ARG UV_VERSION=0.13.9
+ARG UV_VERSION=0.13.10
 RUN t="$(uname -m)-unknown-linux-gnu"; d=$(mktemp -d) \
  && u="https://github.com/astral-sh/uv/releases/download/${UV_VERSION}/uv-$t.tar.gz" \
  && curl -fsSL "$u" -o "$d/uv.tgz" \
