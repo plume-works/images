@@ -50,13 +50,6 @@
   ],
   "packageRules": [
     {
-      "description": "Docker's packages are looked up in the apt repository the core image installs them from, which publishes a release hours or days after GitHub does, so Renovate proposes only versions that install. The suite is the codename of the core image's Ubuntu release: change it with that release. The apt repository publishes no release timestamps, so these updates go ahead without the release wait rather than being held forever",
-      "matchDatasources": ["deb"],
-      "matchPackageNames": ["docker-*", "containerd.io"],
-      "registryUrls": ["https://download.docker.com/linux/ubuntu?suite=resolute&components=stable&binaryArch=amd64"],
-      "minimumReleaseAgeBehaviour": "timestamp-optional"
-    },
-    {
       "description": "The Ubuntu snapshot bumps with no release wait: it carries security fixes, and Ubuntu's updates have already passed its own -proposed testing. The archive changes several times a day, so it bumps only in an early-morning window (UTC), which keeps it to about one rebuild a day",
       "matchDatasources": ["custom.ubuntu-snapshot"],
       "minimumReleaseAge": null,
@@ -66,6 +59,13 @@
       "description": "An x.y.0 release waits longer than the default, since those usually carry the most bugs",
       "matchNewValue": "/^v?\\d+\\.\\d+\\.0$/",
       "minimumReleaseAge": "10 days"
+    },
+    {
+      "description": "Docker's packages are looked up in the apt repository the core image installs them from, which publishes a release hours or days after GitHub does, so Renovate proposes only versions that install. The suite is the codename of the core image's Ubuntu release: change it with that release. The apt repository publishes no release timestamps, so these updates skip the release wait rather than being held forever. Turning the wait off, rather than letting it pass without a timestamp, keeps Renovate from reporting every bump as a repository problem. This rule comes after the x.y.0 rule so that rule cannot bring the wait back",
+      "matchDatasources": ["deb"],
+      "matchPackageNames": ["docker-*", "containerd.io"],
+      "registryUrls": ["https://download.docker.com/linux/ubuntu?suite=resolute&components=stable&binaryArch=amd64"],
+      "minimumReleaseAge": null
     },
     {
       "description": "Child Dockerfiles default BASE_IMAGE to our own image for plain local builds; CI always builds them on this commit's parent. Never pin or bump it.",
