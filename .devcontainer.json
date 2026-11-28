@@ -1,7 +1,7 @@
 // Do not add the docker-in-docker Feature: the image runs its own Docker engine under systemd.
 {
 	"name": "images",
-	"image": "ghcr.io/plume-works/devcontainer-base:edge@sha256:6e8618e0b21d6739dac1a80db9a38972f2710c54dfadea61eed8ec8669933cda",
+	"image": "ghcr.io/plume-works/devcontainer-base:edge@sha256:8dcb433a6a5632afe3f6456adc8c60fa7601b56813903a43f51099d5c2f4587c",
 	"privileged": true,
 	"mounts": [
 		"source=dc-${devcontainerId}-docker,target=/var/lib/docker,type=volume",
