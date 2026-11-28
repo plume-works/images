@@ -4,11 +4,13 @@ Renovate keeps pins current. Updates merge on their own once the build passes, b
 the release is 3 days old, because the build cannot tell a bad release from a good one.
 An `x.y.0` release waits 10 days, since those usually have the most bugs.
 
-Three kinds of pin skip the wait, because their registries do not say when a release was published:
+Four kinds of pin skip the wait, because their registries do not say when a release was published:
 
 - Our own images bump as soon as `edge` moves. CI has already built and tested them.
 - Docker's engine packages bump as soon as Docker's apt repository has them. That repository already
   publishes hours or days after GitHub does.
+- Coder's Terraform modules bump as soon as Coder's registry has them. With the wait, Renovate would
+  never propose them.
 - The Ubuntu archive snapshot bumps as soon as the archive changes, since it carries security fixes
   ([ADR 0022](0022-all-inputs-are-pinned.md)).
 
